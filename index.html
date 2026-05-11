@@ -1,0 +1,1330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Last Address — Picking your retirement state by estate &amp; inheritance tax</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-alt: #fafafa;
+    --ink: #0a0a0a;
+    --ink-2: #404040;
+    --ink-3: #737373;
+    --ink-4: #a3a3a3;
+    --border: #e5e5e5;
+    --border-strong: #d4d4d4;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --good: #16a34a;
+    --good-soft: #f0fdf4;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --bad-soft: #fef2f2;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01', 'tnum';
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+
+  /* Header */
+  header.masthead {
+    padding: 32px 0 20px;
+  }
+  header.masthead h1 {
+    font-weight: 600;
+    font-size: clamp(24px, 3vw, 30px);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: var(--ink);
+  }
+
+  /* Layout */
+  main { padding: 0 0 80px; }
+  @media (max-width: 960px) {
+    .wrap { padding: 0 20px; }
+    header.masthead { padding: 40px 0 24px; }
+  }
+
+  /* Input */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .controls label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .controls .input-wrap {
+    display: inline-flex;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 0 12px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .controls .input-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .controls .input-wrap .prefix,
+  .controls .input-wrap .suffix {
+    font-size: 13px;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .controls input[type="number"] {
+    width: 70px;
+    padding: 8px 6px;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    outline: none;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+  }
+  .controls input[type="number"]::-webkit-outer-spin-button,
+  .controls input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Ranking table */
+  .table-shell {
+    max-width: 1100px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  ol.ranking {
+    list-style: none; padding: 0; margin: 0;
+  }
+  ol.ranking li.row {
+    display: grid;
+    grid-template-columns: 32px minmax(150px, 1fr) 110px 110px 110px 120px;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+    cursor: pointer;
+  }
+  ol.ranking li.row:last-child { border-bottom: none; }
+  ol.ranking li.row:hover { background: var(--surface-alt); }
+  ol.ranking li.row.expanded { background: var(--surface-alt); }
+  ol.ranking li.row .rank-num {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-4);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  ol.ranking li.row .state {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  ol.ranking li.row .amount {
+    font-size: 15px;
+    font-weight: 600;
+    text-align: right;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  ol.ranking li.row .amount.zero { color: var(--good); font-weight: 500; }
+  ol.ranking li.row .pct-col {
+    font-size: 13px;
+    color: var(--ink-3);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  ol.ranking li.row .detail {
+    grid-column: 1 / -1;
+    padding: 12px 0 4px 48px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    display: none;
+  }
+  ol.ranking li.row.expanded .detail { display: block; }
+  ol.ranking li.row .detail .calc-line {
+    font-family: 'SF Mono', ui-monospace, 'Roboto Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: inline-block;
+  }
+  ol.ranking li.row .detail .note {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--ink-2);
+  }
+  ol.ranking li.row .detail .note strong { color: var(--ink); font-weight: 600; }
+
+  /* Column headers */
+  .col-headers {
+    display: grid;
+    grid-template-columns: 32px minmax(150px, 1fr) 110px 110px 110px 120px;
+    gap: 14px;
+    padding: 10px 20px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .col-headers .col-num { text-align: right; }
+  .col-headers [data-sort] {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .col-headers [data-sort]:hover { color: var(--ink); }
+  .col-headers .col-num[data-sort] { justify-content: flex-end; }
+  .col-headers [data-sort].active { color: var(--ink); }
+  .col-headers [data-sort] .arrow {
+    font-size: 9px;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  .col-headers [data-sort].active .arrow { opacity: 1; }
+  ol.ranking li.row .num-col {
+    font-size: 14px;
+    color: var(--ink);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+  ol.ranking li.row .num-col.zero { color: var(--good); font-weight: 400; }
+  ol.ranking li.row .num-col.total { font-weight: 600; }
+
+  @media (max-width: 720px) {
+    ol.ranking li.row, .col-headers {
+      grid-template-columns: 28px 1fr 110px;
+      gap: 10px;
+      padding: 10px 14px;
+    }
+    .col-headers .col-estate, .col-headers .col-income, .col-headers .col-capgains,
+    ol.ranking li.row .col-estate-cell, ol.ranking li.row .col-income-cell, ol.ranking li.row .col-capgains-cell { display: none; }
+    ol.ranking li.row .detail { padding-left: 0; }
+  }
+
+  /* Pills */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 999px;
+    line-height: 1.4;
+  }
+  .pill.free { background: var(--good-soft); color: var(--good); }
+  .pill.estate { background: var(--bad-soft); color: var(--bad); }
+  .pill.inheritance { background: #fff7ed; color: var(--warn); }
+
+  /* Section heading (between tables) */
+  .section-title {
+    margin: 36px 0 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .section-title .sub {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--ink-3);
+    margin-left: 8px;
+  }
+
+  /* Places table — different column layout */
+  .table-shell.places .col-headers {
+    grid-template-columns: 32px minmax(160px, 1.4fr) minmax(110px, 1fr) 90px 90px 120px;
+  }
+  .table-shell.places ol.ranking li.row {
+    grid-template-columns: 32px minmax(160px, 1.4fr) minmax(110px, 1fr) 90px 90px 120px;
+  }
+  @media (max-width: 720px) {
+    .table-shell.places .col-headers,
+    .table-shell.places ol.ranking li.row {
+      grid-template-columns: 28px 1fr 90px 110px;
+      gap: 10px;
+    }
+    .table-shell.places .col-pop,
+    .table-shell.places .col-state-col,
+    .table-shell.places ol.ranking li.row .pop-col,
+    .table-shell.places ol.ranking li.row .state-col-cell { display: none; }
+  }
+
+  /* Disclaimer */
+  footer.disclaimer {
+    margin-top: 16px;
+    padding: 12px 0 32px;
+    font-size: 12px;
+    color: var(--ink-4);
+    max-width: 1100px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="masthead">
+  <h1>Pick your retirement state</h1>
+</header>
+
+<main>
+  <div class="controls">
+    <div class="control-group">
+      <label for="net-worth">Estate at death</label>
+      <div class="input-wrap">
+        <span class="prefix">$</span>
+        <input type="number" id="net-worth" value="30" min="0" step="0.1" autocomplete="off"/>
+        <span class="suffix">M</span>
+      </div>
+    </div>
+    <div class="control-group">
+      <label for="annual-income">Annual income</label>
+      <div class="input-wrap">
+        <span class="prefix">$</span>
+        <input type="number" id="annual-income" value="1" min="0" step="0.1" autocomplete="off"/>
+        <span class="suffix">M/yr</span>
+      </div>
+    </div>
+    <div class="control-group">
+      <label for="annual-gains">Annual cap gains</label>
+      <div class="input-wrap">
+        <span class="prefix">$</span>
+        <input type="number" id="annual-gains" value="1" min="0" step="0.1" autocomplete="off"/>
+        <span class="suffix">M/yr</span>
+      </div>
+    </div>
+    <div class="control-group">
+      <label for="years">Years in state</label>
+      <div class="input-wrap">
+        <input type="number" id="years" value="30" min="0" step="1" autocomplete="off"/>
+        <span class="suffix">yrs</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-shell">
+    <div class="col-headers" id="col-headers">
+      <div></div>
+      <div data-sort="name">State<span class="arrow"></span></div>
+      <div class="col-num col-estate" data-sort="estate">Death tax<span class="arrow"></span></div>
+      <div class="col-num col-income" data-sort="income">Income tax<span class="arrow"></span></div>
+      <div class="col-num col-capgains" data-sort="capgains">Cap gains tax<span class="arrow"></span></div>
+      <div class="col-num col-total active" data-sort="total">Total<span class="arrow">↓</span></div>
+    </div>
+    <ol class="ranking" id="ranking"></ol>
+  </div>
+
+  <div class="section-title">Top 200 places by % Asian Indian<span class="sub">U.S. Census ACS 5-year (2023), table B02018</span></div>
+  <div class="table-shell places">
+    <div class="col-headers" id="places-headers">
+      <div></div>
+      <div data-sort="name">Place<span class="arrow"></span></div>
+      <div class="col-state-col" data-sort="state">State<span class="arrow"></span></div>
+      <div class="col-num col-pop" data-sort="pop">Population<span class="arrow"></span></div>
+      <div class="col-num col-pct active" data-sort="pctIndian">% Indian<span class="arrow">↓</span></div>
+      <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span></div>
+    </div>
+    <ol class="ranking" id="places-ranking"></ol>
+  </div>
+
+  <footer class="disclaimer">Tax data: 2026 state law (post-July 2026 regime for WA). Demographic data: U.S. Census ACS 5-year 2023 estimates, places with population ≥ 5,000. Not legal or tax advice.</footer>
+</main>
+
+</div>
+
+<script>
+  // ────────────────────────────────────────────────────────────────────────
+  //  State estate-and-inheritance tax engine
+  //  Brackets reflect 2025–2026 statutes to the best public knowledge.
+  // ────────────────────────────────────────────────────────────────────────
+
+  // 1999 federal state-death-tax credit table — still used by IL, MA, RI
+  function creditTable(amount) {
+    if (amount <= 0) return 0;
+    const b = [
+      [0, 0.008, 0],
+      [90000, 0.016, 400],
+      [140000, 0.024, 1200],
+      [240000, 0.032, 3600],
+      [440000, 0.040, 10000],
+      [640000, 0.048, 18000],
+      [840000, 0.056, 27600],
+      [1040000, 0.064, 38800],
+      [1540000, 0.072, 70800],
+      [2040000, 0.080, 106800],
+      [2540000, 0.088, 146800],
+      [3040000, 0.096, 190800],
+      [3540000, 0.104, 238800],
+      [4040000, 0.112, 290800],
+      [5040000, 0.120, 402800],
+      [6040000, 0.128, 522800],
+      [7040000, 0.136, 650800],
+      [8040000, 0.144, 786800],
+      [9040000, 0.152, 930800],
+      [10040000, 0.160, 1082800],
+    ];
+    for (let i = b.length - 1; i >= 0; i--) {
+      if (amount > b[i][0]) {
+        return b[i][2] + b[i][1] * (amount - b[i][0]);
+      }
+    }
+    return 0;
+  }
+
+  // Generic bracket calculator: brackets = [[threshold, rate, baseTax], ...]
+  function bracketed(amount, brackets) {
+    if (amount <= 0) return 0;
+    for (let i = brackets.length - 1; i >= 0; i--) {
+      if (amount > brackets[i][0]) {
+        return brackets[i][2] + brackets[i][1] * (amount - brackets[i][0]);
+      }
+    }
+    return 0;
+  }
+
+  // Each state function: returns {tax, breakdown}
+  // Inputs: estate (number), heir ("spouse"|"lineal"|"sibling"|"other-relative"|"unrelated"), marital (bool)
+  const STATES = [
+    // Tax-free states (no estate, no inheritance)
+    ...["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Delaware","Florida",
+        "Georgia","Idaho","Indiana","Iowa","Kansas","Louisiana","Michigan","Mississippi","Missouri",
+        "Montana","Nevada","New Hampshire","New Mexico","North Carolina","North Dakota","Ohio",
+        "Oklahoma","South Carolina","South Dakota","Tennessee","Texas","Utah","Virginia",
+        "West Virginia","Wisconsin","Wyoming"].map(name => ({
+      name, type: "free",
+      calc: () => ({ tax: 0, breakdown: "No state estate or inheritance tax." })
+    })),
+
+    // ── Estate-tax states ──────────────────────────────────────────────────
+    {
+      name: "Connecticut", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 15_000_000; // matches federal — OBBBA permanently raised to $15M for 2026
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $${(exempt/1e6).toFixed(0)}M federal-conforming exemption.` };
+        const taxable = estate - exempt;
+        const tax = Math.min(taxable * 0.12, 15_000_000);
+        return {
+          tax,
+          breakdown: `Connecticut conforms to the federal $15M exemption (raised permanently by OBBBA effective Jan 2026). Flat 12% on excess, with the tax itself capped at $15M.`,
+          calc: `12% × (${fmt$(estate)} − ${fmt$(exempt)}) = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Hawaii", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 5_490_000;
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $${(exempt/1e6).toFixed(2)}M.` };
+        const taxable = estate - exempt;
+        const brackets = [
+          [0, 0.10, 0],
+          [1_000_000, 0.11, 100_000],
+          [2_000_000, 0.12, 210_000],
+          [3_000_000, 0.13, 330_000],
+          [4_000_000, 0.14, 460_000],
+          [5_000_000, 0.157, 600_000],
+          [10_000_000, 0.20, 1_385_000],
+        ];
+        const tax = bracketed(taxable, brackets);
+        return {
+          tax,
+          breakdown: `Hawaii exempts the first $5.49M; rates run from 10% to 20% on the excess.`,
+          calc: `Graduated rates on ${fmt$(taxable)} above exemption = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Illinois", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 4_000_000;
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $${(exempt/1e6).toFixed(0)}M.` };
+        // Illinois uses the 1999 federal credit table on the adjusted taxable estate (estate − $60,000)
+        const adjusted = estate - 60_000;
+        const tax = creditTable(adjusted);
+        return {
+          tax,
+          breakdown: `Illinois has a $4M exemption with no portability between spouses. Tax computed on the entire taxable estate via the 1999 federal state-death-tax credit table.`,
+          calc: `creditTable(${fmt$(adjusted)}) = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Maine", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 7_160_000; // 2026 indexed
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $${(exempt/1e6).toFixed(2)}M.` };
+        const taxable = estate - exempt;
+        const brackets = [
+          [0, 0.08, 0],
+          [3_000_000, 0.10, 240_000],
+          [6_000_000, 0.12, 540_000],
+        ];
+        const tax = bracketed(taxable, brackets);
+        return {
+          tax,
+          breakdown: `Maine exempts the first $7.16M (indexed annually). Rates 8% / 10% / 12% on the excess in $3M steps.`,
+          calc: `Graduated 8–12% on ${fmt$(taxable)} = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Maryland (Estate)", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 5_000_000;
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $${(exempt/1e6).toFixed(0)}M.` };
+        // Maryland: tax computed on amount over exemption using 1999 credit table on the adjusted taxable estate
+        const taxable = estate - exempt;
+        const tax = creditTable(taxable + 60_000);  // approximation; uses similar graduated structure
+        return {
+          tax: Math.min(tax, taxable * 0.16),
+          breakdown: `Maryland has a flat $5M exemption with no inflation indexing. Rates climb to a 16% top bracket. (Maryland's inheritance tax is shown separately below.)`,
+          calc: `Graduated up to 16% on ${fmt$(taxable)} = ${fmt$(Math.min(tax, taxable * 0.16))}`
+        };
+      }
+    },
+    {
+      name: "Massachusetts", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const threshold = 2_000_000;
+        if (estate <= threshold) return { tax: 0, breakdown: `Exempt: estate ≤ $2M (post-2023 reform).` };
+        // Post-2023: tax = credit-table tax on full estate minus $99,600 (the table's tax at $2M)
+        const tax = Math.max(0, creditTable(estate) - 99_600);
+        return {
+          tax,
+          breakdown: `Massachusetts taxes estates over $2M using the 1999 federal credit table, with the first $99,600 of computed tax forgiven — eliminating the old "cliff" effect.`,
+          calc: `creditTable(${fmt$(estate)}) − $99,600 = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Minnesota", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 3_000_000;
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $3M.` };
+        const taxable = estate - exempt;
+        const brackets = [
+          [0, 0.13, 0],
+          [7_100_000, 0.16, 923_000],
+        ];
+        const tax = bracketed(taxable, brackets);
+        return {
+          tax,
+          breakdown: `Minnesota exempts the first $3M and taxes the excess at 13% up to $10.1M, then 16%.`,
+          calc: `Graduated 13–16% on ${fmt$(taxable)} = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "New York", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 7_350_000; // 2026 indexed
+        const cliff = exempt * 1.05; // 105% cliff
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $${(exempt/1e6).toFixed(2)}M.` };
+        // If over cliff, ENTIRE estate is taxed (no exemption); otherwise phased
+        let taxableBase = estate;
+        if (estate <= cliff) {
+          // Phase-in: tax only on amount above exemption, scaled
+          taxableBase = estate - exempt;
+        }
+        // NY graduated brackets (approximate 1999 credit table-derived)
+        const brackets = [
+          [0, 0.0306, 0],
+          [500_000, 0.05, 15_300],
+          [1_000_000, 0.055, 40_300],
+          [1_500_000, 0.065, 67_800],
+          [2_100_000, 0.072, 106_800],
+          [2_600_000, 0.08, 142_800],
+          [3_100_000, 0.088, 182_800],
+          [3_600_000, 0.096, 226_800],
+          [4_100_000, 0.104, 274_800],
+          [5_100_000, 0.112, 378_800],
+          [6_100_000, 0.12, 490_800],
+          [7_100_000, 0.128, 610_800],
+          [8_100_000, 0.136, 738_800],
+          [9_100_000, 0.144, 874_800],
+          [10_100_000, 0.16, 1_018_800],
+        ];
+        const tax = bracketed(taxableBase, brackets);
+        return {
+          tax,
+          breakdown: `New York's 2026 exemption is $7.35M (indexed), but with a 105% cliff: estates over $7.72M lose the exemption entirely and the full estate becomes taxable at graduated rates up to 16%.`,
+          calc: estate > cliff
+            ? `Above 105% cliff — full estate taxed: ${fmt$(tax)}`
+            : `Phase-in on ${fmt$(taxableBase)} above exemption = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Oregon", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 1_000_000;
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $1M (the nation's lowest threshold).` };
+        const taxable = estate - exempt;
+        const brackets = [
+          [0, 0.10, 0],
+          [500_000, 0.1025, 50_000],
+          [1_500_000, 0.105, 152_500],
+          [2_500_000, 0.11, 257_500],
+          [3_500_000, 0.115, 367_500],
+          [4_500_000, 0.12, 482_500],
+          [5_500_000, 0.13, 602_500],
+          [6_500_000, 0.14, 732_500],
+          [7_500_000, 0.15, 872_500],
+          [8_500_000, 0.16, 1_022_500],
+        ];
+        const tax = bracketed(taxable, brackets);
+        return {
+          tax,
+          breakdown: `Oregon has the country's lowest estate-tax exemption at $1M, with rates 10% to 16%.`,
+          calc: `Graduated on ${fmt$(taxable)} = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Rhode Island", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 1_838_056; // 2026 indexed
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $${(exempt/1e6).toFixed(2)}M.` };
+        // RI uses 1999 federal credit table on the adjusted taxable estate (estate − $60k), with exemption-equivalent credit
+        const adjusted = estate - 60_000;
+        const tax = Math.max(0, creditTable(adjusted) - creditTable(exempt - 60_000));
+        return {
+          tax,
+          breakdown: `Rhode Island indexes its exemption annually (2026: $1.84M — the second-lowest in the country). Tax uses the 1999 federal credit table; the exemption-equivalent tax is credited away.`,
+          calc: `creditTable(adj) − creditTable(exemption) = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Vermont", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 5_000_000;
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $5M.` };
+        const tax = (estate - exempt) * 0.16;
+        return {
+          tax,
+          breakdown: `Vermont applies a flat 16% to all estate value above the $5M exemption — simple, severe, and unindexed.`,
+          calc: `16% × (${fmt$(estate)} − ${fmt$(exempt)}) = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Washington", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        // SB 6347 (signed March 24, 2026) rolled back SB 5813's rate hike effective July 1, 2026.
+        // Exemption frozen at $3M (the rollback bill reverted to a discontinued CPI index).
+        // Top rate drops from 35% back to pre-2025 level of 20%.
+        const exempt = 3_000_000;
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $3M (frozen — no inflation indexation under the 2026 rollback law).` };
+        const taxable = estate - exempt;
+        const brackets = [
+          [0, 0.10, 0],
+          [1_000_000, 0.14, 100_000],
+          [2_000_000, 0.15, 240_000],
+          [3_000_000, 0.16, 390_000],
+          [4_000_000, 0.18, 550_000],
+          [6_000_000, 0.19, 910_000],
+          [7_000_000, 0.195, 1_100_000],
+          [9_000_000, 0.20, 1_490_000],
+        ];
+        const tax = bracketed(taxable, brackets);
+        return {
+          tax,
+          breakdown: `Washington's one-year 35% top-rate experiment (SB 5813) was repealed by SB 6347 in March 2026. For deaths on or after July 1, 2026, rates revert to the pre-2025 schedule of 10%–20%, with the $3M exemption frozen.`,
+          calc: `Graduated 10–20% on ${fmt$(taxable)} = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "District of Columbia", type: "estate",
+      calc: (estate, heir, marital) => {
+        if (marital) return { tax: 0, breakdown: "Unlimited marital deduction." };
+        const exempt = 4_988_400; // 2026 indexed
+        if (estate <= exempt) return { tax: 0, breakdown: `Exempt: estate ≤ $${(exempt/1e6).toFixed(2)}M.` };
+        const taxable = estate - exempt;
+        const brackets = [
+          [0, 0.112, 0],
+          [1_000_000, 0.12, 112_000],
+          [2_000_000, 0.128, 232_000],
+          [3_000_000, 0.136, 360_000],
+          [4_000_000, 0.144, 496_000],
+          [5_000_000, 0.152, 640_000],
+          [6_000_000, 0.16, 792_000],
+        ];
+        const tax = bracketed(taxable, brackets);
+        return {
+          tax,
+          breakdown: `The District of Columbia indexes annually (2026: $4.99M), with graduated rates topping out at 16%.`,
+          calc: `Graduated 11.2–16% on ${fmt$(taxable)} = ${fmt$(tax)}`
+        };
+      }
+    },
+
+    // ── Inheritance-tax states ─────────────────────────────────────────────
+    {
+      name: "Kentucky", type: "inheritance",
+      calc: (estate, heir, marital) => {
+        if (marital || heir === "spouse" || heir === "lineal") {
+          return { tax: 0, breakdown: `Class A heir (spouse, parents, children, siblings, grandchildren) — fully exempt.` };
+        }
+        // Class B: 4–16% over $1,000 exempt
+        // Class C: 6–16% over $500 exempt
+        const isClassB = heir === "other-relative" || heir === "sibling"; // siblings actually Class A; we already returned
+        const exemptAmt = isClassB ? 1000 : 500;
+        const taxable = Math.max(0, estate - exemptAmt);
+        // Simplified average rate: Class B caps at 16% over $200k; Class C caps at 16% over $200k
+        const brackets = isClassB
+          ? [[0,0.04,0],[10000,0.05,400],[20000,0.06,900],[30000,0.08,1500],[45000,0.10,2700],[60000,0.12,4200],[100000,0.14,9000],[200000,0.16,23000]]
+          : [[0,0.06,0],[10000,0.08,600],[20000,0.10,1400],[30000,0.12,2400],[45000,0.14,4200],[60000,0.16,6300]];
+        const tax = bracketed(taxable, brackets);
+        return {
+          tax,
+          breakdown: `Kentucky exempts Class A heirs entirely; Class B (nieces/nephews, in-laws) pay 4–16%; Class C (others) pay 6–16%.`,
+          calc: `${isClassB ? "Class B" : "Class C"} rates on ${fmt$(taxable)} = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Maryland (Inheritance)", type: "inheritance",
+      calc: (estate, heir, marital) => {
+        if (marital || heir === "spouse" || heir === "lineal" || heir === "sibling") {
+          return { tax: 0, breakdown: `Spouse, children, parents, grandchildren, and siblings are exempt from Maryland's inheritance tax.` };
+        }
+        const tax = estate * 0.10;
+        return {
+          tax,
+          breakdown: `Maryland charges 10% on all property passing to "collateral" heirs — anyone outside the immediate-family exemption.`,
+          calc: `10% × ${fmt$(estate)} = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Nebraska", type: "inheritance",
+      calc: (estate, heir, marital) => {
+        if (marital || heir === "spouse") return { tax: 0, breakdown: `Spouse exempt.` };
+        let rate, exemptAmt, label;
+        if (heir === "lineal" || heir === "sibling") {
+          rate = 0.01; exemptAmt = 100_000; label = "Immediate family (1% over $100k, post-2023 reform)";
+        } else if (heir === "other-relative") {
+          rate = 0.11; exemptAmt = 40_000; label = "Remote relatives (11% over $40k)";
+        } else {
+          rate = 0.15; exemptAmt = 25_000; label = "Unrelated heirs (15% over $25k)";
+        }
+        const tax = Math.max(0, estate - exemptAmt) * rate;
+        return {
+          tax,
+          breakdown: `Nebraska's 2023 reform cut the top rate from 18% to 15% and slashed rates for close relatives. ${label}.`,
+          calc: `${(rate*100).toFixed(0)}% × (${fmt$(estate)} − ${fmt$(exemptAmt)}) = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "New Jersey", type: "inheritance",
+      calc: (estate, heir, marital) => {
+        if (marital || heir === "spouse" || heir === "lineal") {
+          return { tax: 0, breakdown: `Class A (spouse, child, parent, grandparent, grandchild) — fully exempt. New Jersey repealed its estate tax in 2018.` };
+        }
+        if (heir === "sibling") {
+          // Class C: first $25k exempt; $25k-$1.1M 11%; $1.1M-$1.4M 13%; $1.4M-$1.7M 14%; over 16%
+          const brackets = [
+            [25_000, 0.11, 0],
+            [1_100_000, 0.13, 118_250],
+            [1_400_000, 0.14, 157_250],
+            [1_700_000, 0.16, 199_250],
+          ];
+          const tax = bracketed(estate, brackets);
+          return {
+            tax,
+            breakdown: `New Jersey Class C (siblings, daughter-in-law, son-in-law): first $25k exempt; 11% to 16% above.`,
+            calc: `Class C rates on ${fmt$(estate)} = ${fmt$(tax)}`
+          };
+        }
+        // Class D: 15% to $700k, 16% above
+        const tax = estate <= 700_000 ? estate * 0.15 : 700_000 * 0.15 + (estate - 700_000) * 0.16;
+        return {
+          tax,
+          breakdown: `New Jersey Class D (everyone else, except charities): 15% to $700k, 16% above. No exemption.`,
+          calc: `Class D rates on ${fmt$(estate)} = ${fmt$(tax)}`
+        };
+      }
+    },
+    {
+      name: "Pennsylvania", type: "inheritance",
+      calc: (estate, heir, marital) => {
+        if (marital || heir === "spouse") return { tax: 0, breakdown: `Spouse — 0%.` };
+        let rate, label;
+        if (heir === "lineal") { rate = 0.045; label = "lineal descendants and ancestors"; }
+        else if (heir === "sibling") { rate = 0.12; label = "siblings"; }
+        else { rate = 0.15; label = "all other heirs"; }
+        const tax = estate * rate;
+        return {
+          tax,
+          breakdown: `Pennsylvania charges a flat rate by relationship: 0% spouse, 4.5% lineal, 12% siblings, 15% others. No exemption.`,
+          calc: `${(rate*100).toFixed(1)}% × ${fmt$(estate)} (${label}) = ${fmt$(tax)}`
+        };
+      }
+    },
+  ];
+
+  // ── Income tax and capital gains top marginal rates (state-only, 2026) ──
+  // Income: state's top marginal individual income tax rate.
+  // Cap gains: top long-term capital gains rate. Equals income rate for most states.
+  //   Exceptions: WA (standalone 7% + 2.9% surcharge = 9.9%); HI (special 7.25% LT rate);
+  //   MA (5% LT + 4% surtax = 9%); AR, NM, SC, WI, ND apply exclusions reducing effective rate.
+  // Notes for tooltips: WA enacted SB 6346 millionaires' tax (9.9% on AGI > $1M) effective Jan 2028.
+  const TAX_RATES = {
+    "Alabama":              { income: 0.0500, capGains: 0.0500 },
+    "Alaska":               { income: 0.0000, capGains: 0.0000 },
+    "Arizona":              { income: 0.0250, capGains: 0.0250 },
+    "Arkansas":             { income: 0.0390, capGains: 0.0195, note: "50% capital-gains exclusion" },
+    "California":           { income: 0.1330, capGains: 0.1330, note: "Includes 1% MHST surcharge on income > $1M" },
+    "Colorado":             { income: 0.0440, capGains: 0.0440 },
+    "Connecticut":          { income: 0.0699, capGains: 0.0699 },
+    "Delaware":             { income: 0.0660, capGains: 0.0660 },
+    "Florida":              { income: 0.0000, capGains: 0.0000 },
+    "Georgia":              { income: 0.0519, capGains: 0.0519 },
+    "Hawaii":               { income: 0.1100, capGains: 0.0725, note: "Special 7.25% top rate on long-term gains" },
+    "Idaho":                { income: 0.0530, capGains: 0.0530 },
+    "Illinois":             { income: 0.0495, capGains: 0.0495 },
+    "Indiana":              { income: 0.0295, capGains: 0.0295 },
+    "Iowa":                 { income: 0.0380, capGains: 0.0380 },
+    "Kansas":               { income: 0.0558, capGains: 0.0558 },
+    "Kentucky":             { income: 0.0350, capGains: 0.0350 },
+    "Louisiana":            { income: 0.0300, capGains: 0.0300 },
+    "Maine":                { income: 0.0715, capGains: 0.0715 },
+    "Maryland":             { income: 0.0575, capGains: 0.0575, note: "State only; counties add 2.25%–3.20%" },
+    "Massachusetts":        { income: 0.0900, capGains: 0.0900, note: "5% flat + 4% millionaires' surtax on AGI > $1M" },
+    "Michigan":             { income: 0.0425, capGains: 0.0425 },
+    "Minnesota":            { income: 0.0985, capGains: 0.0985 },
+    "Mississippi":          { income: 0.0400, capGains: 0.0400 },
+    "Missouri":             { income: 0.0470, capGains: 0.0470 },
+    "Montana":              { income: 0.0565, capGains: 0.0565 },
+    "Nebraska":             { income: 0.0455, capGains: 0.0455 },
+    "Nevada":               { income: 0.0000, capGains: 0.0000 },
+    "New Hampshire":        { income: 0.0000, capGains: 0.0000, note: "Interest & dividends tax phased out 2025" },
+    "New Jersey":           { income: 0.1075, capGains: 0.1075 },
+    "New Mexico":           { income: 0.0590, capGains: 0.0354, note: "40% capital-gains deduction" },
+    "New York":             { income: 0.1090, capGains: 0.1090, note: "NYC adds 3.876%; some Yonkers" },
+    "North Carolina":       { income: 0.0399, capGains: 0.0399 },
+    "North Dakota":         { income: 0.0250, capGains: 0.0150, note: "40% capital-gains deduction" },
+    "Ohio":                 { income: 0.0275, capGains: 0.0275 },
+    "Oklahoma":             { income: 0.0450, capGains: 0.0450 },
+    "Oregon":               { income: 0.0990, capGains: 0.0990 },
+    "Pennsylvania":         { income: 0.0307, capGains: 0.0307 },
+    "Rhode Island":         { income: 0.0599, capGains: 0.0599 },
+    "South Carolina":       { income: 0.0600, capGains: 0.0336, note: "44% capital-gains exclusion" },
+    "South Dakota":         { income: 0.0000, capGains: 0.0000 },
+    "Tennessee":            { income: 0.0000, capGains: 0.0000 },
+    "Texas":                { income: 0.0000, capGains: 0.0000 },
+    "Utah":                 { income: 0.0450, capGains: 0.0450 },
+    "Vermont":              { income: 0.0875, capGains: 0.0875 },
+    "Virginia":             { income: 0.0575, capGains: 0.0575 },
+    "Washington":           { income: 0.0000, capGains: 0.0990, note: "0% wage tax; cap gains 7% + 2.9% surcharge > $1M. Millionaires' tax (9.9% on AGI > $1M) effective Jan 2028." },
+    "West Virginia":        { income: 0.0482, capGains: 0.0482 },
+    "Wisconsin":            { income: 0.0765, capGains: 0.0536, note: "30% capital-gains exclusion" },
+    "Wyoming":              { income: 0.0000, capGains: 0.0000 },
+    "District of Columbia": { income: 0.1075, capGains: 0.1075 },
+  };
+  function ratesFor(stateName) {
+    const stripped = stateName.replace(/ \(Estate\)| \(Inheritance\)/, "");
+    return TAX_RATES[stripped] || { income: 0, capGains: 0 };
+  }
+
+  // ── Top 200 US places by % Asian Indian ────────────────────────────────
+  // Auto-generated by scripts/fetch_places.mjs. Source: U.S. Census ACS 5-year 2023, table B02018.
+  // Variable B02018_021E ("Asian Indian" alone or in combination) / B01003_001E (total population).
+  // Population floor 5000; top 200 by % Asian Indian.
+  const PLACES = [
+    { name: "Iselin", state: "New Jersey", population: 19151, pctIndian: 0.4746 },
+    { name: "Belle Mead", state: "New Jersey", population: 6772, pctIndian: 0.4715 },
+    { name: "Dayton", state: "New Jersey", population: 8241, pctIndian: 0.4445 },
+    { name: "Princeton Meadows", state: "New Jersey", population: 15382, pctIndian: 0.4436 },
+    { name: "Monmouth Junction", state: "New Jersey", population: 9457, pctIndian: 0.4375 },
+    { name: "Loudoun Valley Estates", state: "Virginia", population: 10323, pctIndian: 0.4161 },
+    { name: "Heathcote", state: "New Jersey", population: 6689, pctIndian: 0.4041 },
+    { name: "Troy Hills", state: "New Jersey", population: 5183, pctIndian: 0.387 },
+    { name: "South Barrington", state: "Illinois", population: 5004, pctIndian: 0.3669 },
+    { name: "Morrisville", state: "North Carolina", population: 30471, pctIndian: 0.3468 },
+    { name: "Mountain House", state: "California", population: 25108, pctIndian: 0.3439 },
+    { name: "Moorefield", state: "Virginia", population: 5598, pctIndian: 0.3369 },
+    { name: "Parsippany", state: "New Jersey", population: 21869, pctIndian: 0.3355 },
+    { name: "Brambleton", state: "Virginia", population: 23999, pctIndian: 0.3062 },
+    { name: "Fremont", state: "California", population: 228518, pctIndian: 0.3031 },
+    { name: "Cupertino", state: "California", population: 58886, pctIndian: 0.299 },
+    { name: "Bothell East", state: "Washington", population: 14487, pctIndian: 0.2944 },
+    { name: "Camino Tassajara", state: "California", population: 6395, pctIndian: 0.2941 },
+    { name: "Franklin Park", state: "New Jersey", population: 13327, pctIndian: 0.2901 },
+    { name: "Dublin", state: "California", population: 70542, pctIndian: 0.2795 },
+    { name: "Lake Hiawatha", state: "New Jersey", population: 10406, pctIndian: 0.2777 },
+    { name: "McNair", state: "Virginia", population: 22451, pctIndian: 0.2679 },
+    { name: "Mill Creek East", state: "Washington", population: 25461, pctIndian: 0.2532 },
+    { name: "Wyndham", state: "Virginia", population: 12084, pctIndian: 0.2475 },
+    { name: "Secaucus", state: "New Jersey", population: 21437, pctIndian: 0.2472 },
+    { name: "Milpitas", state: "California", population: 78216, pctIndian: 0.2436 },
+    { name: "Bradley Gardens", state: "New Jersey", population: 14315, pctIndian: 0.2399 },
+    { name: "Kendall Park", state: "New Jersey", population: 10765, pctIndian: 0.2398 },
+    { name: "Sunnyvale", state: "Texas", population: 8069, pctIndian: 0.2353 },
+    { name: "San Ramon", state: "California", population: 85734, pctIndian: 0.2334 },
+    { name: "North New Hyde Park", state: "New York", population: 14354, pctIndian: 0.2304 },
+    { name: "Redmond", state: "Washington", population: 75721, pctIndian: 0.218 },
+    { name: "Pleasanton", state: "California", population: 77500, pctIndian: 0.2154 },
+    { name: "Blackwells Mills", state: "New Jersey", population: 10220, pctIndian: 0.2096 },
+    { name: "Garden City Park", state: "New York", population: 8176, pctIndian: 0.2065 },
+    { name: "Short Hills", state: "New Jersey", population: 14398, pctIndian: 0.2043 },
+    { name: "Floris", state: "Virginia", population: 7135, pctIndian: 0.1982 },
+    { name: "Union Hill-Novelty Hill", state: "Washington", population: 23272, pctIndian: 0.1934 },
+    { name: "Coppell", state: "Texas", population: 42029, pctIndian: 0.1923 },
+    { name: "Livingston", state: "California", population: 14450, pctIndian: 0.1916 },
+    { name: "Frisco", state: "Texas", population: 210238, pctIndian: 0.1866 },
+    { name: "Hicksville", state: "New York", population: 43868, pctIndian: 0.1863 },
+    { name: "Murphy", state: "Texas", population: 21001, pctIndian: 0.184 },
+    { name: "Short Pump", state: "Virginia", population: 28177, pctIndian: 0.1832 },
+    { name: "Sunnyvale", state: "California", population: 153455, pctIndian: 0.1826 },
+    { name: "Carteret", state: "New Jersey", population: 25187, pctIndian: 0.1822 },
+    { name: "Santa Clara", state: "California", population: 129239, pctIndian: 0.1801 },
+    { name: "Saratoga", state: "California", population: 30335, pctIndian: 0.1787 },
+    { name: "Clarksburg", state: "Maryland", population: 29246, pctIndian: 0.1772 },
+    { name: "Bethany", state: "Oregon", population: 31700, pctIndian: 0.1754 },
+    { name: "Sammamish", state: "Washington", population: 66375, pctIndian: 0.1743 },
+    { name: "South Riding", state: "Virginia", population: 34200, pctIndian: 0.1726 },
+    { name: "Franklin Center", state: "New Jersey", population: 5770, pctIndian: 0.1716 },
+    { name: "Pimmit Hills", state: "Virginia", population: 6395, pctIndian: 0.1712 },
+    { name: "Buffalo Grove", state: "Illinois", population: 42824, pctIndian: 0.1685 },
+    { name: "Innsbrook", state: "Virginia", population: 8559, pctIndian: 0.1685 },
+    { name: "Farmington", state: "Michigan", population: 11472, pctIndian: 0.1635 },
+    { name: "Stone Ridge", state: "Virginia", population: 16340, pctIndian: 0.1629 },
+    { name: "Irving", state: "Texas", population: 255036, pctIndian: 0.162 },
+    { name: "Maryland Heights", state: "Missouri", population: 27981, pctIndian: 0.161 },
+    { name: "Exton", state: "Pennsylvania", population: 6192, pctIndian: 0.1609 },
+    { name: "Belmont", state: "Virginia", population: 9525, pctIndian: 0.157 },
+    { name: "Pebble Creek", state: "Florida", population: 10719, pctIndian: 0.1551 },
+    { name: "Madison Park", state: "New Jersey", population: 8798, pctIndian: 0.1547 },
+    { name: "Audubon", state: "Pennsylvania", population: 9014, pctIndian: 0.1529 },
+    { name: "Echelon", state: "New Jersey", population: 13577, pctIndian: 0.1521 },
+    { name: "Chesterbrook", state: "Pennsylvania", population: 5439, pctIndian: 0.1508 },
+    { name: "New Hyde Park", state: "New York", population: 10208, pctIndian: 0.1502 },
+    { name: "Green Knoll", state: "New Jersey", population: 6664, pctIndian: 0.1495 },
+    { name: "Oak Hills", state: "Oregon", population: 11464, pctIndian: 0.1491 },
+    { name: "Oak Brook", state: "Illinois", population: 8028, pctIndian: 0.1471 },
+    { name: "Foster City", state: "California", population: 32964, pctIndian: 0.1455 },
+    { name: "Troy", state: "Michigan", population: 87307, pctIndian: 0.1453 },
+    { name: "Union City", state: "California", population: 68141, pctIndian: 0.1434 },
+    { name: "Sugar Land", state: "Texas", population: 109735, pctIndian: 0.1431 },
+    { name: "Johns Creek", state: "Georgia", population: 82115, pctIndian: 0.1428 },
+    { name: "The Hills", state: "New Jersey", population: 10732, pctIndian: 0.1415 },
+    { name: "Bellevue", state: "Washington", population: 151199, pctIndian: 0.1415 },
+    { name: "Novi", state: "Michigan", population: 66224, pctIndian: 0.1403 },
+    { name: "Yuba City", state: "California", population: 69545, pctIndian: 0.1402 },
+    { name: "Vernon Hills", state: "Illinois", population: 26772, pctIndian: 0.1401 },
+    { name: "Greenville CDP (Westchester County)", state: "New York", population: 9586, pctIndian: 0.14 },
+    { name: "Marvin", state: "North Carolina", population: 6542, pctIndian: 0.14 },
+    { name: "Parker", state: "Texas", population: 5776, pctIndian: 0.1392 },
+    { name: "Alpharetta", state: "Georgia", population: 66355, pctIndian: 0.1385 },
+    { name: "Fair Lakes", state: "Virginia", population: 8617, pctIndian: 0.1381 },
+    { name: "Live Oak", state: "California", population: 9264, pctIndian: 0.138 },
+    { name: "Broadlands", state: "Virginia", population: 14673, pctIndian: 0.1377 },
+    { name: "Pine Brook", state: "New Jersey", population: 6017, pctIndian: 0.1374 },
+    { name: "Breinigsville", state: "Pennsylvania", population: 8159, pctIndian: 0.1374 },
+    { name: "Naperville", state: "Illinois", population: 149424, pctIndian: 0.1342 },
+    { name: "Milton", state: "Georgia", population: 41305, pctIndian: 0.133 },
+    { name: "Pomona", state: "New Jersey", population: 8141, pctIndian: 0.1325 },
+    { name: "King of Prussia", state: "Pennsylvania", population: 25025, pctIndian: 0.1316 },
+    { name: "Ellicott City", state: "Maryland", population: 73737, pctIndian: 0.1311 },
+    { name: "Schaumburg", state: "Illinois", population: 76780, pctIndian: 0.1309 },
+    { name: "Woodbridge", state: "New Jersey", population: 20086, pctIndian: 0.13 },
+    { name: "Jersey City", state: "New Jersey", population: 289691, pctIndian: 0.1274 },
+    { name: "Los Altos", state: "California", population: 30736, pctIndian: 0.127 },
+    { name: "Somerset", state: "New Jersey", population: 23851, pctIndian: 0.1253 },
+    { name: "Cary", state: "North Carolina", population: 176686, pctIndian: 0.1249 },
+    { name: "Newark", state: "California", population: 47145, pctIndian: 0.1231 },
+    { name: "Artesia", state: "California", population: 16044, pctIndian: 0.1221 },
+    { name: "Apex", state: "North Carolina", population: 67765, pctIndian: 0.1221 },
+    { name: "Franklin Farm", state: "Virginia", population: 18509, pctIndian: 0.1213 },
+    { name: "Dublin", state: "Ohio", population: 49031, pctIndian: 0.1208 },
+    { name: "Avenel", state: "New Jersey", population: 17143, pctIndian: 0.1206 },
+    { name: "Montgomeryville", state: "Pennsylvania", population: 13572, pctIndian: 0.1198 },
+    { name: "Morton Grove", state: "Illinois", population: 24687, pctIndian: 0.1196 },
+    { name: "Chantilly", state: "Virginia", population: 23744, pctIndian: 0.1193 },
+    { name: "Stony Brook University", state: "New York", population: 9138, pctIndian: 0.1191 },
+    { name: "Plano", state: "Texas", population: 287339, pctIndian: 0.119 },
+    { name: "Scottdale", state: "Georgia", population: 10398, pctIndian: 0.1188 },
+    { name: "McSwain", state: "California", population: 5556, pctIndian: 0.1152 },
+    { name: "Hoffman Estates", state: "Illinois", population: 51186, pctIndian: 0.1143 },
+    { name: "Harrison", state: "New Jersey", population: 19599, pctIndian: 0.114 },
+    { name: "Carol Stream", state: "Illinois", population: 39427, pctIndian: 0.1138 },
+    { name: "Hawthorn Woods", state: "Illinois", population: 9145, pctIndian: 0.1137 },
+    { name: "Urbana", state: "Maryland", population: 13897, pctIndian: 0.1126 },
+    { name: "Lexington", state: "Massachusetts", population: 34085, pctIndian: 0.1114 },
+    { name: "Hillsborough", state: "New Jersey", population: 22302, pctIndian: 0.1088 },
+    { name: "Farmington Hills", state: "Michigan", population: 83316, pctIndian: 0.1083 },
+    { name: "Lathrop", state: "California", population: 32696, pctIndian: 0.1078 },
+    { name: "Issaquah", state: "Washington", population: 39472, pctIndian: 0.1075 },
+    { name: "Mountain Park", state: "Georgia", population: 13102, pctIndian: 0.1072 },
+    { name: "Collierville", state: "Tennessee", population: 51212, pctIndian: 0.1052 },
+    { name: "Hanover Park", state: "Illinois", population: 36850, pctIndian: 0.1051 },
+    { name: "Sayreville", state: "New Jersey", population: 45237, pctIndian: 0.1049 },
+    { name: "Bentonville", state: "Arkansas", population: 56326, pctIndian: 0.1046 },
+    { name: "Folsom", state: "California", population: 82140, pctIndian: 0.1045 },
+    { name: "Tega Cay", state: "South Carolina", population: 13267, pctIndian: 0.1041 },
+    { name: "Colonia", state: "New Jersey", population: 18294, pctIndian: 0.1033 },
+    { name: "North Potomac", state: "Maryland", population: 23994, pctIndian: 0.1028 },
+    { name: "Travilah", state: "Maryland", population: 11128, pctIndian: 0.1028 },
+    { name: "Pinehurst", state: "Massachusetts", population: 6737, pctIndian: 0.1021 },
+    { name: "Meridian", state: "Colorado", population: 5058, pctIndian: 0.102 },
+    { name: "Cerritos", state: "California", population: 48340, pctIndian: 0.1012 },
+    { name: "Burr Ridge", state: "Illinois", population: 11119, pctIndian: 0.1012 },
+    { name: "Heathrow", state: "Florida", population: 7033, pctIndian: 0.101 },
+    { name: "Jericho", state: "New York", population: 14117, pctIndian: 0.1007 },
+    { name: "Dunwoody", state: "Georgia", population: 51563, pctIndian: 0.1004 },
+    { name: "Tysons", state: "Virginia", population: 28022, pctIndian: 0.1003 },
+    { name: "Lake Butler", state: "Florida", population: 17242, pctIndian: 0.1002 },
+    { name: "Auburn Hills", state: "Michigan", population: 24911, pctIndian: 0.0997 },
+    { name: "Finderne", state: "New Jersey", population: 5968, pctIndian: 0.0992 },
+    { name: "Franklin Park", state: "Pennsylvania", population: 15273, pctIndian: 0.0981 },
+    { name: "East Rutherford", state: "New Jersey", population: 10154, pctIndian: 0.098 },
+    { name: "Bull Run CDP (Fairfax County)", state: "Virginia", population: 7513, pctIndian: 0.0972 },
+    { name: "Elmsford", state: "New York", population: 5183, pctIndian: 0.097 },
+    { name: "Great Falls", state: "Virginia", population: 14854, pctIndian: 0.0969 },
+    { name: "Lisle", state: "Illinois", population: 23413, pctIndian: 0.0965 },
+    { name: "Elmont", state: "New York", population: 36436, pctIndian: 0.0965 },
+    { name: "Rochester Institute of Technology", state: "New York", population: 6339, pctIndian: 0.0964 },
+    { name: "Tracy", state: "California", population: 95358, pctIndian: 0.0955 },
+    { name: "Merrifield", state: "Virginia", population: 20549, pctIndian: 0.0955 },
+    { name: "Lincolnwood", state: "Illinois", population: 13179, pctIndian: 0.0948 },
+    { name: "Inverness", state: "Illinois", population: 7541, pctIndian: 0.0947 },
+    { name: "Ashburn", state: "Virginia", population: 45551, pctIndian: 0.0941 },
+    { name: "Fairview", state: "California", population: 10033, pctIndian: 0.0936 },
+    { name: "Missouri City", state: "Texas", population: 75234, pctIndian: 0.0927 },
+    { name: "Metuchen", state: "New Jersey", population: 14982, pctIndian: 0.0926 },
+    { name: "Cumming", state: "Georgia", population: 7869, pctIndian: 0.0924 },
+    { name: "South Plainfield", state: "New Jersey", population: 24231, pctIndian: 0.0912 },
+    { name: "Paramus", state: "New Jersey", population: 26500, pctIndian: 0.0902 },
+    { name: "Vineyard", state: "California", population: 42645, pctIndian: 0.0894 },
+    { name: "Morganville", state: "New Jersey", population: 5544, pctIndian: 0.0891 },
+    { name: "Dunn Loring", state: "Virginia", population: 8782, pctIndian: 0.0887 },
+    { name: "Valley Stream", state: "New York", population: 40278, pctIndian: 0.0886 },
+    { name: "Okemos", state: "Michigan", population: 25503, pctIndian: 0.0884 },
+    { name: "Fords", state: "New Jersey", population: 13052, pctIndian: 0.0883 },
+    { name: "Harrisburg", state: "North Carolina", population: 19203, pctIndian: 0.0879 },
+    { name: "Burlington", state: "Massachusetts", population: 26223, pctIndian: 0.0874 },
+    { name: "New City", state: "New York", population: 34133, pctIndian: 0.0871 },
+    { name: "Four Corners", state: "Texas", population: 11490, pctIndian: 0.0869 },
+    { name: "Greenbriar", state: "Virginia", population: 7989, pctIndian: 0.0867 },
+    { name: "Columbus", state: "Indiana", population: 51104, pctIndian: 0.0866 },
+    { name: "Cheval", state: "Florida", population: 13694, pctIndian: 0.0865 },
+    { name: "Reminderville", state: "Ohio", population: 5370, pctIndian: 0.0855 },
+    { name: "Salisbury", state: "New York", population: 13388, pctIndian: 0.0854 },
+    { name: "Mountain View", state: "California", population: 82363, pctIndian: 0.0852 },
+    { name: "Bridgewater Center", state: "New Jersey", population: 6198, pctIndian: 0.085 },
+    { name: "Clarendon Hills", state: "Illinois", population: 8642, pctIndian: 0.0847 },
+    { name: "Wood-Ridge", state: "New Jersey", population: 10094, pctIndian: 0.0845 },
+    { name: "Chesterfield", state: "Missouri", population: 49591, pctIndian: 0.0842 },
+    { name: "Wolf Trap", state: "Virginia", population: 16020, pctIndian: 0.0833 },
+    { name: "Darnestown", state: "Maryland", population: 6835, pctIndian: 0.0828 },
+    { name: "Stafford", state: "Texas", population: 17279, pctIndian: 0.0824 },
+    { name: "West Lafayette", state: "Indiana", population: 44802, pctIndian: 0.082 },
+    { name: "Bartlett", state: "Illinois", population: 40531, pctIndian: 0.0812 },
+    { name: "Pike Creek", state: "Delaware", population: 7185, pctIndian: 0.0809 },
+    { name: "Ilchester", state: "Maryland", population: 27552, pctIndian: 0.0808 },
+    { name: "Belmont", state: "California", population: 27505, pctIndian: 0.0805 },
+    { name: "San Jose", state: "California", population: 990054, pctIndian: 0.0803 },
+    { name: "Cedar Mill", state: "Oregon", population: 19482, pctIndian: 0.0798 },
+    { name: "Downingtown", state: "Pennsylvania", population: 8163, pctIndian: 0.0798 },
+    { name: "Caldwell", state: "New Jersey", population: 8898, pctIndian: 0.0797 },
+    { name: "Ledgewood", state: "New Jersey", population: 5150, pctIndian: 0.079 },
+    { name: "Plainedge", state: "New York", population: 8930, pctIndian: 0.0789 },
+    { name: "North Valley Stream", state: "New York", population: 17756, pctIndian: 0.0788 },
+    { name: "Bothell", state: "Washington", population: 48610, pctIndian: 0.0787 },
+  ];
+
+  function fmtRate(r) {
+    if (r === 0) return "0%";
+    return (r * 100).toFixed(2).replace(/\.?0+$/, "") + "%";
+  }
+
+  // ── UI plumbing ────────────────────────────────────────────────────────
+  function parseDollar(str) {
+    const n = parseFloat(String(str).replace(/[^0-9.]/g, ""));
+    return isFinite(n) ? n : 0;
+  }
+  function fmt$(n) {
+    if (n === 0) return "$0";
+    if (Math.abs(n) >= 1e9) return "$" + (n/1e9).toFixed(2) + "B";
+    const m = n / 1e6;
+    if (Math.abs(m) < 0.005) return "<$0.01M";
+    return "$" + m.toFixed(2) + "M";
+  }
+  function fmtFull$(n) {
+    return "$" + Math.round(n).toLocaleString();
+  }
+  function fmtPct(n) {
+    if (n === 0) return "0%";
+    if (n < 0.001) return "<0.1%";
+    return (n*100).toFixed(2) + "%";
+  }
+
+  const elNetWorth = document.getElementById("net-worth");
+  const elAnnualIncome = document.getElementById("annual-income");
+  const elAnnualGains = document.getElementById("annual-gains");
+  const elYears = document.getElementById("years");
+  const elRanking = document.getElementById("ranking");
+  const elColHeaders = document.getElementById("col-headers");
+  const elPlacesHeaders = document.getElementById("places-headers");
+  const elPlacesRanking = document.getElementById("places-ranking");
+  let expandedState = null;
+  let expandedPlace = null;
+  let sortBy = "total";   // 'name' | 'estate' | 'income' | 'capgains' | 'total'
+  let sortDir = "desc";   // 'asc' | 'desc'
+  let placesSortBy = "pctIndian"; // 'name' | 'state' | 'pop' | 'pctIndian' | 'total'
+  let placesSortDir = "desc";
+
+  [elNetWorth, elAnnualIncome, elAnnualGains, elYears].forEach(el =>
+    el.addEventListener("input", render)
+  );
+
+  elColHeaders.querySelectorAll("[data-sort]").forEach(h => {
+    h.addEventListener("click", () => {
+      const key = h.dataset.sort;
+      if (sortBy === key) {
+        sortDir = sortDir === "desc" ? "asc" : "desc";
+      } else {
+        sortBy = key;
+        sortDir = key === "name" ? "asc" : "desc";
+      }
+      render();
+    });
+  });
+
+  elPlacesHeaders.querySelectorAll("[data-sort]").forEach(h => {
+    h.addEventListener("click", () => {
+      const key = h.dataset.sort;
+      if (placesSortBy === key) {
+        placesSortDir = placesSortDir === "desc" ? "asc" : "desc";
+      } else {
+        placesSortBy = key;
+        placesSortDir = (key === "name" || key === "state") ? "asc" : "desc";
+      }
+      render();
+    });
+  });
+
+  // Hardcoded: second death scenario, assets passing to children/grandchildren.
+  // No marital deduction (the surviving spouse has died); heirs are lineal descendants.
+  function computeAll(estate) {
+    return STATES.map(s => {
+      const r = s.calc(estate, "lineal", false);
+      return {
+        name: s.name,
+        type: s.type,
+        tax: r.tax,
+        breakdown: r.breakdown,
+        calc: r.calc || ""
+      };
+    });
+  }
+
+  function pillFor(type) {
+    if (type === "free") return `<span class="pill free">tax-free</span>`;
+    if (type === "estate") return `<span class="pill estate">estate</span>`;
+    if (type === "inheritance") return `<span class="pill inheritance">inheritance</span>`;
+    return "";
+  }
+
+  function render() {
+    // All money inputs in millions; years is a count.
+    const estate = (parseFloat(elNetWorth.value) || 0) * 1_000_000;
+    const annualIncome = (parseFloat(elAnnualIncome.value) || 0) * 1_000_000;
+    const annualGains = (parseFloat(elAnnualGains.value) || 0) * 1_000_000;
+    const years = Math.max(0, parseInt(elYears.value, 10) || 0);
+
+    const results = computeAll(estate).map(r => {
+      const rates = ratesFor(r.name);
+      const incomeTax = annualIncome * rates.income * years;
+      const capGainsTax = annualGains * rates.capGains * years;
+      const total = r.tax + incomeTax + capGainsTax;
+      return { ...r, rates, incomeTax, capGainsTax, total };
+    });
+
+    // Sort by selected column
+    const keyMap = { estate: "tax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
+    if (sortBy === "name") {
+      results.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      const k = keyMap[sortBy];
+      results.sort((a, b) => b[k] - a[k] || a.name.localeCompare(b.name));
+    }
+    if (sortDir === "asc") results.reverse();
+
+    // Update header indicators
+    elColHeaders.querySelectorAll("[data-sort]").forEach(h => {
+      const active = h.dataset.sort === sortBy;
+      h.classList.toggle("active", active);
+      h.querySelector(".arrow").textContent = active ? (sortDir === "desc" ? "↓" : "↑") : "";
+    });
+
+    elRanking.innerHTML = results.map((r, i) => {
+      const isExpanded = r.name === expandedState;
+      return `
+        <li class="row ${isExpanded ? "expanded" : ""}" data-state="${r.name}">
+          <div class="rank-num">${i + 1}</div>
+          <div class="state">${r.name}${pillFor(r.type)}</div>
+          <div class="num-col col-estate-cell ${r.tax === 0 ? "zero" : ""}">${fmt$(r.tax)}</div>
+          <div class="num-col col-income-cell ${r.incomeTax === 0 ? "zero" : ""}">${fmt$(r.incomeTax)}</div>
+          <div class="num-col col-capgains-cell ${r.capGainsTax === 0 ? "zero" : ""}">${fmt$(r.capGainsTax)}</div>
+          <div class="num-col total ${r.total === 0 ? "zero" : ""}">${fmt$(r.total)}</div>
+          <div class="detail">
+            <div><strong>Death tax:</strong> ${r.breakdown}</div>
+            ${r.calc ? `<div class="calc-line">${r.calc}</div>` : ""}
+            <div style="margin-top:10px"><strong>Income tax:</strong> ${fmtRate(r.rates.income)} × ${fmt$(annualIncome)}/yr × ${years} yrs = ${fmt$(r.incomeTax)}</div>
+            <div style="margin-top:6px"><strong>Capital gains tax:</strong> ${fmtRate(r.rates.capGains)} × ${fmt$(annualGains)}/yr × ${years} yrs = ${fmt$(r.capGainsTax)}</div>
+            ${r.rates.note ? `<div class="note"><strong>Income / cap gains note:</strong> ${r.rates.note}</div>` : ""}
+            ${r.tax > 0 ? `<div class="note">Heirs receive approximately <strong>${fmtFull$(estate - r.tax)}</strong> after state-level death tax. Federal estate tax is additional.</div>` : ""}
+          </div>
+        </li>
+      `;
+    }).join("");
+
+    elRanking.querySelectorAll("li.row").forEach(li => {
+      li.addEventListener("click", () => {
+        const name = li.dataset.state;
+        expandedState = (expandedState === name) ? null : name;
+        render();
+      });
+    });
+
+    // ── Places table ──────────────────────────────────────────────────────
+    // Build a lookup of state-result by canonical state name (Maryland appears twice as
+    // "Maryland (Estate)" and "Maryland (Inheritance)"; sum the death-tax components).
+    const stateByName = {};
+    for (const r of results) {
+      const key = r.name.replace(/ \(Estate\)| \(Inheritance\)/, "");
+      if (!stateByName[key]) {
+        stateByName[key] = { ...r, name: key };
+      } else {
+        stateByName[key].tax += r.tax;
+        stateByName[key].total = stateByName[key].tax + stateByName[key].incomeTax + stateByName[key].capGainsTax;
+      }
+    }
+
+    const placeRows = PLACES.map(p => {
+      const s = stateByName[p.state] || { tax: 0, incomeTax: 0, capGainsTax: 0, total: 0, rates: { income: 0, capGains: 0 }, breakdown: "" };
+      return { ...p, deathTax: s.tax, incomeTax: s.incomeTax, capGainsTax: s.capGainsTax, total: s.total, _stateRes: s };
+    });
+
+    const placeKey = { name: "name", state: "state", pop: "population", pctIndian: "pctIndian", total: "total" };
+    const pk = placeKey[placesSortBy];
+    if (placesSortBy === "name" || placesSortBy === "state") {
+      placeRows.sort((a, b) => a[pk].localeCompare(b[pk]) || a.name.localeCompare(b.name));
+    } else {
+      placeRows.sort((a, b) => b[pk] - a[pk] || a.name.localeCompare(b.name));
+    }
+    if (placesSortDir === "asc") placeRows.reverse();
+
+    elPlacesHeaders.querySelectorAll("[data-sort]").forEach(h => {
+      const active = h.dataset.sort === placesSortBy;
+      h.classList.toggle("active", active);
+      h.querySelector(".arrow").textContent = active ? (placesSortDir === "desc" ? "↓" : "↑") : "";
+    });
+
+    elPlacesRanking.innerHTML = placeRows.map((p, i) => {
+      const pid = `${p.name}|${p.state}`;
+      const isExpanded = pid === expandedPlace;
+      const isFree = p.total === 0;
+      return `
+        <li class="row ${isExpanded ? "expanded" : ""}" data-place="${pid}">
+          <div class="rank-num">${i + 1}</div>
+          <div class="state">${p.name}</div>
+          <div class="state-col-cell" style="font-size:14px;color:var(--ink-2)">${p.state}</div>
+          <div class="num-col pop-col" style="color:var(--ink-2)">${p.population.toLocaleString()}</div>
+          <div class="num-col">${(p.pctIndian * 100).toFixed(1)}%</div>
+          <div class="num-col total ${isFree ? "zero" : ""}">${fmt$(p.total)}</div>
+          <div class="detail">
+            <div><strong>${p.name}, ${p.state}</strong> — population ${p.population.toLocaleString()}, ${(p.pctIndian * 100).toFixed(1)}% Asian Indian (ACS 2023).</div>
+            <div style="margin-top:10px"><strong>Death tax (${p.state}):</strong> ${fmt$(p.deathTax)}</div>
+            <div style="margin-top:6px"><strong>Income tax:</strong> ${fmtRate(p._stateRes.rates.income)} × ${fmt$(annualIncome)}/yr × ${years} yrs = ${fmt$(p.incomeTax)}</div>
+            <div style="margin-top:6px"><strong>Capital gains tax:</strong> ${fmtRate(p._stateRes.rates.capGains)} × ${fmt$(annualGains)}/yr × ${years} yrs = ${fmt$(p.capGainsTax)}</div>
+            <div style="margin-top:6px"><strong>Total over ${years} years:</strong> ${fmt$(p.total)}</div>
+          </div>
+        </li>
+      `;
+    }).join("");
+
+    elPlacesRanking.querySelectorAll("li.row").forEach(li => {
+      li.addEventListener("click", () => {
+        const pid = li.dataset.place;
+        expandedPlace = (expandedPlace === pid) ? null : pid;
+        render();
+      });
+    });
+  }
+
+  render();
+</script>
+
+</body>
+</html>
