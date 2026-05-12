@@ -11,14 +11,19 @@
 //                 (NOT B02018_001E which is a tally and can sum to >100% of population)
 //   B01003_001E — total population
 //   B19013_001E — median household income (in inflation-adjusted dollars)
+//   B25077_001E — median value of owner-occupied housing units
+//   B15003_001E / _022..025E — educational attainment for population 25+: total / bachelor's,
+//                              master's, professional, doctoral. % Bach+ = sum(22..25)/01.
+//   B19001_001E / _017E — household income distribution: total HHs / HHs earning $200k+.
 //
-// Run:  node scripts/fetch_places.mjs > /tmp/places.js
-//       — or paste the printed JS literal directly into index.html.
+// Run:  node scripts/fetch_places.mjs
+//   Writes the regenerated dataset to ../data/places.js (relative to this script).
+//   index.html loads that file via <script src="data/places.js">; no splicing required.
 //
-// Census API is unkeyed (rate-limited at 500 requests/day per IP). We make 51 calls.
+// Census API is unkeyed (rate-limited at 500 requests/day per IP). We make 51+ calls.
 
 // Load Census API key from .env (simple parser — no dotenv dep) or env var.
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 function loadCensusKey() {
@@ -281,8 +286,24 @@ function cleanName(raw) {
   return s.trim();
 }
 
+const ACS_VARS = [
+  "NAME",
+  "B02018_021E", // Asian Indian (alone or in combination)
+  "B02011_001E", // total Asian (alone or in any combination)
+  "B01003_001E", // total population
+  "B19013_001E", // median household income
+  "B25077_001E", // median value, owner-occupied homes
+  "B15003_001E", // population 25+
+  "B15003_022E", // bachelor's degree
+  "B15003_023E", // master's degree
+  "B15003_024E", // professional school degree
+  "B15003_025E", // doctorate degree
+  "B19001_001E", // total households
+  "B19001_017E", // households earning $200k+
+].join(",");
+
 async function fetchGeography(fips, name, geoQuery) {
-  const url = `https://api.census.gov/data/2023/acs/acs5?get=NAME,B02018_021E,B02011_001E,B01003_001E,B19013_001E&for=${encodeURIComponent(geoQuery)}&in=state:${fips}&key=${CENSUS_KEY}`;
+  const url = `https://api.census.gov/data/2023/acs/acs5?get=${ACS_VARS}&for=${encodeURIComponent(geoQuery)}&in=state:${fips}&key=${CENSUS_KEY}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`${name} (${fips}, ${geoQuery}): ${res.status} ${res.statusText}`);
@@ -292,11 +313,23 @@ async function fetchGeography(fips, name, geoQuery) {
   const out = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    const [rawName, indianStr, asianStr, popStr, hhiStr] = row;
+    const [
+      rawName,
+      indianStr, asianStr, popStr, hhiStr, homeStr,
+      eduTotalStr, eduBachStr, eduMastStr, eduProfStr, eduDocStr,
+      hhTotalStr, hh200kStr,
+    ] = row;
     const population = parseInt(popStr, 10);
     const indian = parseInt(indianStr, 10);
     const asian = parseInt(asianStr, 10);
     const medianHHI = parseInt(hhiStr, 10);
+    const medianHomeValue = parseInt(homeStr, 10);
+    const eduTotal = parseInt(eduTotalStr, 10);
+    const eduBachPlus = [eduBachStr, eduMastStr, eduProfStr, eduDocStr]
+      .map(s => parseInt(s, 10))
+      .reduce((a, v) => a + (Number.isFinite(v) && v >= 0 ? v : 0), 0);
+    const hhTotal = parseInt(hhTotalStr, 10);
+    const hh200k = parseInt(hh200kStr, 10);
     if (!Number.isFinite(population) || population < POP_FLOOR) continue;
     // County: for places, look up via Place-to-County crosswalk; for MCDs, parse from NAME.
     let county = null;
@@ -310,6 +343,14 @@ async function fetchGeography(fips, name, geoQuery) {
     const pctAsian = Number.isFinite(asian) && asian >= 0
       ? +(asian / population).toFixed(4)
       : null;
+    // % adults 25+ with bachelor's degree or higher.
+    const pctBach = Number.isFinite(eduTotal) && eduTotal > 0
+      ? +(eduBachPlus / eduTotal).toFixed(4)
+      : null;
+    // % households earning $200k+ (top bracket of B19001).
+    const pct200k = Number.isFinite(hhTotal) && hhTotal > 0 && Number.isFinite(hh200k) && hh200k >= 0
+      ? +(hh200k / hhTotal).toFixed(4)
+      : null;
     out.push({
       name: cleanName(rawName),
       state: name,
@@ -320,6 +361,9 @@ async function fetchGeography(fips, name, geoQuery) {
       pctAsian,
       // Census returns negative sentinel values (e.g. -666666666) when suppressed; coerce to null.
       medianHHI: Number.isFinite(medianHHI) && medianHHI > 0 ? medianHHI : null,
+      medianHomeValue: Number.isFinite(medianHomeValue) && medianHomeValue > 0 ? medianHomeValue : null,
+      pctBach,
+      pct200k,
       metro: metroFor(fips, county),
       demMargin: demMarginFor(name, county),
     });
@@ -362,19 +406,39 @@ async function main() {
   all.slice(0, 5).forEach((p, i) => console.error(`  ${i + 1}. ${p.name}, ${p.state} — ${(p.pctIndian * 100).toFixed(1)}% Indian (pop ${p.population.toLocaleString()})`));
   const filtered = all;
 
-  // Emit JS literal to stdout
-  console.log(`// Auto-generated by scripts/fetch_places.mjs. Source: U.S. Census ACS 5-year 2023, table B02018.`);
-  console.log(`// Variable B02018_021E ("Asian Indian" alone or in combination) / B01003_001E (total population).`);
-  console.log(`// Population floor ${POP_FLOOR}; no demographic filter (users filter in-UI).`);
-  console.log(`const PLACES = [`);
+  // Write the regenerated dataset to data/places.js (sibling of scripts/).
+  const here = dirname(fileURLToPath(import.meta.url));
+  const outPath = resolve(here, "..", "data", "places.js");
+  const lines = [
+    `// Auto-generated by scripts/fetch_places.mjs. Do not edit by hand.`,
+    `// Source: U.S. Census ACS 5-year 2023.`,
+    `// Per-place fields:`,
+    `//   pctIndian       = B02018_021E / B01003_001E   (Asian Indian, alone or in combination)`,
+    `//   pctAsian        = B02011_001E / B01003_001E   (total Asian, alone or in combination)`,
+    `//   medianHHI       = B19013_001E`,
+    `//   medianHomeValue = B25077_001E`,
+    `//   pctBach         = sum(B15003_022..025E) / B15003_001E`,
+    `//   pct200k         = B19001_017E / B19001_001E`,
+    `//   demMargin       = 2024 county presidential margin (Harris − Trump, pct points; MIT/MEDSL)`,
+    `// Includes Census Places + county subdivisions (townships/towns) for the 12 strong-MCD states.`,
+    `// Population floor ${POP_FLOOR.toLocaleString("en-US")}; no demographic filter (users filter in-UI).`,
+    `// Loaded by index.html via <script src="data/places.js"></script>; declares global PLACES.`,
+    `// Re-generate with: node scripts/fetch_places.mjs`,
+    `const PLACES = [`,
+  ];
   for (const p of filtered) {
     const hhi = p.medianHHI === null ? "null" : p.medianHHI;
+    const home = p.medianHomeValue === null ? "null" : p.medianHomeValue;
     const asian = p.pctAsian === null ? "null" : p.pctAsian;
+    const bach = p.pctBach === null ? "null" : p.pctBach;
+    const hh200k = p.pct200k === null ? "null" : p.pct200k;
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
     const margin = p.demMargin === null ? "null" : p.demMargin;
-    console.log(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${asian}, medianHHI: ${hhi}, demMargin: ${margin} },`);
+    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${asian}, medianHHI: ${hhi}, medianHomeValue: ${home}, pctBach: ${bach}, pct200k: ${hh200k}, demMargin: ${margin} },`);
   }
-  console.log(`];`);
+  lines.push(`];`, ``);
+  writeFileSync(outPath, lines.join("\n"));
+  console.error(`Wrote ${outPath} (${filtered.length} places).`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

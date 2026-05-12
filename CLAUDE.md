@@ -4,15 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A single-file static web app (`index.html`) — title **"Where should I move?"** — that ranks U.S. places by total tax cost (estate + income + cap gains over a chosen horizon) and lets the user filter by demographics, political lean, household income, and population. No build system, no package.json, no tests, no dependencies. Open the file in a browser; that's the whole thing.
+A static web app — title **"Where should I move?"** — that ranks U.S. places by total tax cost (estate + income + cap gains over a chosen horizon) and lets the user filter by demographics, political lean, household income, education, wealth concentration, home value, and population. No build system, no package.json, no tests, no dependencies. Open `index.html` in a browser; that's the whole thing.
 
-The page is **a single 13-column places table** (a separate states-only table existed earlier and was removed; tax math still runs on a per-state engine, but every place inherits its state's values and displays them on its own row).
+Two source files now make up the app:
+- `index.html` — the app: markup, CSS, and inline JS (tax engine + interaction).
+- `data/places.js` — the place dataset (~8,036 entries, ~1.7 MB), declared as the global `const PLACES = [...]`. Loaded by `index.html` via `<script src="data/places.js"></script>` **before** the inline app script. Auto-generated; do not hand-edit.
+
+The page is **a single 16-column places table** (a separate states-only table existed earlier and was removed; tax math still runs on a per-state engine, but every place inherits its state's values and displays them on its own row). The table is **paginated** (50 rows per page by default, selectable from a dropdown — 25/50/100/250) and **horizontally scrollable** when the viewport is narrower than the sum of column widths; `min-width: 1660px` on the grid rows keeps columns from being squeezed.
 
 ## Commands
 
-- **Run the app**: `open index.html` (no server needed; everything is inline)
-- **Regenerate the places dataset**: `node scripts/fetch_places.mjs > /tmp/places.js` — one-off acquisition. Hits the Census ACS 5-year API 51 times (one per state + DC) plus the 12 strong-MCD states for county subdivisions; fetches a place-to-county crosswalk from the Census Bureau; fetches MIT/MEDSL's 2024 county presidential margin via the `tonmcg/US_County_Level_Election_Results_08-24` GitHub mirror. Emits a JS literal meant to be spliced into `index.html` as the `PLACES` const, **not** loaded at runtime. Requires `CENSUS_API_KEY` — set it in `.env` (gitignored) or export it; sign up at https://api.census.gov/data/key_signup.html. The script logs to stderr and writes the JS to stdout. After running, splice the new `PLACES` block into `index.html` (the existing splicer pattern: capture `const PLACES = [...];` and substitute).
-- **Sanity-check JS after edits**: `node -e "const m = require('fs').readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/); new Function(m[1]); console.log('OK')"`
+- **Run the app**: `open index.html` (no server needed — `<script src="data/places.js">` works under `file://` because the data file is plain JS, not JSON-via-fetch).
+- **Regenerate the places dataset**: `node scripts/fetch_places.mjs` — one-off acquisition. The script writes directly to `data/places.js` (no shell redirect, no splicer). Hits the Census ACS 5-year API 51 times (one per state + DC) plus the 12 strong-MCD states for county subdivisions; fetches a place-to-county crosswalk from the Census Bureau; fetches MIT/MEDSL's 2024 county presidential margin via the `tonmcg/US_County_Level_Election_Results_08-24` GitHub mirror. Pulls 12 ACS variables per place: `B02018_021E` (Asian Indian), `B02011_001E` (total Asian), `B01003_001E` (population), `B19013_001E` (median HHI), `B25077_001E` (median home value), `B15003_001/022/023/024/025E` (educational attainment, for the bachelor's+ rollup), and `B19001_001E`/`B19001_017E` (households at $200k+). Requires `CENSUS_API_KEY` — set it in `.env` (gitignored) or export it; sign up at https://api.census.gov/data/key_signup.html.
+- **Sanity-check JS after edits**: `node -e "const m = require('fs').readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/g); new Function(m[m.length-1].replace(/^<script>|<\/script>$/g, '')); console.log('OK')"` (the regex grabs the **last** `<script>` block — the inline app script — since the file now has two: the data-loading `<script src>` and the inline app code).
 
 ## Architecture
 
@@ -21,7 +25,7 @@ All logic lives in one `<script>` block in `index.html`. The data flow:
 **Three parallel tax data structures, all keyed by state name**, must stay in sync when modifying states:
 1. `STATES` array — each entry has `name`, `type` (`"free" | "estate" | "inheritance"`), and a `calc(estate, heir, marital)` function returning `{tax, breakdown, calc}`. The state estate/inheritance tax engine.
 2. `TAX_RATES` object — `{income, capGains, note?}` per canonical state name. `ratesFor()` strips any `(Estate)`/`(Inheritance)` suffix before lookup.
-3. `PLACES` array — ~**8,036 entries**, each shaped `{name, state, metro, population, pctIndian, pctAsian, medianHHI, demMargin}`. The `state` field must match a `TAX_RATES` key exactly. The `metro` field is `null` for ~9 places in less-populous CBSAs. Generated by `scripts/fetch_places.mjs`.
+3. `PLACES` array — ~**8,036 entries**, each shaped `{name, state, metro, population, pctIndian, pctAsian, medianHHI, medianHomeValue, pctBach, pct200k, demMargin}`. Lives in `data/places.js` as a top-level `const PLACES = [...]`; loaded into the global scope before the inline app script runs. The `state` field must match a `TAX_RATES` key exactly. The `metro` field is `null` for ~9 places in less-populous CBSAs; ACS-suppressed values (HHI, home value, etc.) are `null`. Generated by `scripts/fetch_places.mjs`.
 
 **Hardcoded scenario assumptions** baked into `computeAll(estate)`:
 - Heir = `"lineal"` (children/grandchildren)
@@ -46,13 +50,16 @@ This is why all 6 inheritance-tax states (KY, MD-Inheritance, NE, NJ, PA, and Io
 
 **Strong-MCD states**: in 12 states (CT, ME, MA, MI, MN, NH, NJ, NY, PA, RI, VT, WI), the primary local government unit is the township/town, not a Census Place. The fetch script queries `county subdivision:*` in addition to `place:*` for these states so entries like Plainsboro Township NJ and Lexington Town MA appear. Deduplication by `(state, cleanName)` keeps the larger-population entry when a township and a same-named CDP collide.
 
-**Rendering** is fully reactive: any change to the four input fields (years, annual income, annual cap gains, estate at death) calls `render()`, which recomputes all tax values and rewrites the places table's innerHTML. With ~8,036 rows × 14 cells per row, each render rebuilds ~5 MB of HTML string. Stays sub-500ms on modern browsers but is the dominant cost. Sort and filter state are scoped to one table now: `placesSortBy` / `placesSortDir` / `placesFilters` / `expandedPlace`. (Pre-table-merge variables `sortBy`/`sortDir`/`expandedState` no longer exist.)
+**Rendering** is reactive but now paginated: any change to the four input fields (years, annual income, annual cap gains, estate at death), to a sort header, or to a filter input calls `render()`, which (1) recomputes all tax values for all 8,036 rows, (2) filters and sorts the full list, (3) slices the visible page (`placesPage * placesPageSize` → `+placesPageSize`), and (4) rewrites the places table's innerHTML for only that page (~50 rows by default). Sorts and filters reset `placesPage = 0`; the expand/collapse toggle does not. The tax/filter/sort math still touches all 8,036 rows on every render — only the HTML-string build is bounded by the page. Sort and filter state are scoped to one table now: `placesSortBy` / `placesSortDir` / `placesFilters` / `placesPage` / `placesPageSize` / `expandedPlace`. (Pre-table-merge variables `sortBy`/`sortDir`/`expandedState` no longer exist.)
 
-**No CSS framework, no JS framework, no bundler**. Vanilla DOM + a Google Fonts link for Inter. CSS uses CSS custom properties for the palette (`--ink`, `--accent`, etc.) defined in `:root`. Table max-width is 1700px; viewport-wrap max-width matches.
+**Column-header info buttons**: every column header carries a small circled `i` (`.info-btn`) that shows a tooltip on hover (desktop) and toggles on click (touch). Click stops propagation so it doesn't trigger a sort. Tooltips describe the source (Census variable, MIT Election Lab, etc.) and any caveats (county-level margin, state-only tax modeling, etc.).
+
+**No CSS framework, no JS framework, no bundler**. Vanilla DOM + a Google Fonts link for Inter. CSS uses CSS custom properties for the palette (`--ink`, `--accent`, etc.) defined in `:root`. Table max-width is 1700px; viewport-wrap max-width matches. A `.table-scroll` wrapper inside `.table-shell.places` provides horizontal overflow with `overflow-x: auto`; the pagination bar sits below it inside the same shell and is not part of the scroll region.
 
 ## Files
 
-- `index.html` — the entire app (~1.3 MB, ~85% of which is the inlined `PLACES` const)
-- `scripts/fetch_places.mjs` — Node ESM script for one-off data acquisition; not run at page load
+- `index.html` — the app: HTML markup, CSS, and inline `<script>` (tax engine + interaction). ~67 KB after extracting the dataset.
+- `data/places.js` — auto-generated dataset, ~1.7 MB. Declares `const PLACES = [...]` at top level. Regenerated by the fetch script. Do not hand-edit.
+- `scripts/fetch_places.mjs` — Node ESM script that writes `data/places.js`. Not run at page load.
 - `.env` — `CENSUS_API_KEY=...` (gitignored)
 - `.gitignore` — ignores `.env`, `.DS_Store`, `node_modules/`, `*.log`, `/tmp/`
