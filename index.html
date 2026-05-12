@@ -4,6 +4,11 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Where should I move? — Compare U.S. places by tax, demographics, and more</title>
+<meta name="description" content="Rank 8,000+ U.S. places by total tax cost (estate, income, capital gains) over your time horizon. Filter by demographics, political lean, household income, education, home value, and population." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Where should I move?" />
+<meta property="og:description" content="Compare 8,000+ U.S. places by total tax cost, demographics, political alignment, household income, and more." />
+<meta name="twitter:card" content="summary" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -343,6 +348,10 @@
 
   /* Section heading (between tables) */
   .section-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     margin: 36px 0 12px;
     font-size: 16px;
     font-weight: 600;
@@ -353,7 +362,30 @@
     font-size: 13px;
     font-weight: 400;
     color: var(--ink-3);
-    margin-left: 8px;
+  }
+  .section-title #share-link { margin-left: auto; }
+  .share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    font: 500 11px/1 'Inter', -apple-system, system-ui, sans-serif;
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+  }
+  .share-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .share-btn.copied {
+    color: var(--good);
+    border-color: var(--good);
+    background: var(--good-soft);
   }
 
   /* Places table — different column layout */
@@ -602,7 +634,7 @@
     </div>
   </div>
 
-  <div class="section-title">U.S. places (population ≥ 5,000)<span class="sub" id="places-subtitle">Showing all places</span><a class="filter-clear" id="filter-clear">Clear filters</a></div>
+  <div class="section-title">U.S. places (population ≥ 5,000)<span class="sub" id="places-subtitle">Showing all places</span><button class="share-btn" id="share-link" type="button" aria-label="Copy a shareable link to this view">Copy share link</button><a class="filter-clear" id="filter-clear">Clear filters</a></div>
   <div class="table-shell places">
     <div class="table-scroll">
     <div class="col-headers" id="places-headers">
@@ -1542,8 +1574,122 @@
         render();
       });
     });
+
+    encodeStateToURL();
   }
 
+  // ────────────────────────────────────────────────────────────────────────
+  //  Shareable URLs
+  //  ────────────────────────────────────────────────────────────────────────
+  //  The full UI state (4 inputs + sort + page + filters + expanded row) is
+  //  reflected in the URL query string with short keys, so any link people
+  //  share auto-populates everything. Defaults are omitted to keep links short.
+  //  history.replaceState (not pushState) means typing in an input doesn't
+  //  spam the back button.
+  const URL_DEFAULTS = {
+    y: "10",       // years
+    i: "1",        // annual income ($M)
+    cg: "0.5",     // annual cap gains ($M)
+    e: "40",       // estate at death ($M)
+    sb: "pctIndian",
+    sd: "desc",
+    ps: "50",
+    p: "1",
+  };
+  const FILTER_COLS = Object.keys(placesFilters);
+
+  function encodeStateToURL() {
+    const sp = new URLSearchParams();
+    const setIfNotDefault = (k, v) => { if (v !== URL_DEFAULTS[k]) sp.set(k, v); };
+    setIfNotDefault("y",  elYears.value);
+    setIfNotDefault("i",  elAnnualIncome.value);
+    setIfNotDefault("cg", elAnnualGains.value);
+    setIfNotDefault("e",  elNetWorth.value);
+    setIfNotDefault("sb", placesSortBy);
+    setIfNotDefault("sd", placesSortDir);
+    setIfNotDefault("ps", String(placesPageSize));
+    setIfNotDefault("p",  String(placesPage + 1));
+    if (expandedPlace) sp.set("ep", expandedPlace);
+    for (const col of FILTER_COLS) {
+      const { min, max } = placesFilters[col];
+      if (min !== null) sp.set("f." + col + ".min", String(min));
+      if (max !== null) sp.set("f." + col + ".max", String(max));
+    }
+    const qs = sp.toString();
+    const newUrl = window.location.pathname + (qs ? "?" + qs : "") + window.location.hash;
+    if (newUrl !== window.location.pathname + window.location.search + window.location.hash) {
+      history.replaceState(null, "", newUrl);
+    }
+  }
+
+  function hydrateFromURL() {
+    const sp = new URLSearchParams(window.location.search);
+    if (![...sp.keys()].length) return;
+    const setInputNum = (key, el) => {
+      const v = sp.get(key);
+      if (v !== null && v !== "" && Number.isFinite(parseFloat(v))) el.value = v;
+    };
+    setInputNum("y",  elYears);
+    setInputNum("i",  elAnnualIncome);
+    setInputNum("cg", elAnnualGains);
+    setInputNum("e",  elNetWorth);
+    const sb = sp.get("sb");
+    if (sb) placesSortBy = sb;
+    const sd = sp.get("sd");
+    if (sd === "asc" || sd === "desc") placesSortDir = sd;
+    const ps = parseInt(sp.get("ps") || "", 10);
+    if ([25, 50, 100, 250].includes(ps)) {
+      placesPageSize = ps;
+      elPgSize.value = String(ps);
+    }
+    const p = parseInt(sp.get("p") || "", 10);
+    if (Number.isFinite(p) && p >= 1) placesPage = p - 1;
+    const ep = sp.get("ep");
+    if (ep) expandedPlace = ep;
+    for (const col of FILTER_COLS) {
+      for (const b of ["min", "max"]) {
+        const v = sp.get("f." + col + "." + b);
+        if (v === null || v === "") continue;
+        const n = parseFloat(v);
+        if (!Number.isFinite(n)) continue;
+        placesFilters[col][b] = n;
+        const input = document.querySelector(
+          '#places-filters input[data-filter="' + col + '"][data-bound="' + b + '"]'
+        );
+        if (input) input.value = String(n);
+      }
+    }
+  }
+
+  // Copy-link button: copies the current URL (kept fresh by encodeStateToURL
+  // running on every render()) and gives a brief visual confirmation.
+  const elShare = document.getElementById("share-link");
+  const SHARE_LABEL = elShare.textContent;
+  elShare.addEventListener("click", async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Fallback for older browsers / non-secure contexts.
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch {}
+      document.body.removeChild(ta);
+    }
+    elShare.classList.add("copied");
+    elShare.textContent = "Copied!";
+    clearTimeout(elShare._copyTimer);
+    elShare._copyTimer = setTimeout(() => {
+      elShare.classList.remove("copied");
+      elShare.textContent = SHARE_LABEL;
+    }, 1500);
+  });
+
+  hydrateFromURL();
   render();
 </script>
 
