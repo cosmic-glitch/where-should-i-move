@@ -123,6 +123,7 @@
     border-radius: 10px;
     overflow: hidden;
   }
+  .table-shell.places { max-width: 1240px; }
   ol.ranking {
     list-style: none; padding: 0; margin: 0;
   }
@@ -284,22 +285,92 @@
   }
 
   /* Places table — different column layout */
-  .table-shell.places .col-headers {
-    grid-template-columns: 32px minmax(160px, 1.4fr) minmax(110px, 1fr) 90px 90px 120px;
-  }
+  .table-shell.places .col-headers,
+  .table-shell.places .filter-row,
   .table-shell.places ol.ranking li.row {
-    grid-template-columns: 32px minmax(160px, 1.4fr) minmax(110px, 1fr) 90px 90px 120px;
+    grid-template-columns: 28px minmax(115px, 1fr) minmax(120px, 1fr) 90px 80px 70px 70px 75px 80px 65px 85px;
+    gap: 10px;
   }
+
+  /* Filter row */
+  .filter-row {
+    display: grid;
+    gap: 14px;
+    padding: 6px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-row .filter-cell {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .filter-row input[type="number"] {
+    width: 100%;
+    min-width: 0;
+    padding: 3px 6px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    outline: none;
+    background: var(--surface-alt);
+    color: var(--ink);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+  }
+  .filter-row input[type="number"]::-webkit-outer-spin-button,
+  .filter-row input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .filter-row input[type="number"]::placeholder { color: var(--ink-4); }
+  .filter-row input[type="number"]:focus {
+    border-color: var(--accent);
+    background: var(--surface);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+  .filter-clear {
+    display: inline-block;
+    margin-left: 12px;
+    font-size: 11px;
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .filter-clear:hover { text-decoration: underline; }
+
   @media (max-width: 720px) {
     .table-shell.places .col-headers,
+    .table-shell.places .filter-row,
     .table-shell.places ol.ranking li.row {
-      grid-template-columns: 28px 1fr 90px 110px;
+      grid-template-columns: 28px 1fr 80px 110px;
       gap: 10px;
     }
     .table-shell.places .col-pop,
     .table-shell.places .col-state-col,
+    .table-shell.places .col-metro,
+    .table-shell.places .col-asian,
+    .table-shell.places .col-margin,
+    .table-shell.places .col-hhi,
+    .table-shell.places .col-canopy,
+    .table-shell.places .filter-row > div:nth-child(3),
+    .table-shell.places .filter-row > div:nth-child(4),
+    .table-shell.places .filter-row > div:nth-child(5),
+    .table-shell.places .filter-row > div:nth-child(7),
+    .table-shell.places .filter-row > div:nth-child(8),
+    .table-shell.places .filter-row > div:nth-child(9),
+    .table-shell.places .filter-row > div:nth-child(10),
     .table-shell.places ol.ranking li.row .pop-col,
-    .table-shell.places ol.ranking li.row .state-col-cell { display: none; }
+    .table-shell.places ol.ranking li.row .state-col-cell,
+    .table-shell.places ol.ranking li.row .metro-col,
+    .table-shell.places ol.ranking li.row .asian-col,
+    .table-shell.places ol.ranking li.row .margin-col,
+    .table-shell.places ol.ranking li.row .hhi-col,
+    .table-shell.places ol.ranking li.row .canopy-col { display: none; }
   }
 
   /* Disclaimer */
@@ -367,20 +438,59 @@
     <ol class="ranking" id="ranking"></ol>
   </div>
 
-  <div class="section-title">Top 200 places by % Asian Indian<span class="sub">U.S. Census ACS 5-year (2023), table B02018</span></div>
+  <div class="section-title">U.S. places with ≥5% Asian Indian<span class="sub" id="places-subtitle">Showing all places</span><a class="filter-clear" id="filter-clear">Clear filters</a></div>
   <div class="table-shell places">
     <div class="col-headers" id="places-headers">
       <div></div>
       <div data-sort="name">Place<span class="arrow"></span></div>
+      <div class="col-metro" data-sort="metro">Metro<span class="arrow"></span></div>
       <div class="col-state-col" data-sort="state">State<span class="arrow"></span></div>
       <div class="col-num col-pop" data-sort="pop">Population<span class="arrow"></span></div>
       <div class="col-num col-pct active" data-sort="pctIndian">% Indian<span class="arrow">↓</span></div>
+      <div class="col-num col-asian" data-sort="pctAsian">% Asian<span class="arrow"></span></div>
+      <div class="col-num col-margin" data-sort="demMargin">D margin '24<span class="arrow"></span></div>
+      <div class="col-num col-hhi" data-sort="hhi">Median HHI<span class="arrow"></span></div>
+      <div class="col-num col-canopy" data-sort="canopy">Canopy<span class="arrow"></span></div>
       <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span></div>
+    </div>
+    <div class="filter-row" id="places-filters">
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+      <div class="filter-cell">
+        <input type="number" data-filter="pop" data-bound="min" placeholder="min" autocomplete="off"/>
+        <input type="number" data-filter="pop" data-bound="max" placeholder="max" autocomplete="off"/>
+      </div>
+      <div class="filter-cell">
+        <input type="number" data-filter="pctIndian" data-bound="min" placeholder="%" autocomplete="off"/>
+        <input type="number" data-filter="pctIndian" data-bound="max" placeholder="%" autocomplete="off"/>
+      </div>
+      <div class="filter-cell">
+        <input type="number" data-filter="pctAsian" data-bound="min" placeholder="%" autocomplete="off"/>
+        <input type="number" data-filter="pctAsian" data-bound="max" placeholder="%" autocomplete="off"/>
+      </div>
+      <div class="filter-cell">
+        <input type="number" data-filter="demMargin" data-bound="min" placeholder="min" autocomplete="off"/>
+        <input type="number" data-filter="demMargin" data-bound="max" placeholder="max" autocomplete="off"/>
+      </div>
+      <div class="filter-cell">
+        <input type="number" data-filter="hhi" data-bound="min" placeholder="$k" autocomplete="off"/>
+        <input type="number" data-filter="hhi" data-bound="max" placeholder="$k" autocomplete="off"/>
+      </div>
+      <div class="filter-cell">
+        <input type="number" data-filter="canopy" data-bound="min" placeholder="%" autocomplete="off"/>
+        <input type="number" data-filter="canopy" data-bound="max" placeholder="%" autocomplete="off"/>
+      </div>
+      <div class="filter-cell">
+        <input type="number" data-filter="total" data-bound="min" placeholder="$M" autocomplete="off"/>
+        <input type="number" data-filter="total" data-bound="max" placeholder="$M" autocomplete="off"/>
+      </div>
     </div>
     <ol class="ranking" id="places-ranking"></ol>
   </div>
 
-  <footer class="disclaimer">Tax data: 2026 state law (post-July 2026 regime for WA). Demographic data: U.S. Census ACS 5-year 2023 estimates, places with population ≥ 5,000. Not legal or tax advice.</footer>
+  <footer class="disclaimer">Tax data: 2026 state law (post-July 2026 regime for WA). Demographic data: U.S. Census ACS 5-year 2023 (places with population ≥ 5,000 and ≥ 5% Asian Indian). Tree canopy: published metro-area estimates (USFS / NLCD), applied at metro level. Not legal or tax advice.</footer>
 </main>
 
 </div>
@@ -895,211 +1005,604 @@
     return TAX_RATES[stripped] || { income: 0, capGains: 0 };
   }
 
-  // ── Top 200 US places by % Asian Indian ────────────────────────────────
-  // Auto-generated by scripts/fetch_places.mjs. Source: U.S. Census ACS 5-year 2023, table B02018.
-  // Variable B02018_021E ("Asian Indian" alone or in combination) / B01003_001E (total population).
-  // Population floor 5000; top 200 by % Asian Indian.
+  // ── Metro climate normals + tree-canopy approximation ──────────────────
+  // Source: NOAA U.S. Climate Normals 1991–2020 (Jan avg low °F, Jul avg high °F, annual
+  // precipitation in inches), supplemented by published USFS / metro-area tree canopy
+  // estimates. Values are metro-area approximations — actual values vary within metros,
+  // especially for tree canopy. Used as a coarse climate/greenery indicator only.
+  const METRO_CLIMATE = {
+    "San Francisco Bay Area": { janLow: 43, julHigh: 75, precip: 19, canopy: 22 },
+    "Los Angeles":            { janLow: 49, julHigh: 84, precip: 14, canopy: 18 },
+    "San Diego":              { janLow: 50, julHigh: 76, precip: 10, canopy: 14 },
+    "Sacramento":             { janLow: 39, julHigh: 93, precip: 19, canopy: 18 },
+    "Inland Empire":          { janLow: 42, julHigh: 95, precip: 11, canopy: 12 },
+    "Central Valley":         { janLow: 38, julHigh: 98, precip: 11, canopy: 12 },
+    "Dallas–Fort Worth":      { janLow: 36, julHigh: 96, precip: 39, canopy: 28 },
+    "Houston":                { janLow: 44, julHigh: 94, precip: 53, canopy: 31 },
+    "Austin":                 { janLow: 41, julHigh: 96, precip: 35, canopy: 30 },
+    "San Antonio":            { janLow: 41, julHigh: 96, precip: 33, canopy: 28 },
+    "New York City":          { janLow: 27, julHigh: 85, precip: 47, canopy: 22 },
+    "Philadelphia":           { janLow: 25, julHigh: 87, precip: 44, canopy: 30 },
+    "Washington, D.C.":       { janLow: 28, julHigh: 89, precip: 41, canopy: 37 },
+    "Baltimore":              { janLow: 25, julHigh: 88, precip: 43, canopy: 30 },
+    "Boston":                 { janLow: 22, julHigh: 82, precip: 44, canopy: 28 },
+    "Chicago":                { janLow: 18, julHigh: 84, precip: 38, canopy: 17 },
+    "Atlanta":                { janLow: 33, julHigh: 89, precip: 50, canopy: 48 },
+    "Detroit":                { janLow: 19, julHigh: 83, precip: 34, canopy: 25 },
+    "Phoenix":                { janLow: 46, julHigh: 106, precip: 8,  canopy: 14 },
+    "Seattle":                { janLow: 37, julHigh: 78, precip: 39, canopy: 30 },
+    "Minneapolis–St. Paul":   { janLow: 8,  julHigh: 83, precip: 30, canopy: 26 },
+    "Tampa":                  { janLow: 53, julHigh: 91, precip: 49, canopy: 31 },
+    "Orlando":                { janLow: 51, julHigh: 92, precip: 51, canopy: 32 },
+    "Miami":                  { janLow: 60, julHigh: 90, precip: 62, canopy: 21 },
+    "Jacksonville":           { janLow: 43, julHigh: 91, precip: 51, canopy: 38 },
+    "Charlotte":              { janLow: 32, julHigh: 90, precip: 43, canopy: 46 },
+    "Raleigh–Durham":         { janLow: 31, julHigh: 90, precip: 46, canopy: 52 },
+    "Pittsburgh":             { janLow: 22, julHigh: 83, precip: 39, canopy: 42 },
+    "Portland (OR)":          { janLow: 36, julHigh: 81, precip: 36, canopy: 29 },
+    "Denver":                 { janLow: 18, julHigh: 89, precip: 14, canopy: 14 },
+    "Indianapolis":           { janLow: 21, julHigh: 85, precip: 42, canopy: 31 },
+    "Columbus (OH)":          { janLow: 22, julHigh: 85, precip: 39, canopy: 22 },
+    "Cincinnati":             { janLow: 23, julHigh: 86, precip: 43, canopy: 36 },
+    "Cleveland":              { janLow: 22, julHigh: 82, precip: 41, canopy: 28 },
+    "Memphis":                { janLow: 32, julHigh: 92, precip: 54, canopy: 37 },
+    "Nashville":              { janLow: 29, julHigh: 90, precip: 51, canopy: 43 },
+    "St. Louis":              { janLow: 23, julHigh: 89, precip: 41, canopy: 26 },
+    "Kansas City":            { janLow: 22, julHigh: 88, precip: 39, canopy: 26 },
+    "Las Vegas":              { janLow: 39, julHigh: 106, precip: 4,  canopy: 10 },
+    "Salt Lake City":         { janLow: 23, julHigh: 92, precip: 16, canopy: 16 },
+    "Hartford":               { janLow: 18, julHigh: 84, precip: 47, canopy: 38 },
+    "New Haven":              { janLow: 22, julHigh: 82, precip: 47, canopy: 40 },
+    "Stamford–Bridgeport":    { janLow: 24, julHigh: 82, precip: 49, canopy: 40 },
+    "Providence":             { janLow: 21, julHigh: 82, precip: 48, canopy: 37 },
+    "Richmond":               { janLow: 28, julHigh: 90, precip: 44, canopy: 40 },
+    "Hampton Roads":          { janLow: 32, julHigh: 88, precip: 47, canopy: 35 },
+    "Birmingham":             { janLow: 33, julHigh: 91, precip: 55, canopy: 50 },
+    "Louisville":             { janLow: 27, julHigh: 89, precip: 46, canopy: 37 },
+    "Buffalo":                { janLow: 19, julHigh: 81, precip: 41, canopy: 30 },
+    "Albany":                 { janLow: 14, julHigh: 83, precip: 40, canopy: 38 },
+    "Rochester":              { janLow: 18, julHigh: 82, precip: 35, canopy: 33 },
+    "Syracuse":               { janLow: 14, julHigh: 82, precip: 41, canopy: 36 },
+    "Madison (WI)":           { janLow: 11, julHigh: 81, precip: 36, canopy: 27 },
+    "Milwaukee":              { janLow: 17, julHigh: 81, precip: 36, canopy: 22 },
+    "Reno":                   { janLow: 22, julHigh: 92, precip: 7,  canopy: 10 },
+    "Trenton–Princeton":      { janLow: 23, julHigh: 87, precip: 47, canopy: 35 },
+    "Worcester":              { janLow: 15, julHigh: 81, precip: 49, canopy: 42 },
+    "Allentown":              { janLow: 19, julHigh: 85, precip: 47, canopy: 32 },
+    "Lehigh Valley":          { janLow: 19, julHigh: 85, precip: 47, canopy: 32 },
+    "Harrisburg":             { janLow: 22, julHigh: 87, precip: 41, canopy: 30 },
+    "Lancaster (PA)":         { janLow: 22, julHigh: 87, precip: 43, canopy: 28 },
+    "Reading (PA)":           { janLow: 21, julHigh: 87, precip: 47, canopy: 30 },
+    "Northwest Arkansas":     { janLow: 26, julHigh: 89, precip: 47, canopy: 36 },
+    "Lansing":                { janLow: 16, julHigh: 83, precip: 32, canopy: 24 },
+    "Lafayette (IN)":         { janLow: 19, julHigh: 85, precip: 41, canopy: 25 },
+    "Columbus (IN)":          { janLow: 21, julHigh: 86, precip: 43, canopy: 30 },
+    "Akron":                  { janLow: 19, julHigh: 83, precip: 39, canopy: 30 },
+    "Atlantic City":          { janLow: 25, julHigh: 86, precip: 42, canopy: 30 },
+    "Asheville":              { janLow: 27, julHigh: 84, precip: 47, canopy: 60 },
+    "Winston-Salem":          { janLow: 27, julHigh: 88, precip: 45, canopy: 45 },
+    "Greensboro":             { janLow: 28, julHigh: 89, precip: 43, canopy: 45 },
+    "Greenville (SC)":        { janLow: 32, julHigh: 90, precip: 50, canopy: 50 },
+    "Columbia (SC)":          { janLow: 32, julHigh: 93, precip: 47, canopy: 47 },
+    "Charleston (SC)":        { janLow: 41, julHigh: 91, precip: 51, canopy: 45 },
+    "Knoxville":              { janLow: 28, julHigh: 88, precip: 49, canopy: 53 },
+    "Chattanooga":            { janLow: 30, julHigh: 90, precip: 53, canopy: 55 },
+    "Tucson":                 { janLow: 41, julHigh: 100, precip: 11, canopy: 12 },
+    "Boise":                  { janLow: 24, julHigh: 91, precip: 11, canopy: 12 },
+    "Spokane":                { janLow: 24, julHigh: 85, precip: 17, canopy: 22 },
+    "Eugene":                 { janLow: 35, julHigh: 82, precip: 43, canopy: 40 },
+    "Honolulu":               { janLow: 66, julHigh: 89, precip: 17, canopy: 24 },
+    "Anchorage":              { janLow: 11, julHigh: 65, precip: 17, canopy: 28 },
+    "Omaha":                  { janLow: 14, julHigh: 87, precip: 31, canopy: 22 },
+    "Des Moines":             { janLow: 14, julHigh: 86, precip: 36, canopy: 22 },
+    "Oklahoma City":          { janLow: 28, julHigh: 94, precip: 36, canopy: 25 },
+    "Tulsa":                  { janLow: 28, julHigh: 94, precip: 43, canopy: 35 },
+  };
+  function climateFor(metro) {
+    return metro ? (METRO_CLIMATE[metro] || null) : null;
+  }
+
+  // ── US places with ≥5% Asian Indian population ─────────────────────────
+  // Auto-generated by scripts/fetch_places.mjs. Source: U.S. Census ACS 5-year 2023.
+  // Variables B02018_021E (Asian Indian alone or in combination), B01003_001E (population),
+  // B19013_001E (median household income). Includes Census Places + county subdivisions
+  // (townships/towns) for the 12 strong-MCD states. Population floor 5,000; pctIndian floor 5%.
   const PLACES = [
-    { name: "Iselin", state: "New Jersey", population: 19151, pctIndian: 0.4746 },
-    { name: "Belle Mead", state: "New Jersey", population: 6772, pctIndian: 0.4715 },
-    { name: "Dayton", state: "New Jersey", population: 8241, pctIndian: 0.4445 },
-    { name: "Princeton Meadows", state: "New Jersey", population: 15382, pctIndian: 0.4436 },
-    { name: "Monmouth Junction", state: "New Jersey", population: 9457, pctIndian: 0.4375 },
-    { name: "Loudoun Valley Estates", state: "Virginia", population: 10323, pctIndian: 0.4161 },
-    { name: "Heathcote", state: "New Jersey", population: 6689, pctIndian: 0.4041 },
-    { name: "Troy Hills", state: "New Jersey", population: 5183, pctIndian: 0.387 },
-    { name: "South Barrington", state: "Illinois", population: 5004, pctIndian: 0.3669 },
-    { name: "Morrisville", state: "North Carolina", population: 30471, pctIndian: 0.3468 },
-    { name: "Mountain House", state: "California", population: 25108, pctIndian: 0.3439 },
-    { name: "Moorefield", state: "Virginia", population: 5598, pctIndian: 0.3369 },
-    { name: "Parsippany", state: "New Jersey", population: 21869, pctIndian: 0.3355 },
-    { name: "Brambleton", state: "Virginia", population: 23999, pctIndian: 0.3062 },
-    { name: "Fremont", state: "California", population: 228518, pctIndian: 0.3031 },
-    { name: "Cupertino", state: "California", population: 58886, pctIndian: 0.299 },
-    { name: "Bothell East", state: "Washington", population: 14487, pctIndian: 0.2944 },
-    { name: "Camino Tassajara", state: "California", population: 6395, pctIndian: 0.2941 },
-    { name: "Franklin Park", state: "New Jersey", population: 13327, pctIndian: 0.2901 },
-    { name: "Dublin", state: "California", population: 70542, pctIndian: 0.2795 },
-    { name: "Lake Hiawatha", state: "New Jersey", population: 10406, pctIndian: 0.2777 },
-    { name: "McNair", state: "Virginia", population: 22451, pctIndian: 0.2679 },
-    { name: "Mill Creek East", state: "Washington", population: 25461, pctIndian: 0.2532 },
-    { name: "Wyndham", state: "Virginia", population: 12084, pctIndian: 0.2475 },
-    { name: "Secaucus", state: "New Jersey", population: 21437, pctIndian: 0.2472 },
-    { name: "Milpitas", state: "California", population: 78216, pctIndian: 0.2436 },
-    { name: "Bradley Gardens", state: "New Jersey", population: 14315, pctIndian: 0.2399 },
-    { name: "Kendall Park", state: "New Jersey", population: 10765, pctIndian: 0.2398 },
-    { name: "Sunnyvale", state: "Texas", population: 8069, pctIndian: 0.2353 },
-    { name: "San Ramon", state: "California", population: 85734, pctIndian: 0.2334 },
-    { name: "North New Hyde Park", state: "New York", population: 14354, pctIndian: 0.2304 },
-    { name: "Redmond", state: "Washington", population: 75721, pctIndian: 0.218 },
-    { name: "Pleasanton", state: "California", population: 77500, pctIndian: 0.2154 },
-    { name: "Blackwells Mills", state: "New Jersey", population: 10220, pctIndian: 0.2096 },
-    { name: "Garden City Park", state: "New York", population: 8176, pctIndian: 0.2065 },
-    { name: "Short Hills", state: "New Jersey", population: 14398, pctIndian: 0.2043 },
-    { name: "Floris", state: "Virginia", population: 7135, pctIndian: 0.1982 },
-    { name: "Union Hill-Novelty Hill", state: "Washington", population: 23272, pctIndian: 0.1934 },
-    { name: "Coppell", state: "Texas", population: 42029, pctIndian: 0.1923 },
-    { name: "Livingston", state: "California", population: 14450, pctIndian: 0.1916 },
-    { name: "Frisco", state: "Texas", population: 210238, pctIndian: 0.1866 },
-    { name: "Hicksville", state: "New York", population: 43868, pctIndian: 0.1863 },
-    { name: "Murphy", state: "Texas", population: 21001, pctIndian: 0.184 },
-    { name: "Short Pump", state: "Virginia", population: 28177, pctIndian: 0.1832 },
-    { name: "Sunnyvale", state: "California", population: 153455, pctIndian: 0.1826 },
-    { name: "Carteret", state: "New Jersey", population: 25187, pctIndian: 0.1822 },
-    { name: "Santa Clara", state: "California", population: 129239, pctIndian: 0.1801 },
-    { name: "Saratoga", state: "California", population: 30335, pctIndian: 0.1787 },
-    { name: "Clarksburg", state: "Maryland", population: 29246, pctIndian: 0.1772 },
-    { name: "Bethany", state: "Oregon", population: 31700, pctIndian: 0.1754 },
-    { name: "Sammamish", state: "Washington", population: 66375, pctIndian: 0.1743 },
-    { name: "South Riding", state: "Virginia", population: 34200, pctIndian: 0.1726 },
-    { name: "Franklin Center", state: "New Jersey", population: 5770, pctIndian: 0.1716 },
-    { name: "Pimmit Hills", state: "Virginia", population: 6395, pctIndian: 0.1712 },
-    { name: "Buffalo Grove", state: "Illinois", population: 42824, pctIndian: 0.1685 },
-    { name: "Innsbrook", state: "Virginia", population: 8559, pctIndian: 0.1685 },
-    { name: "Farmington", state: "Michigan", population: 11472, pctIndian: 0.1635 },
-    { name: "Stone Ridge", state: "Virginia", population: 16340, pctIndian: 0.1629 },
-    { name: "Irving", state: "Texas", population: 255036, pctIndian: 0.162 },
-    { name: "Maryland Heights", state: "Missouri", population: 27981, pctIndian: 0.161 },
-    { name: "Exton", state: "Pennsylvania", population: 6192, pctIndian: 0.1609 },
-    { name: "Belmont", state: "Virginia", population: 9525, pctIndian: 0.157 },
-    { name: "Pebble Creek", state: "Florida", population: 10719, pctIndian: 0.1551 },
-    { name: "Madison Park", state: "New Jersey", population: 8798, pctIndian: 0.1547 },
-    { name: "Audubon", state: "Pennsylvania", population: 9014, pctIndian: 0.1529 },
-    { name: "Echelon", state: "New Jersey", population: 13577, pctIndian: 0.1521 },
-    { name: "Chesterbrook", state: "Pennsylvania", population: 5439, pctIndian: 0.1508 },
-    { name: "New Hyde Park", state: "New York", population: 10208, pctIndian: 0.1502 },
-    { name: "Green Knoll", state: "New Jersey", population: 6664, pctIndian: 0.1495 },
-    { name: "Oak Hills", state: "Oregon", population: 11464, pctIndian: 0.1491 },
-    { name: "Oak Brook", state: "Illinois", population: 8028, pctIndian: 0.1471 },
-    { name: "Foster City", state: "California", population: 32964, pctIndian: 0.1455 },
-    { name: "Troy", state: "Michigan", population: 87307, pctIndian: 0.1453 },
-    { name: "Union City", state: "California", population: 68141, pctIndian: 0.1434 },
-    { name: "Sugar Land", state: "Texas", population: 109735, pctIndian: 0.1431 },
-    { name: "Johns Creek", state: "Georgia", population: 82115, pctIndian: 0.1428 },
-    { name: "The Hills", state: "New Jersey", population: 10732, pctIndian: 0.1415 },
-    { name: "Bellevue", state: "Washington", population: 151199, pctIndian: 0.1415 },
-    { name: "Novi", state: "Michigan", population: 66224, pctIndian: 0.1403 },
-    { name: "Yuba City", state: "California", population: 69545, pctIndian: 0.1402 },
-    { name: "Vernon Hills", state: "Illinois", population: 26772, pctIndian: 0.1401 },
-    { name: "Greenville CDP (Westchester County)", state: "New York", population: 9586, pctIndian: 0.14 },
-    { name: "Marvin", state: "North Carolina", population: 6542, pctIndian: 0.14 },
-    { name: "Parker", state: "Texas", population: 5776, pctIndian: 0.1392 },
-    { name: "Alpharetta", state: "Georgia", population: 66355, pctIndian: 0.1385 },
-    { name: "Fair Lakes", state: "Virginia", population: 8617, pctIndian: 0.1381 },
-    { name: "Live Oak", state: "California", population: 9264, pctIndian: 0.138 },
-    { name: "Broadlands", state: "Virginia", population: 14673, pctIndian: 0.1377 },
-    { name: "Pine Brook", state: "New Jersey", population: 6017, pctIndian: 0.1374 },
-    { name: "Breinigsville", state: "Pennsylvania", population: 8159, pctIndian: 0.1374 },
-    { name: "Naperville", state: "Illinois", population: 149424, pctIndian: 0.1342 },
-    { name: "Milton", state: "Georgia", population: 41305, pctIndian: 0.133 },
-    { name: "Pomona", state: "New Jersey", population: 8141, pctIndian: 0.1325 },
-    { name: "King of Prussia", state: "Pennsylvania", population: 25025, pctIndian: 0.1316 },
-    { name: "Ellicott City", state: "Maryland", population: 73737, pctIndian: 0.1311 },
-    { name: "Schaumburg", state: "Illinois", population: 76780, pctIndian: 0.1309 },
-    { name: "Woodbridge", state: "New Jersey", population: 20086, pctIndian: 0.13 },
-    { name: "Jersey City", state: "New Jersey", population: 289691, pctIndian: 0.1274 },
-    { name: "Los Altos", state: "California", population: 30736, pctIndian: 0.127 },
-    { name: "Somerset", state: "New Jersey", population: 23851, pctIndian: 0.1253 },
-    { name: "Cary", state: "North Carolina", population: 176686, pctIndian: 0.1249 },
-    { name: "Newark", state: "California", population: 47145, pctIndian: 0.1231 },
-    { name: "Artesia", state: "California", population: 16044, pctIndian: 0.1221 },
-    { name: "Apex", state: "North Carolina", population: 67765, pctIndian: 0.1221 },
-    { name: "Franklin Farm", state: "Virginia", population: 18509, pctIndian: 0.1213 },
-    { name: "Dublin", state: "Ohio", population: 49031, pctIndian: 0.1208 },
-    { name: "Avenel", state: "New Jersey", population: 17143, pctIndian: 0.1206 },
-    { name: "Montgomeryville", state: "Pennsylvania", population: 13572, pctIndian: 0.1198 },
-    { name: "Morton Grove", state: "Illinois", population: 24687, pctIndian: 0.1196 },
-    { name: "Chantilly", state: "Virginia", population: 23744, pctIndian: 0.1193 },
-    { name: "Stony Brook University", state: "New York", population: 9138, pctIndian: 0.1191 },
-    { name: "Plano", state: "Texas", population: 287339, pctIndian: 0.119 },
-    { name: "Scottdale", state: "Georgia", population: 10398, pctIndian: 0.1188 },
-    { name: "McSwain", state: "California", population: 5556, pctIndian: 0.1152 },
-    { name: "Hoffman Estates", state: "Illinois", population: 51186, pctIndian: 0.1143 },
-    { name: "Harrison", state: "New Jersey", population: 19599, pctIndian: 0.114 },
-    { name: "Carol Stream", state: "Illinois", population: 39427, pctIndian: 0.1138 },
-    { name: "Hawthorn Woods", state: "Illinois", population: 9145, pctIndian: 0.1137 },
-    { name: "Urbana", state: "Maryland", population: 13897, pctIndian: 0.1126 },
-    { name: "Lexington", state: "Massachusetts", population: 34085, pctIndian: 0.1114 },
-    { name: "Hillsborough", state: "New Jersey", population: 22302, pctIndian: 0.1088 },
-    { name: "Farmington Hills", state: "Michigan", population: 83316, pctIndian: 0.1083 },
-    { name: "Lathrop", state: "California", population: 32696, pctIndian: 0.1078 },
-    { name: "Issaquah", state: "Washington", population: 39472, pctIndian: 0.1075 },
-    { name: "Mountain Park", state: "Georgia", population: 13102, pctIndian: 0.1072 },
-    { name: "Collierville", state: "Tennessee", population: 51212, pctIndian: 0.1052 },
-    { name: "Hanover Park", state: "Illinois", population: 36850, pctIndian: 0.1051 },
-    { name: "Sayreville", state: "New Jersey", population: 45237, pctIndian: 0.1049 },
-    { name: "Bentonville", state: "Arkansas", population: 56326, pctIndian: 0.1046 },
-    { name: "Folsom", state: "California", population: 82140, pctIndian: 0.1045 },
-    { name: "Tega Cay", state: "South Carolina", population: 13267, pctIndian: 0.1041 },
-    { name: "Colonia", state: "New Jersey", population: 18294, pctIndian: 0.1033 },
-    { name: "North Potomac", state: "Maryland", population: 23994, pctIndian: 0.1028 },
-    { name: "Travilah", state: "Maryland", population: 11128, pctIndian: 0.1028 },
-    { name: "Pinehurst", state: "Massachusetts", population: 6737, pctIndian: 0.1021 },
-    { name: "Meridian", state: "Colorado", population: 5058, pctIndian: 0.102 },
-    { name: "Cerritos", state: "California", population: 48340, pctIndian: 0.1012 },
-    { name: "Burr Ridge", state: "Illinois", population: 11119, pctIndian: 0.1012 },
-    { name: "Heathrow", state: "Florida", population: 7033, pctIndian: 0.101 },
-    { name: "Jericho", state: "New York", population: 14117, pctIndian: 0.1007 },
-    { name: "Dunwoody", state: "Georgia", population: 51563, pctIndian: 0.1004 },
-    { name: "Tysons", state: "Virginia", population: 28022, pctIndian: 0.1003 },
-    { name: "Lake Butler", state: "Florida", population: 17242, pctIndian: 0.1002 },
-    { name: "Auburn Hills", state: "Michigan", population: 24911, pctIndian: 0.0997 },
-    { name: "Finderne", state: "New Jersey", population: 5968, pctIndian: 0.0992 },
-    { name: "Franklin Park", state: "Pennsylvania", population: 15273, pctIndian: 0.0981 },
-    { name: "East Rutherford", state: "New Jersey", population: 10154, pctIndian: 0.098 },
-    { name: "Bull Run CDP (Fairfax County)", state: "Virginia", population: 7513, pctIndian: 0.0972 },
-    { name: "Elmsford", state: "New York", population: 5183, pctIndian: 0.097 },
-    { name: "Great Falls", state: "Virginia", population: 14854, pctIndian: 0.0969 },
-    { name: "Lisle", state: "Illinois", population: 23413, pctIndian: 0.0965 },
-    { name: "Elmont", state: "New York", population: 36436, pctIndian: 0.0965 },
-    { name: "Rochester Institute of Technology", state: "New York", population: 6339, pctIndian: 0.0964 },
-    { name: "Tracy", state: "California", population: 95358, pctIndian: 0.0955 },
-    { name: "Merrifield", state: "Virginia", population: 20549, pctIndian: 0.0955 },
-    { name: "Lincolnwood", state: "Illinois", population: 13179, pctIndian: 0.0948 },
-    { name: "Inverness", state: "Illinois", population: 7541, pctIndian: 0.0947 },
-    { name: "Ashburn", state: "Virginia", population: 45551, pctIndian: 0.0941 },
-    { name: "Fairview", state: "California", population: 10033, pctIndian: 0.0936 },
-    { name: "Missouri City", state: "Texas", population: 75234, pctIndian: 0.0927 },
-    { name: "Metuchen", state: "New Jersey", population: 14982, pctIndian: 0.0926 },
-    { name: "Cumming", state: "Georgia", population: 7869, pctIndian: 0.0924 },
-    { name: "South Plainfield", state: "New Jersey", population: 24231, pctIndian: 0.0912 },
-    { name: "Paramus", state: "New Jersey", population: 26500, pctIndian: 0.0902 },
-    { name: "Vineyard", state: "California", population: 42645, pctIndian: 0.0894 },
-    { name: "Morganville", state: "New Jersey", population: 5544, pctIndian: 0.0891 },
-    { name: "Dunn Loring", state: "Virginia", population: 8782, pctIndian: 0.0887 },
-    { name: "Valley Stream", state: "New York", population: 40278, pctIndian: 0.0886 },
-    { name: "Okemos", state: "Michigan", population: 25503, pctIndian: 0.0884 },
-    { name: "Fords", state: "New Jersey", population: 13052, pctIndian: 0.0883 },
-    { name: "Harrisburg", state: "North Carolina", population: 19203, pctIndian: 0.0879 },
-    { name: "Burlington", state: "Massachusetts", population: 26223, pctIndian: 0.0874 },
-    { name: "New City", state: "New York", population: 34133, pctIndian: 0.0871 },
-    { name: "Four Corners", state: "Texas", population: 11490, pctIndian: 0.0869 },
-    { name: "Greenbriar", state: "Virginia", population: 7989, pctIndian: 0.0867 },
-    { name: "Columbus", state: "Indiana", population: 51104, pctIndian: 0.0866 },
-    { name: "Cheval", state: "Florida", population: 13694, pctIndian: 0.0865 },
-    { name: "Reminderville", state: "Ohio", population: 5370, pctIndian: 0.0855 },
-    { name: "Salisbury", state: "New York", population: 13388, pctIndian: 0.0854 },
-    { name: "Mountain View", state: "California", population: 82363, pctIndian: 0.0852 },
-    { name: "Bridgewater Center", state: "New Jersey", population: 6198, pctIndian: 0.085 },
-    { name: "Clarendon Hills", state: "Illinois", population: 8642, pctIndian: 0.0847 },
-    { name: "Wood-Ridge", state: "New Jersey", population: 10094, pctIndian: 0.0845 },
-    { name: "Chesterfield", state: "Missouri", population: 49591, pctIndian: 0.0842 },
-    { name: "Wolf Trap", state: "Virginia", population: 16020, pctIndian: 0.0833 },
-    { name: "Darnestown", state: "Maryland", population: 6835, pctIndian: 0.0828 },
-    { name: "Stafford", state: "Texas", population: 17279, pctIndian: 0.0824 },
-    { name: "West Lafayette", state: "Indiana", population: 44802, pctIndian: 0.082 },
-    { name: "Bartlett", state: "Illinois", population: 40531, pctIndian: 0.0812 },
-    { name: "Pike Creek", state: "Delaware", population: 7185, pctIndian: 0.0809 },
-    { name: "Ilchester", state: "Maryland", population: 27552, pctIndian: 0.0808 },
-    { name: "Belmont", state: "California", population: 27505, pctIndian: 0.0805 },
-    { name: "San Jose", state: "California", population: 990054, pctIndian: 0.0803 },
-    { name: "Cedar Mill", state: "Oregon", population: 19482, pctIndian: 0.0798 },
-    { name: "Downingtown", state: "Pennsylvania", population: 8163, pctIndian: 0.0798 },
-    { name: "Caldwell", state: "New Jersey", population: 8898, pctIndian: 0.0797 },
-    { name: "Ledgewood", state: "New Jersey", population: 5150, pctIndian: 0.079 },
-    { name: "Plainedge", state: "New York", population: 8930, pctIndian: 0.0789 },
-    { name: "North Valley Stream", state: "New York", population: 17756, pctIndian: 0.0788 },
-    { name: "Bothell", state: "Washington", population: 48610, pctIndian: 0.0787 },
+    { name: "Iselin", state: "New Jersey", metro: "New York City", population: 19151, pctIndian: 0.4746, pctAsian: 0.5704, medianHHI: 112615, demMargin: 8 },
+    { name: "Belle Mead", state: "New Jersey", metro: "New York City", population: 6772, pctIndian: 0.4715, pctAsian: 0.6512, medianHHI: 219215, demMargin: 13.9 },
+    { name: "Dayton", state: "New Jersey", metro: "New York City", population: 8241, pctIndian: 0.4445, pctAsian: 0.5709, medianHHI: 141308, demMargin: 8 },
+    { name: "Princeton Meadows", state: "New Jersey", metro: "New York City", population: 15382, pctIndian: 0.4436, pctAsian: 0.6312, medianHHI: 124065, demMargin: 8 },
+    { name: "Monmouth Junction", state: "New Jersey", metro: "New York City", population: 9457, pctIndian: 0.4375, pctAsian: 0.56, medianHHI: 125892, demMargin: 8 },
+    { name: "Loudoun Valley Estates", state: "Virginia", metro: "Washington, D.C.", population: 10323, pctIndian: 0.4161, pctAsian: 0.5431, medianHHI: 229126, demMargin: 16.3 },
+    { name: "Heathcote", state: "New Jersey", metro: "New York City", population: 6689, pctIndian: 0.4041, pctAsian: 0.5575, medianHHI: 127391, demMargin: 8 },
+    { name: "Plainsboro", state: "New Jersey", metro: "New York City", population: 23954, pctIndian: 0.4035, pctAsian: 0.577, medianHHI: 124852, demMargin: 8 },
+    { name: "Troy Hills", state: "New Jersey", metro: "New York City", population: 5183, pctIndian: 0.387, pctAsian: 0.4987, medianHHI: 180618, demMargin: -2.7 },
+    { name: "Edison", state: "New Jersey", metro: "New York City", population: 107027, pctIndian: 0.3804, pctAsian: 0.5175, medianHHI: 124388, demMargin: 8 },
+    { name: "South Brunswick", state: "New Jersey", metro: "New York City", population: 46686, pctIndian: 0.3762, pctAsian: 0.4994, medianHHI: 145575, demMargin: 8 },
+    { name: "West Windsor", state: "New Jersey", metro: "Trenton–Princeton", population: 29791, pctIndian: 0.3723, pctAsian: 0.5163, medianHHI: 190100, demMargin: 33.9 },
+    { name: "South Barrington", state: "Illinois", metro: "Chicago", population: 5004, pctIndian: 0.3669, pctAsian: 0.4844, medianHHI: 211083, demMargin: 42 },
+    { name: "Morrisville", state: "North Carolina", metro: "Raleigh–Durham", population: 30471, pctIndian: 0.3468, pctAsian: 0.4448, medianHHI: 125404, demMargin: 61.9 },
+    { name: "Mountain House", state: "California", metro: "Central Valley", population: 25108, pctIndian: 0.3439, pctAsian: 0.6155, medianHHI: 171675, demMargin: -0.9 },
+    { name: "Moorefield", state: "Virginia", metro: "Washington, D.C.", population: 5598, pctIndian: 0.3369, pctAsian: 0.4514, medianHHI: 200754, demMargin: 16.3 },
+    { name: "Parsippany", state: "New Jersey", metro: "New York City", population: 21869, pctIndian: 0.3355, pctAsian: 0.4707, medianHHI: 102152, demMargin: -2.7 },
+    { name: "Brambleton", state: "Virginia", metro: "Washington, D.C.", population: 23999, pctIndian: 0.3062, pctAsian: 0.4054, medianHHI: 250001, demMargin: 16.3 },
+    { name: "Fremont", state: "California", metro: "San Francisco Bay Area", population: 228518, pctIndian: 0.3031, pctAsian: 0.6536, medianHHI: 176350, demMargin: 53.6 },
+    { name: "Cupertino", state: "California", metro: "San Francisco Bay Area", population: 58886, pctIndian: 0.299, pctAsian: 0.7391, medianHHI: 231139, demMargin: 40 },
+    { name: "Bothell East", state: "Washington", metro: "Seattle", population: 14487, pctIndian: 0.2944, pctAsian: 0.4875, medianHHI: 189519, demMargin: 19 },
+    { name: "Camino Tassajara", state: "California", metro: "San Francisco Bay Area", population: 6395, pctIndian: 0.2941, pctAsian: 0.6388, medianHHI: 250001, demMargin: 37.9 },
+    { name: "Franklin Park", state: "New Jersey", metro: "New York City", population: 13327, pctIndian: 0.2901, pctAsian: 0.3902, medianHHI: 111508, demMargin: 13.9 },
+    { name: "Dublin", state: "California", metro: "San Francisco Bay Area", population: 70542, pctIndian: 0.2795, pctAsian: 0.6013, medianHHI: 205046, demMargin: 53.6 },
+    { name: "Lake Hiawatha", state: "New Jersey", metro: "New York City", population: 10406, pctIndian: 0.2777, pctAsian: 0.3834, medianHHI: 101500, demMargin: -2.7 },
+    { name: "Parsippany-Troy Hills", state: "New Jersey", metro: "New York City", population: 56072, pctIndian: 0.2693, pctAsian: 0.4008, medianHHI: 112923, demMargin: -2.7 },
+    { name: "McNair", state: "Virginia", metro: "Washington, D.C.", population: 22451, pctIndian: 0.2679, pctAsian: 0.3917, medianHHI: 123327, demMargin: 33.4 },
+    { name: "Robbinsville", state: "New Jersey", metro: "Trenton–Princeton", population: 15432, pctIndian: 0.2627, pctAsian: 0.328, medianHHI: 162813, demMargin: 33.9 },
+    { name: "Mill Creek East", state: "Washington", metro: "Seattle", population: 25461, pctIndian: 0.2532, pctAsian: 0.4125, medianHHI: 183466, demMargin: 19 },
+    { name: "Wyndham", state: "Virginia", metro: "Richmond", population: 12084, pctIndian: 0.2475, pctAsian: 0.3457, medianHHI: 235886, demMargin: 28.9 },
+    { name: "Secaucus", state: "New Jersey", metro: "New York City", population: 21437, pctIndian: 0.2472, pctAsian: 0.3557, medianHHI: 134746, demMargin: 28.1 },
+    { name: "Upper Uwchlan", state: "Pennsylvania", metro: "Philadelphia", population: 12731, pctIndian: 0.2444, pctAsian: 0.2647, medianHHI: 188464, demMargin: 14.5 },
+    { name: "Milpitas", state: "California", metro: "San Francisco Bay Area", population: 78216, pctIndian: 0.2436, pctAsian: 0.7481, medianHHI: 176822, demMargin: 40 },
+    { name: "Chesterfield", state: "New Jersey", metro: "Philadelphia", population: 9213, pctIndian: 0.2428, pctAsian: 0.3012, medianHHI: 193224, demMargin: 16.6 },
+    { name: "Bradley Gardens", state: "New Jersey", metro: "New York City", population: 14315, pctIndian: 0.2399, pctAsian: 0.3834, medianHHI: 177590, demMargin: 13.9 },
+    { name: "Kendall Park", state: "New Jersey", metro: "New York City", population: 10765, pctIndian: 0.2398, pctAsian: 0.3394, medianHHI: 175361, demMargin: 8 },
+    { name: "Sunnyvale", state: "Texas", metro: "Dallas–Fort Worth", population: 8069, pctIndian: 0.2353, pctAsian: 0.2511, medianHHI: 157500, demMargin: 22.2 },
+    { name: "San Ramon", state: "California", metro: "San Francisco Bay Area", population: 85734, pctIndian: 0.2334, pctAsian: 0.5302, medianHHI: 197358, demMargin: 37.9 },
+    { name: "Montgomery", state: "New Jersey", metro: "New York City", population: 23643, pctIndian: 0.2331, pctAsian: 0.4276, medianHHI: 223409, demMargin: 13.9 },
+    { name: "North New Hyde Park", state: "New York", metro: "New York City", population: 14354, pctIndian: 0.2304, pctAsian: 0.4732, medianHHI: 164340, demMargin: -4.2 },
+    { name: "Redmond", state: "Washington", metro: "Seattle", population: 75721, pctIndian: 0.218, pctAsian: 0.417, medianHHI: 162099, demMargin: 51.7 },
+    { name: "Pleasanton", state: "California", metro: "San Francisco Bay Area", population: 77500, pctIndian: 0.2154, pctAsian: 0.4604, medianHHI: 186206, demMargin: 53.6 },
+    { name: "Blackwells Mills", state: "New Jersey", metro: "New York City", population: 10220, pctIndian: 0.2096, pctAsian: 0.2985, medianHHI: 248149, demMargin: 13.9 },
+    { name: "Garden City Park", state: "New York", metro: "New York City", population: 8176, pctIndian: 0.2065, pctAsian: 0.4832, medianHHI: 135208, demMargin: -4.2 },
+    { name: "Short Hills", state: "New Jersey", metro: "New York City", population: 14398, pctIndian: 0.2043, pctAsian: 0.4117, medianHHI: 250001, demMargin: 44.9 },
+    { name: "Piscataway", state: "New Jersey", metro: "New York City", population: 60632, pctIndian: 0.2025, pctAsian: 0.3452, medianHHI: 126308, demMargin: 8 },
+    { name: "Monroe", state: "New Jersey", metro: "New York City", population: 48299, pctIndian: 0.2003, pctAsian: 0.2618, medianHHI: 106892, demMargin: 8 },
+    { name: "East Whiteland", state: "Pennsylvania", metro: "Philadelphia", population: 14459, pctIndian: 0.1991, pctAsian: 0.278, medianHHI: 145972, demMargin: 14.5 },
+    { name: "Floris", state: "Virginia", metro: "Washington, D.C.", population: 7135, pctIndian: 0.1982, pctAsian: 0.3923, medianHHI: 239457, demMargin: 33.4 },
+    { name: "Union Hill-Novelty Hill", state: "Washington", metro: "Seattle", population: 23272, pctIndian: 0.1934, pctAsian: 0.3105, medianHHI: 181820, demMargin: 51.7 },
+    { name: "Coppell", state: "Texas", metro: "Dallas–Fort Worth", population: 42029, pctIndian: 0.1923, pctAsian: 0.3081, medianHHI: 139227, demMargin: 22.2 },
+    { name: "Livingston", state: "California", metro: "Central Valley", population: 14450, pctIndian: 0.1916, pctAsian: 0.23, medianHHI: 76158, demMargin: -4.4 },
+    { name: "Frisco", state: "Texas", metro: "Dallas–Fort Worth", population: 210238, pctIndian: 0.1866, pctAsian: 0.2909, medianHHI: 146158, demMargin: -11.1 },
+    { name: "Hicksville", state: "New York", metro: "New York City", population: 43868, pctIndian: 0.1863, pctAsian: 0.3496, medianHHI: 148008, demMargin: -4.2 },
+    { name: "Murphy", state: "Texas", metro: "Dallas–Fort Worth", population: 21001, pctIndian: 0.184, pctAsian: 0.3493, medianHHI: 165109, demMargin: -11.1 },
+    { name: "Short Pump", state: "Virginia", metro: "Richmond", population: 28177, pctIndian: 0.1832, pctAsian: 0.2841, medianHHI: 132194, demMargin: 28.9 },
+    { name: "Sunnyvale", state: "California", metro: "San Francisco Bay Area", population: 153455, pctIndian: 0.1826, pctAsian: 0.5295, medianHHI: 181862, demMargin: 40 },
+    { name: "Carteret", state: "New Jersey", metro: "New York City", population: 25187, pctIndian: 0.1822, pctAsian: 0.257, medianHHI: 87553, demMargin: 8 },
+    { name: "Santa Clara", state: "California", metro: "San Francisco Bay Area", population: 129239, pctIndian: 0.1801, pctAsian: 0.511, medianHHI: 173670, demMargin: 40 },
+    { name: "Westborough", state: "Massachusetts", metro: "Worcester", population: 21591, pctIndian: 0.1788, pctAsian: 0.2384, medianHHI: 134474, demMargin: 10 },
+    { name: "Saratoga", state: "California", metro: "San Francisco Bay Area", population: 30335, pctIndian: 0.1787, pctAsian: 0.6245, medianHHI: 241348, demMargin: 40 },
+    { name: "Clarksburg", state: "Maryland", metro: "Washington, D.C.", population: 29246, pctIndian: 0.1772, pctAsian: 0.4233, medianHHI: 178641, demMargin: 53.3 },
+    { name: "Bethany", state: "Oregon", metro: "Portland (OR)", population: 31700, pctIndian: 0.1754, pctAsian: 0.4329, medianHHI: 164315, demMargin: 34 },
+    { name: "Sammamish", state: "Washington", metro: "Seattle", population: 66375, pctIndian: 0.1743, pctAsian: 0.3994, medianHHI: 227273, demMargin: 51.7 },
+    { name: "South Riding", state: "Virginia", metro: "Washington, D.C.", population: 34200, pctIndian: 0.1726, pctAsian: 0.4025, medianHHI: 190701, demMargin: 16.3 },
+    { name: "Franklin Center", state: "New Jersey", metro: "New York City", population: 5770, pctIndian: 0.1716, pctAsian: 0.301, medianHHI: 138643, demMargin: 13.9 },
+    { name: "South Windsor", state: "Connecticut", metro: "Hartford", population: 26820, pctIndian: 0.1714, pctAsian: 0.2335, medianHHI: 143025, demMargin: 21.9 },
+    { name: "Woodbridge", state: "New Jersey", metro: "New York City", population: 103428, pctIndian: 0.1714, pctAsian: 0.256, medianHHI: 108347, demMargin: 8 },
+    { name: "Pimmit Hills", state: "Virginia", metro: "Washington, D.C.", population: 6395, pctIndian: 0.1712, pctAsian: 0.3908, medianHHI: 168548, demMargin: 33.4 },
+    { name: "Buffalo Grove", state: "Illinois", metro: "Chicago", population: 42824, pctIndian: 0.1685, pctAsian: 0.2986, medianHHI: 129820, demMargin: 42 },
+    { name: "Innsbrook", state: "Virginia", metro: "Richmond", population: 8559, pctIndian: 0.1685, pctAsian: 0.3392, medianHHI: 130534, demMargin: 28.9 },
+    { name: "North Brunswick", state: "New Jersey", metro: "New York City", population: 43867, pctIndian: 0.1672, pctAsian: 0.2386, medianHHI: 117301, demMargin: 8 },
+    { name: "Shrewsbury", state: "Massachusetts", metro: "Worcester", population: 38440, pctIndian: 0.1671, pctAsian: 0.2461, medianHHI: 136225, demMargin: 10 },
+    { name: "Boxborough", state: "Massachusetts", metro: "Boston", population: 5468, pctIndian: 0.1637, pctAsian: 0.2209, medianHHI: 151000, demMargin: 39.5 },
+    { name: "Farmington", state: "Michigan", metro: "Detroit", population: 11472, pctIndian: 0.1635, pctAsian: 0.2082, medianHHI: 94115, demMargin: 10.6 },
+    { name: "Franklin", state: "New Jersey", metro: "New York City", population: 68367, pctIndian: 0.1635, pctAsian: 0.2532, medianHHI: 118034, demMargin: 13.9 },
+    { name: "Stone Ridge", state: "Virginia", metro: "Washington, D.C.", population: 16340, pctIndian: 0.1629, pctAsian: 0.374, medianHHI: 183211, demMargin: 16.3 },
+    { name: "Irving", state: "Texas", metro: "Dallas–Fort Worth", population: 255036, pctIndian: 0.162, pctAsian: 0.2385, medianHHI: 79641, demMargin: 22.2 },
+    { name: "Millburn", state: "New Jersey", metro: "New York City", population: 21793, pctIndian: 0.1617, pctAsian: 0.3769, medianHHI: 250001, demMargin: 44.9 },
+    { name: "Maryland Heights", state: "Missouri", metro: "St. Louis", population: 27981, pctIndian: 0.161, pctAsian: 0.2023, medianHHI: 86485, demMargin: 64.7 },
+    { name: "Exton", state: "Pennsylvania", metro: "Philadelphia", population: 6192, pctIndian: 0.1609, pctAsian: 0.2303, medianHHI: 121189, demMargin: 14.5 },
+    { name: "Belmont", state: "Virginia", metro: "Washington, D.C.", population: 9525, pctIndian: 0.157, pctAsian: 0.3237, medianHHI: 232879, demMargin: 16.3 },
+    { name: "Pebble Creek", state: "Florida", metro: "Tampa", population: 10719, pctIndian: 0.1551, pctAsian: 0.2166, medianHHI: 109375, demMargin: -3.1 },
+    { name: "Westford", state: "Massachusetts", metro: "Boston", population: 24584, pctIndian: 0.1548, pctAsian: 0.2516, medianHHI: 181523, demMargin: 39.5 },
+    { name: "Madison Park", state: "New Jersey", metro: "New York City", population: 8798, pctIndian: 0.1547, pctAsian: 0.2133, medianHHI: 76396, demMargin: 8 },
+    { name: "East Windsor", state: "New Jersey", metro: "Trenton–Princeton", population: 29837, pctIndian: 0.1537, pctAsian: 0.2256, medianHHI: 103656, demMargin: 33.9 },
+    { name: "Audubon", state: "Pennsylvania", metro: "Philadelphia", population: 9014, pctIndian: 0.1529, pctAsian: 0.1931, medianHHI: 107785, demMargin: 22.8 },
+    { name: "Echelon", state: "New Jersey", metro: "Philadelphia", population: 13577, pctIndian: 0.1521, pctAsian: 0.2812, medianHHI: 81808, demMargin: 27.4 },
+    { name: "Silver Spring", state: "Pennsylvania", metro: "Harrisburg", population: 20165, pctIndian: 0.1519, pctAsian: 0.1899, medianHHI: 118592, demMargin: -9.4 },
+    { name: "West Vincent", state: "Pennsylvania", metro: "Philadelphia", population: 6751, pctIndian: 0.1517, pctAsian: 0.1991, medianHHI: 196071, demMargin: 14.5 },
+    { name: "Chesterbrook", state: "Pennsylvania", metro: "Philadelphia", population: 5439, pctIndian: 0.1508, pctAsian: 0.3447, medianHHI: 140972, demMargin: 14.5 },
+    { name: "New Hyde Park", state: "New York", metro: "New York City", population: 10208, pctIndian: 0.1502, pctAsian: 0.3181, medianHHI: 146571, demMargin: -4.2 },
+    { name: "Green Knoll", state: "New Jersey", metro: "New York City", population: 6664, pctIndian: 0.1495, pctAsian: 0.2461, medianHHI: 156630, demMargin: 13.9 },
+    { name: "Oak Hills", state: "Oregon", metro: "Portland (OR)", population: 11464, pctIndian: 0.1491, pctAsian: 0.3344, medianHHI: 124594, demMargin: 34 },
+    { name: "Hillsborough", state: "New Jersey", metro: "New York City", population: 43477, pctIndian: 0.1481, pctAsian: 0.2267, medianHHI: 153549, demMargin: 13.9 },
+    { name: "Oak Brook", state: "Illinois", metro: "Chicago", population: 8028, pctIndian: 0.1471, pctAsian: 0.3119, medianHHI: 171123, demMargin: 13.3 },
+    { name: "Foster City", state: "California", metro: "San Francisco Bay Area", population: 32964, pctIndian: 0.1455, pctAsian: 0.5862, medianHHI: 193633, demMargin: 50.3 },
+    { name: "Troy", state: "Michigan", metro: "Detroit", population: 87307, pctIndian: 0.1453, pctAsian: 0.2769, medianHHI: 119299, demMargin: 10.6 },
+    { name: "Bridgewater", state: "New Jersey", metro: "New York City", population: 45943, pctIndian: 0.1446, pctAsian: 0.2619, medianHHI: 170641, demMargin: 13.9 },
+    { name: "East Caln", state: "Pennsylvania", metro: "Philadelphia", population: 5493, pctIndian: 0.1435, pctAsian: 0.1841, medianHHI: 97772, demMargin: 14.5 },
+    { name: "Union City", state: "California", metro: "San Francisco Bay Area", population: 68141, pctIndian: 0.1434, pctAsian: 0.5934, medianHHI: 137194, demMargin: 53.6 },
+    { name: "Sugar Land", state: "Texas", metro: "Houston", population: 109735, pctIndian: 0.1431, pctAsian: 0.4155, medianHHI: 137511, demMargin: 1.6 },
+    { name: "Johns Creek", state: "Georgia", metro: "Atlanta", population: 82115, pctIndian: 0.1428, pctAsian: 0.3025, medianHHI: 160185, demMargin: 44.9 },
+    { name: "The Hills", state: "New Jersey", metro: "New York City", population: 10732, pctIndian: 0.1415, pctAsian: 0.3639, medianHHI: 142750, demMargin: 13.9 },
+    { name: "Bellevue", state: "Washington", metro: "Seattle", population: 151199, pctIndian: 0.1415, pctAsian: 0.4415, medianHHI: 161300, demMargin: 51.7 },
+    { name: "Hopkinton", state: "Massachusetts", metro: "Boston", population: 19050, pctIndian: 0.1404, pctAsian: 0.1977, medianHHI: 204418, demMargin: 39.5 },
+    { name: "Novi", state: "Michigan", metro: "Detroit", population: 66224, pctIndian: 0.1403, pctAsian: 0.2724, medianHHI: 110938, demMargin: 10.6 },
+    { name: "Yuba City", state: "California", metro: "Sacramento", population: 69545, pctIndian: 0.1402, pctAsian: 0.2285, medianHHI: 72322, demMargin: -31.4 },
+    { name: "Vernon Hills", state: "Illinois", metro: "Chicago", population: 26772, pctIndian: 0.1401, pctAsian: 0.2601, medianHHI: 120625, demMargin: 20.8 },
+    { name: "Greenville CDP (Westchester County)", state: "New York", metro: "New York City", population: 9586, pctIndian: 0.14, pctAsian: 0.328, medianHHI: 157159, demMargin: 26.3 },
+    { name: "Marvin", state: "North Carolina", metro: "Charlotte", population: 6542, pctIndian: 0.14, pctAsian: 0.1998, medianHHI: 250001, demMargin: -25.3 },
+    { name: "Parker", state: "Texas", metro: "Dallas–Fort Worth", population: 5776, pctIndian: 0.1392, pctAsian: 0.2012, medianHHI: 216179, demMargin: -11.1 },
+    { name: "Alpharetta", state: "Georgia", metro: "Atlanta", population: 66355, pctIndian: 0.1385, pctAsian: 0.2229, medianHHI: 146581, demMargin: 44.9 },
+    { name: "Fair Lakes", state: "Virginia", metro: "Washington, D.C.", population: 8617, pctIndian: 0.1381, pctAsian: 0.4242, medianHHI: 130789, demMargin: 33.4 },
+    { name: "Live Oak", state: "California", metro: "Sacramento", population: 9264, pctIndian: 0.138, pctAsian: 0.2162, medianHHI: 66590, demMargin: -31.4 },
+    { name: "Broadlands", state: "Virginia", metro: "Washington, D.C.", population: 14673, pctIndian: 0.1377, pctAsian: 0.3041, medianHHI: 235491, demMargin: 16.3 },
+    { name: "Pine Brook", state: "New Jersey", metro: "New York City", population: 6017, pctIndian: 0.1374, pctAsian: 0.2553, medianHHI: 146543, demMargin: -2.7 },
+    { name: "Breinigsville", state: "Pennsylvania", metro: "Lehigh Valley", population: 8159, pctIndian: 0.1374, pctAsian: 0.1707, medianHHI: 116631, demMargin: 2.7 },
+    { name: "East Brunswick", state: "New Jersey", metro: "New York City", population: 49411, pctIndian: 0.1368, pctAsian: 0.3006, medianHHI: 140769, demMargin: 8 },
+    { name: "Scott", state: "Pennsylvania", metro: "Pittsburgh", population: 17370, pctIndian: 0.136, pctAsian: 0.1555, medianHHI: 87228, demMargin: 20.3 },
+    { name: "Naperville", state: "Illinois", metro: "Chicago", population: 149424, pctIndian: 0.1342, pctAsian: 0.2406, medianHHI: 150937, demMargin: 13.3 },
+    { name: "Livingston", state: "New Jersey", metro: "New York City", population: 31128, pctIndian: 0.134, pctAsian: 0.3318, medianHHI: 218416, demMargin: 44.9 },
+    { name: "Milton", state: "Georgia", metro: "Atlanta", population: 41305, pctIndian: 0.133, pctAsian: 0.179, medianHHI: 151235, demMargin: 44.9 },
+    { name: "Pomona", state: "New Jersey", metro: "Atlantic City", population: 8141, pctIndian: 0.1325, pctAsian: 0.2371, medianHHI: 100382, demMargin: -3 },
+    { name: "King of Prussia", state: "Pennsylvania", metro: "Philadelphia", population: 25025, pctIndian: 0.1316, pctAsian: 0.2404, medianHHI: 111600, demMargin: 22.8 },
+    { name: "Ellicott City", state: "Maryland", metro: "Baltimore", population: 73737, pctIndian: 0.1311, pctAsian: 0.3326, medianHHI: 157891, demMargin: 41.7 },
+    { name: "Schaumburg", state: "Illinois", metro: "Chicago", population: 76780, pctIndian: 0.1309, pctAsian: 0.2522, medianHHI: 94690, demMargin: 42 },
+    { name: "Rocky Hill", state: "Connecticut", metro: "Hartford", population: 20724, pctIndian: 0.129, pctAsian: 0.1495, medianHHI: 100061, demMargin: 21.9 },
+    { name: "Jersey City", state: "New Jersey", metro: "New York City", population: 289691, pctIndian: 0.1274, pctAsian: 0.2762, medianHHI: 94813, demMargin: 28.1 },
+    { name: "Los Altos", state: "California", metro: "San Francisco Bay Area", population: 30736, pctIndian: 0.127, pctAsian: 0.4114, medianHHI: 250001, demMargin: 40 },
+    { name: "Voorhees", state: "New Jersey", metro: "Philadelphia", population: 31011, pctIndian: 0.1258, pctAsian: 0.215, medianHHI: 112606, demMargin: 27.4 },
+    { name: "Somerset", state: "New Jersey", metro: "New York City", population: 23851, pctIndian: 0.1253, pctAsian: 0.2232, medianHHI: 113603, demMargin: 13.9 },
+    { name: "Cary", state: "North Carolina", metro: "Raleigh–Durham", population: 176686, pctIndian: 0.1249, pctAsian: 0.2242, medianHHI: 129399, demMargin: 12.5 },
+    { name: "Newark", state: "California", metro: "San Francisco Bay Area", population: 47145, pctIndian: 0.1231, pctAsian: 0.4687, medianHHI: 164909, demMargin: 53.6 },
+    { name: "Hatfield", state: "Pennsylvania", metro: "Philadelphia", population: 18738, pctIndian: 0.1224, pctAsian: 0.2213, medianHHI: 99864, demMargin: 22.8 },
+    { name: "Artesia", state: "California", metro: "Los Angeles", population: 16044, pctIndian: 0.1221, pctAsian: 0.4485, medianHHI: 97712, demMargin: 32.9 },
+    { name: "Apex", state: "North Carolina", metro: "Raleigh–Durham", population: 67765, pctIndian: 0.1221, pctAsian: 0.1791, medianHHI: 138442, demMargin: 25.5 },
+    { name: "Franklin Farm", state: "Virginia", metro: "Washington, D.C.", population: 18509, pctIndian: 0.1213, pctAsian: 0.2526, medianHHI: 210169, demMargin: 33.4 },
+    { name: "Dublin", state: "Ohio", metro: "Columbus (OH)", population: 49031, pctIndian: 0.1208, pctAsian: 0.2143, medianHHI: 155282, demMargin: -6.6 },
+    { name: "Northville", state: "Michigan", metro: "Detroit", population: 31393, pctIndian: 0.1206, pctAsian: 0.1859, medianHHI: 141816, demMargin: 29 },
+    { name: "Avenel", state: "New Jersey", metro: "New York City", population: 17143, pctIndian: 0.1206, pctAsian: 0.2051, medianHHI: 95935, demMargin: 8 },
+    { name: "Canton charter", state: "Michigan", metro: "Detroit", population: 98232, pctIndian: 0.1201, pctAsian: 0.2116, medianHHI: 118010, demMargin: 29 },
+    { name: "Montgomeryville", state: "Pennsylvania", metro: "Philadelphia", population: 13572, pctIndian: 0.1198, pctAsian: 0.2148, medianHHI: 130769, demMargin: 22.8 },
+    { name: "Morton Grove", state: "Illinois", metro: "Chicago", population: 24687, pctIndian: 0.1196, pctAsian: 0.3592, medianHHI: 106078, demMargin: 42 },
+    { name: "Chantilly", state: "Virginia", metro: "Washington, D.C.", population: 23744, pctIndian: 0.1193, pctAsian: 0.4025, medianHHI: 143786, demMargin: 33.4 },
+    { name: "Stony Brook University", state: "New York", metro: "New York City", population: 9138, pctIndian: 0.1191, pctAsian: 0.4965, medianHHI: null, demMargin: -10 },
+    { name: "Plano", state: "Texas", metro: "Dallas–Fort Worth", population: 287339, pctIndian: 0.119, pctAsian: 0.2432, medianHHI: 108649, demMargin: -11.1 },
+    { name: "Scottdale", state: "Georgia", metro: "Atlanta", population: 10398, pctIndian: 0.1188, pctAsian: 0.1772, medianHHI: 82778, demMargin: 64.8 },
+    { name: "Ashland", state: "Massachusetts", metro: "Boston", population: 18694, pctIndian: 0.1153, pctAsian: 0.1535, medianHHI: 127106, demMargin: 39.5 },
+    { name: "McSwain", state: "California", metro: "Central Valley", population: 5556, pctIndian: 0.1152, pctAsian: 0.1532, medianHHI: 140173, demMargin: -4.4 },
+    { name: "Bernards", state: "New Jersey", metro: "New York City", population: 27840, pctIndian: 0.1147, pctAsian: 0.2706, medianHHI: 182480, demMargin: 13.9 },
+    { name: "Hoffman Estates", state: "Illinois", metro: "Chicago", population: 51186, pctIndian: 0.1143, pctAsian: 0.25, medianHHI: 109683, demMargin: 42 },
+    { name: "Harrison", state: "New Jersey", metro: "New York City", population: 19599, pctIndian: 0.114, pctAsian: 0.241, medianHHI: 82290, demMargin: 28.1 },
+    { name: "Carol Stream", state: "Illinois", metro: "Chicago", population: 39427, pctIndian: 0.1138, pctAsian: 0.2153, medianHHI: 105395, demMargin: 13.3 },
+    { name: "Hawthorn Woods", state: "Illinois", metro: "Chicago", population: 9145, pctIndian: 0.1137, pctAsian: 0.1518, medianHHI: 238114, demMargin: 20.8 },
+    { name: "Avon", state: "Connecticut", metro: "Hartford", population: 18856, pctIndian: 0.1133, pctAsian: 0.176, medianHHI: 151481, demMargin: 21.9 },
+    { name: "Urbana", state: "Maryland", metro: "Washington, D.C.", population: 13897, pctIndian: 0.1126, pctAsian: 0.224, medianHHI: 178231, demMargin: 8.8 },
+    { name: "Lexington", state: "Massachusetts", metro: "Boston", population: 34085, pctIndian: 0.1114, pctAsian: 0.3577, medianHHI: 219402, demMargin: 39.5 },
+    { name: "Charlestown", state: "Pennsylvania", metro: "Philadelphia", population: 6169, pctIndian: 0.111, pctAsian: 0.1871, medianHHI: 199417, demMargin: 14.5 },
+    { name: "Montville", state: "New Jersey", metro: "New York City", population: 22421, pctIndian: 0.1091, pctAsian: 0.2371, medianHHI: 170472, demMargin: -2.7 },
+    { name: "Farmington Hills", state: "Michigan", metro: "Detroit", population: 83316, pctIndian: 0.1083, pctAsian: 0.1598, medianHHI: 101863, demMargin: 10.6 },
+    { name: "Lathrop", state: "California", metro: "Central Valley", population: 32696, pctIndian: 0.1078, pctAsian: 0.3611, medianHHI: 118605, demMargin: -0.9 },
+    { name: "Issaquah", state: "Washington", metro: "Seattle", population: 39472, pctIndian: 0.1075, pctAsian: 0.3272, medianHHI: 153786, demMargin: 51.7 },
+    { name: "Mountain Park", state: "Georgia", metro: "Atlanta", population: 13102, pctIndian: 0.1072, pctAsian: 0.2278, medianHHI: 95678, demMargin: 16.5 },
+    { name: "Tredyffrin", state: "Pennsylvania", metro: "Philadelphia", population: 31822, pctIndian: 0.1062, pctAsian: 0.2282, medianHHI: 157883, demMargin: 14.5 },
+    { name: "Marlboro", state: "New Jersey", metro: "New York City", population: 41506, pctIndian: 0.1052, pctAsian: 0.2384, medianHHI: 176076, demMargin: -11.4 },
+    { name: "Collierville", state: "Tennessee", metro: "Memphis", population: 51212, pctIndian: 0.1052, pctAsian: 0.1457, medianHHI: 134319, demMargin: 25.4 },
+    { name: "Hanover Park", state: "Illinois", metro: "Chicago", population: 36850, pctIndian: 0.1051, pctAsian: 0.2139, medianHHI: 92263, demMargin: 42 },
+    { name: "Sayreville", state: "New Jersey", metro: "New York City", population: 45237, pctIndian: 0.1049, pctAsian: 0.1771, medianHHI: 98629, demMargin: 8 },
+    { name: "Bentonville", state: "Arkansas", metro: "Northwest Arkansas", population: 56326, pctIndian: 0.1046, pctAsian: 0.146, medianHHI: 108465, demMargin: -27 },
+    { name: "Folsom", state: "California", metro: "Sacramento", population: 82140, pctIndian: 0.1045, pctAsian: 0.228, medianHHI: 139263, demMargin: 19.7 },
+    { name: "Findlay", state: "Pennsylvania", metro: "Pittsburgh", population: 6442, pctIndian: 0.1045, pctAsian: 0.1105, medianHHI: 99624, demMargin: 20.3 },
+    { name: "Upper Merion", state: "Pennsylvania", metro: "Philadelphia", population: 34274, pctIndian: 0.1041, pctAsian: 0.1936, medianHHI: 115936, demMargin: 22.8 },
+    { name: "Tega Cay", state: "South Carolina", metro: "Charlotte", population: 13267, pctIndian: 0.1041, pctAsian: 0.1208, medianHHI: 141037, demMargin: -19.1 },
+    { name: "Colonia", state: "New Jersey", metro: "New York City", population: 18294, pctIndian: 0.1033, pctAsian: 0.1562, medianHHI: 134301, demMargin: 8 },
+    { name: "Montgomery", state: "Pennsylvania", metro: "Philadelphia", population: 25945, pctIndian: 0.103, pctAsian: 0.2469, medianHHI: 131817, demMargin: 22.8 },
+    { name: "North Potomac", state: "Maryland", metro: "Washington, D.C.", population: 23994, pctIndian: 0.1028, pctAsian: 0.4268, medianHHI: 186438, demMargin: 53.3 },
+    { name: "Travilah", state: "Maryland", metro: "Washington, D.C.", population: 11128, pctIndian: 0.1028, pctAsian: 0.3834, medianHHI: 250001, demMargin: 53.3 },
+    { name: "Pinehurst", state: "Massachusetts", metro: "Boston", population: 6737, pctIndian: 0.1021, pctAsian: 0.1256, medianHHI: 136406, demMargin: 39.5 },
+    { name: "Meridian", state: "Colorado", metro: "Denver", population: 5058, pctIndian: 0.102, pctAsian: 0.1803, medianHHI: 90496, demMargin: -7 },
+    { name: "Cerritos", state: "California", metro: "Los Angeles", population: 48340, pctIndian: 0.1012, pctAsian: 0.6623, medianHHI: 133953, demMargin: 32.9 },
+    { name: "Burr Ridge", state: "Illinois", metro: "Chicago", population: 11119, pctIndian: 0.1012, pctAsian: 0.181, medianHHI: 154508, demMargin: 42 },
+    { name: "Heathrow", state: "Florida", metro: "Orlando", population: 7033, pctIndian: 0.101, pctAsian: 0.1723, medianHHI: 122837, demMargin: -3.6 },
+    { name: "Jericho", state: "New York", metro: "New York City", population: 14117, pctIndian: 0.1007, pctAsian: 0.511, medianHHI: 180072, demMargin: -4.2 },
+    { name: "Dunwoody", state: "Georgia", metro: "Atlanta", population: 51563, pctIndian: 0.1004, pctAsian: 0.1755, medianHHI: 109116, demMargin: 64.8 },
+    { name: "Tysons", state: "Virginia", metro: "Washington, D.C.", population: 28022, pctIndian: 0.1003, pctAsian: 0.3388, medianHHI: 129189, demMargin: 33.4 },
+    { name: "Lake Butler", state: "Florida", metro: "Orlando", population: 17242, pctIndian: 0.1002, pctAsian: 0.1964, medianHHI: 178750, demMargin: 13.6 },
+    { name: "Acton", state: "Massachusetts", metro: "Boston", population: 23961, pctIndian: 0.0997, pctAsian: 0.2606, medianHHI: 153338, demMargin: 39.5 },
+    { name: "Auburn Hills", state: "Michigan", metro: "Detroit", population: 24911, pctIndian: 0.0997, pctAsian: 0.1574, medianHHI: 78727, demMargin: 10.6 },
+    { name: "Finderne", state: "New Jersey", metro: "New York City", population: 5968, pctIndian: 0.0992, pctAsian: 0.2269, medianHHI: 109348, demMargin: 13.9 },
+    { name: "Franklin Park", state: "Pennsylvania", metro: "Pittsburgh", population: 15273, pctIndian: 0.0981, pctAsian: 0.1606, medianHHI: 172200, demMargin: 20.3 },
+    { name: "East Rutherford", state: "New Jersey", metro: "New York City", population: 10154, pctIndian: 0.098, pctAsian: 0.2082, medianHHI: 91789, demMargin: 3.4 },
+    { name: "Bull Run CDP (Fairfax County)", state: "Virginia", metro: "Washington, D.C.", population: 7513, pctIndian: 0.0972, pctAsian: 0.2347, medianHHI: 238500, demMargin: 33.4 },
+    { name: "Upper Providence", state: "Pennsylvania", metro: "Philadelphia", population: 24398, pctIndian: 0.0971, pctAsian: 0.1498, medianHHI: 141771, demMargin: 22.8 },
+    { name: "Elmsford", state: "New York", metro: "New York City", population: 5183, pctIndian: 0.097, pctAsian: 0.1356, medianHHI: 116779, demMargin: 26.3 },
+    { name: "Great Falls", state: "Virginia", metro: "Washington, D.C.", population: 14854, pctIndian: 0.0969, pctAsian: 0.2643, medianHHI: 250001, demMargin: 33.4 },
+    { name: "Lisle", state: "Illinois", metro: "Chicago", population: 23413, pctIndian: 0.0965, pctAsian: 0.1743, medianHHI: 106173, demMargin: 13.3 },
+    { name: "Elmont", state: "New York", metro: "New York City", population: 36436, pctIndian: 0.0965, pctAsian: 0.1954, medianHHI: 120917, demMargin: -4.2 },
+    { name: "Rochester Institute of Technology", state: "New York", metro: "Rochester", population: 6339, pctIndian: 0.0964, pctAsian: 0.2122, medianHHI: 19420, demMargin: 19.1 },
+    { name: "Tracy", state: "California", metro: "Central Valley", population: 95358, pctIndian: 0.0955, pctAsian: 0.2548, medianHHI: 118253, demMargin: -0.9 },
+    { name: "Merrifield", state: "Virginia", metro: "Washington, D.C.", population: 20549, pctIndian: 0.0955, pctAsian: 0.3468, medianHHI: 136173, demMargin: 33.4 },
+    { name: "Lincolnwood", state: "Illinois", metro: "Chicago", population: 13179, pctIndian: 0.0948, pctAsian: 0.2864, medianHHI: 107950, demMargin: 42 },
+    { name: "Inverness", state: "Illinois", metro: "Chicago", population: 7541, pctIndian: 0.0947, pctAsian: 0.2265, medianHHI: 215810, demMargin: 42 },
+    { name: "Warren", state: "New Jersey", metro: "New York City", population: 15962, pctIndian: 0.0945, pctAsian: 0.1937, medianHHI: 189393, demMargin: 13.9 },
+    { name: "Ashburn", state: "Virginia", metro: "Washington, D.C.", population: 45551, pctIndian: 0.0941, pctAsian: 0.2396, medianHHI: 152094, demMargin: 16.3 },
+    { name: "Berkeley Heights", state: "New Jersey", metro: "New York City", population: 13121, pctIndian: 0.094, pctAsian: 0.2087, medianHHI: 198750, demMargin: 24.2 },
+    { name: "Old Bridge", state: "New Jersey", metro: "New York City", population: 67392, pctIndian: 0.0937, pctAsian: 0.1576, medianHHI: 100661, demMargin: 8 },
+    { name: "Fairview", state: "California", metro: "San Francisco Bay Area", population: 10033, pctIndian: 0.0936, pctAsian: 0.2555, medianHHI: 148801, demMargin: 53.6 },
+    { name: "Missouri City", state: "Texas", metro: "Houston", population: 75234, pctIndian: 0.0927, pctAsian: 0.19, medianHHI: 96746, demMargin: 1.6 },
+    { name: "Metuchen", state: "New Jersey", metro: "New York City", population: 14982, pctIndian: 0.0926, pctAsian: 0.2085, medianHHI: 157779, demMargin: 8 },
+    { name: "Cumming", state: "Georgia", metro: "Atlanta", population: 7869, pctIndian: 0.0924, pctAsian: 0.1062, medianHHI: 79073, demMargin: -33.1 },
+    { name: "Farmington", state: "Connecticut", metro: "Hartford", population: 26685, pctIndian: 0.0918, pctAsian: 0.1882, medianHHI: 134237, demMargin: 21.9 },
+    { name: "West Whiteland", state: "Pennsylvania", metro: "Philadelphia", population: 19951, pctIndian: 0.0918, pctAsian: 0.1358, medianHHI: 132077, demMargin: 14.5 },
+    { name: "Sharon", state: "Massachusetts", metro: "Boston", population: 18478, pctIndian: 0.0912, pctAsian: 0.2194, medianHHI: 183724, demMargin: 28.8 },
+    { name: "South Plainfield", state: "New Jersey", metro: "New York City", population: 24231, pctIndian: 0.0912, pctAsian: 0.1667, medianHHI: 126063, demMargin: 8 },
+    { name: "Paramus", state: "New Jersey", metro: "New York City", population: 26500, pctIndian: 0.0902, pctAsian: 0.2511, medianHHI: 139707, demMargin: 3.4 },
+    { name: "Vineyard", state: "California", metro: "Sacramento", population: 42645, pctIndian: 0.0894, pctAsian: 0.4341, medianHHI: 108403, demMargin: 19.7 },
+    { name: "Morganville", state: "New Jersey", metro: "New York City", population: 5544, pctIndian: 0.0891, pctAsian: 0.2724, medianHHI: 134911, demMargin: -11.4 },
+    { name: "Dunn Loring", state: "Virginia", metro: "Washington, D.C.", population: 8782, pctIndian: 0.0887, pctAsian: 0.2859, medianHHI: 236563, demMargin: 33.4 },
+    { name: "Valley Stream", state: "New York", metro: "New York City", population: 40278, pctIndian: 0.0886, pctAsian: 0.2023, medianHHI: 127426, demMargin: -4.2 },
+    { name: "Okemos", state: "Michigan", metro: "Lansing", population: 25503, pctIndian: 0.0884, pctAsian: 0.2282, medianHHI: 97603, demMargin: 29.7 },
+    { name: "Fords", state: "New Jersey", metro: "New York City", population: 13052, pctIndian: 0.0883, pctAsian: 0.2016, medianHHI: 116250, demMargin: 8 },
+    { name: "Harrisburg", state: "North Carolina", metro: "Charlotte", population: 19203, pctIndian: 0.0879, pctAsian: 0.1593, medianHHI: 143393, demMargin: -7.7 },
+    { name: "Upper Macungie", state: "Pennsylvania", metro: "Lehigh Valley", population: 27100, pctIndian: 0.0877, pctAsian: 0.141, medianHHI: 119252, demMargin: 2.7 },
+    { name: "Burlington", state: "Massachusetts", metro: "Boston", population: 26223, pctIndian: 0.0874, pctAsian: 0.16, medianHHI: 142207, demMargin: 39.5 },
+    { name: "South Fayette", state: "Pennsylvania", metro: "Pittsburgh", population: 18328, pctIndian: 0.0873, pctAsian: 0.1314, medianHHI: 121737, demMargin: 20.3 },
+    { name: "New City", state: "New York", metro: "New York City", population: 34133, pctIndian: 0.0871, pctAsian: 0.1675, medianHHI: 174479, demMargin: -11.8 },
+    { name: "Four Corners", state: "Texas", metro: "Houston", population: 11490, pctIndian: 0.0869, pctAsian: 0.3428, medianHHI: 72853, demMargin: 1.6 },
+    { name: "Greenbriar", state: "Virginia", metro: "Washington, D.C.", population: 7989, pctIndian: 0.0867, pctAsian: 0.2506, medianHHI: 134284, demMargin: 33.4 },
+    { name: "Columbus", state: "Indiana", metro: "Columbus (IN)", population: 51104, pctIndian: 0.0866, pctAsian: 0.1264, medianHHI: 76856, demMargin: -27.3 },
+    { name: "Cheval", state: "Florida", metro: "Tampa", population: 13694, pctIndian: 0.0865, pctAsian: 0.1426, medianHHI: 92095, demMargin: -3.1 },
+    { name: "Reminderville", state: "Ohio", metro: "Akron", population: 5370, pctIndian: 0.0855, pctAsian: 0.1274, medianHHI: 104890, demMargin: 7 },
+    { name: "Salisbury", state: "New York", metro: "New York City", population: 13388, pctIndian: 0.0854, pctAsian: 0.2309, medianHHI: 173808, demMargin: -4.2 },
+    { name: "Mountain View", state: "California", metro: "San Francisco Bay Area", population: 82363, pctIndian: 0.0852, pctAsian: 0.3924, medianHHI: 179917, demMargin: 40 },
+    { name: "Bridgewater Center", state: "New Jersey", metro: "New York City", population: 6198, pctIndian: 0.085, pctAsian: 0.2017, medianHHI: 201250, demMargin: 13.9 },
+    { name: "Clarendon Hills", state: "Illinois", metro: "Chicago", population: 8642, pctIndian: 0.0847, pctAsian: 0.1356, medianHHI: 125826, demMargin: 13.3 },
+    { name: "Wood-Ridge", state: "New Jersey", metro: "New York City", population: 10094, pctIndian: 0.0845, pctAsian: 0.2235, medianHHI: 131412, demMargin: 3.4 },
+    { name: "Chesterfield", state: "Missouri", metro: "St. Louis", population: 49591, pctIndian: 0.0842, pctAsian: 0.1492, medianHHI: 133380, demMargin: 64.7 },
+    { name: "Bensalem", state: "Pennsylvania", metro: "Philadelphia", population: 62689, pctIndian: 0.0833, pctAsian: 0.1366, medianHHI: 81616, demMargin: -0.1 },
+    { name: "Wolf Trap", state: "Virginia", metro: "Washington, D.C.", population: 16020, pctIndian: 0.0833, pctAsian: 0.2231, medianHHI: 250001, demMargin: 33.4 },
+    { name: "Darnestown", state: "Maryland", metro: "Washington, D.C.", population: 6835, pctIndian: 0.0828, pctAsian: 0.18, medianHHI: 217679, demMargin: 53.3 },
+    { name: "Stafford", state: "Texas", metro: "Houston", population: 17279, pctIndian: 0.0824, pctAsian: 0.3059, medianHHI: 85910, demMargin: 1.6 },
+    { name: "Woodbury", state: "New York", metro: "New York City", population: 12191, pctIndian: 0.0822, pctAsian: 0.0915, medianHHI: 133953, demMargin: -8.4 },
+    { name: "West Lafayette", state: "Indiana", metro: "Lafayette (IN)", population: 44802, pctIndian: 0.082, pctAsian: 0.2211, medianHHI: 33497, demMargin: -0.1 },
+    { name: "Bartlett", state: "Illinois", metro: "Chicago", population: 40531, pctIndian: 0.0812, pctAsian: 0.1957, medianHHI: 130479, demMargin: 42 },
+    { name: "Pike Creek", state: "Delaware", metro: "Philadelphia", population: 7185, pctIndian: 0.0809, pctAsian: 0.26, medianHHI: 135703, demMargin: 32.6 },
+    { name: "Ilchester", state: "Maryland", metro: "Baltimore", population: 27552, pctIndian: 0.0808, pctAsian: 0.2274, medianHHI: 150783, demMargin: 41.7 },
+    { name: "Belmont", state: "California", metro: "San Francisco Bay Area", population: 27505, pctIndian: 0.0805, pctAsian: 0.3463, medianHHI: 207609, demMargin: 50.3 },
+    { name: "San Jose", state: "California", metro: "San Francisco Bay Area", population: 990054, pctIndian: 0.0803, pctAsian: 0.4148, medianHHI: 141565, demMargin: 40 },
+    { name: "Cedar Mill", state: "Oregon", metro: "Portland (OR)", population: 19482, pctIndian: 0.0798, pctAsian: 0.213, medianHHI: 167037, demMargin: 62.1 },
+    { name: "Downingtown", state: "Pennsylvania", metro: "Philadelphia", population: 8163, pctIndian: 0.0798, pctAsian: 0.1098, medianHHI: 82292, demMargin: 14.5 },
+    { name: "Caldwell", state: "New Jersey", metro: "New York City", population: 8898, pctIndian: 0.0797, pctAsian: 0.1441, medianHHI: 101196, demMargin: 44.9 },
+    { name: "Hampden", state: "Pennsylvania", metro: "Harrisburg", population: 33602, pctIndian: 0.0795, pctAsian: 0.1745, medianHHI: 103780, demMargin: -9.4 },
+    { name: "Northborough", state: "Massachusetts", metro: "Worcester", population: 15694, pctIndian: 0.0792, pctAsian: 0.1228, medianHHI: 174358, demMargin: 10 },
+    { name: "Ledgewood", state: "New Jersey", metro: "New York City", population: 5150, pctIndian: 0.079, pctAsian: 0.1309, medianHHI: 125000, demMargin: -2.7 },
+    { name: "Plainedge", state: "New York", metro: "New York City", population: 8930, pctIndian: 0.0789, pctAsian: 0.1518, medianHHI: 155670, demMargin: -4.2 },
+    { name: "North Valley Stream", state: "New York", metro: "New York City", population: 17756, pctIndian: 0.0788, pctAsian: 0.1639, medianHHI: 145204, demMargin: -4.2 },
+    { name: "Bothell", state: "Washington", metro: "Seattle", population: 48610, pctIndian: 0.0787, pctAsian: 0.2284, medianHHI: 132232, demMargin: 51.7 },
+    { name: "Mason", state: "Ohio", metro: "Cincinnati", population: 35148, pctIndian: 0.0786, pctAsian: 0.153, medianHHI: 124407, demMargin: -31.5 },
+    { name: "Franklin Square", state: "New York", metro: "New York City", population: 30559, pctIndian: 0.0785, pctAsian: 0.1686, medianHHI: 140051, demMargin: -4.2 },
+    { name: "Contra Costa Centre", state: "California", metro: "San Francisco Bay Area", population: 7127, pctIndian: 0.0784, pctAsian: 0.2917, medianHHI: 127910, demMargin: 37.9 },
+    { name: "Lower Providence", state: "Pennsylvania", metro: "Philadelphia", population: 25773, pctIndian: 0.0782, pctAsian: 0.144, medianHHI: 115181, demMargin: 22.8 },
+    { name: "Manchester", state: "Connecticut", metro: "Hartford", population: 59473, pctIndian: 0.078, pctAsian: 0.1172, medianHHI: 87213, demMargin: 21.9 },
+    { name: "Eden Prairie", state: "Minnesota", metro: "Minneapolis–St. Paul", population: 63249, pctIndian: 0.0778, pctAsian: 0.154, medianHHI: 127732, demMargin: 42.6 },
+    { name: "Branchburg", state: "New Jersey", metro: "New York City", population: 14948, pctIndian: 0.0771, pctAsian: 0.1323, medianHHI: 169087, demMargin: 13.9 },
+    { name: "Glendale Heights", state: "Illinois", metro: "Chicago", population: 32864, pctIndian: 0.077, pctAsian: 0.2525, medianHHI: 82232, demMargin: 13.3 },
+    { name: "Brookdale", state: "New Jersey", metro: "New York City", population: 10044, pctIndian: 0.0769, pctAsian: 0.1575, medianHHI: 150489, demMargin: 44.9 },
+    { name: "Mount Olive", state: "New Jersey", metro: "New York City", population: 28964, pctIndian: 0.0768, pctAsian: 0.1067, medianHHI: 119931, demMargin: -2.7 },
+    { name: "Los Altos Hills", state: "California", metro: "San Francisco Bay Area", population: 8367, pctIndian: 0.0766, pctAsian: 0.435, medianHHI: 250001, demMargin: 40 },
+    { name: "South Valley Stream", state: "New York", metro: "New York City", population: 6177, pctIndian: 0.0761, pctAsian: 0.3058, medianHHI: 138783, demMargin: -4.2 },
+    { name: "New Albany", state: "Ohio", metro: "Columbus (OH)", population: 10524, pctIndian: 0.0757, pctAsian: 0.1376, medianHHI: 232524, demMargin: 28.4 },
+    { name: "Southlake", state: "Texas", metro: "Dallas–Fort Worth", population: 31044, pctIndian: 0.0757, pctAsian: 0.182, medianHHI: 250001, demMargin: -13.2 },
+    { name: "Maywood", state: "New Jersey", metro: "New York City", population: 10042, pctIndian: 0.0756, pctAsian: 0.1904, medianHHI: 119306, demMargin: 3.4 },
+    { name: "Bedford", state: "Massachusetts", metro: "Boston", population: 14343, pctIndian: 0.0755, pctAsian: 0.1843, medianHHI: 158964, demMargin: 39.5 },
+    { name: "Fowler", state: "California", metro: "Central Valley", population: 6930, pctIndian: 0.0753, pctAsian: 0.1237, medianHHI: 61071, demMargin: -4.4 },
+    { name: "Paoli", state: "Pennsylvania", metro: "Philadelphia", population: 6124, pctIndian: 0.0753, pctAsian: 0.2095, medianHHI: 117094, demMargin: 14.5 },
+    { name: "Newcastle", state: "Washington", metro: "Seattle", population: 12945, pctIndian: 0.0752, pctAsian: 0.4516, medianHHI: 162646, demMargin: 51.7 },
+    { name: "Leander", state: "Texas", metro: "Austin", population: 67880, pctIndian: 0.0749, pctAsian: 0.1424, medianHHI: 140180, demMargin: 39.3 },
+    { name: "Fulshear", state: "Texas", metro: "Houston", population: 26986, pctIndian: 0.0748, pctAsian: 0.1228, medianHHI: 178398, demMargin: 1.6 },
+    { name: "Laurel Hill", state: "Virginia", metro: "Washington, D.C.", population: 7551, pctIndian: 0.0748, pctAsian: 0.243, medianHHI: 139803, demMargin: 33.4 },
+    { name: "Syosset", state: "New York", metro: "New York City", population: 18274, pctIndian: 0.0746, pctAsian: 0.342, medianHHI: 187936, demMargin: -4.2 },
+    { name: "Weddington", state: "North Carolina", metro: "Charlotte", population: 13468, pctIndian: 0.0745, pctAsian: 0.0867, medianHHI: 196159, demMargin: 32.9 },
+    { name: "Middleburg Heights", state: "Ohio", metro: "Cleveland", population: 15817, pctIndian: 0.0745, pctAsian: 0.1038, medianHHI: 78324, demMargin: 31.5 },
+    { name: "Allen", state: "Texas", metro: "Dallas–Fort Worth", population: 107684, pctIndian: 0.0745, pctAsian: 0.2172, medianHHI: 129130, demMargin: -11.1 },
+    { name: "Des Plaines", state: "Illinois", metro: "Chicago", population: 59408, pctIndian: 0.0744, pctAsian: 0.1644, medianHHI: 94303, demMargin: 42 },
+    { name: "Southborough", state: "Massachusetts", metro: "Worcester", population: 10441, pctIndian: 0.0741, pctAsian: 0.175, medianHHI: 192006, demMargin: 10 },
+    { name: "Flower Mound", state: "Texas", metro: "Dallas–Fort Worth", population: 77886, pctIndian: 0.074, pctAsian: 0.1469, medianHHI: 157737, demMargin: -13.2 },
+    { name: "Lawrence", state: "New Jersey", metro: "Trenton–Princeton", population: 32335, pctIndian: 0.0738, pctAsian: 0.1593, medianHHI: 119689, demMargin: 33.9 },
+    { name: "Snoqualmie", state: "Washington", metro: "Seattle", population: 13750, pctIndian: 0.0738, pctAsian: 0.1811, medianHHI: 197531, demMargin: 51.7 },
+    { name: "Hudson", state: "New York", metro: null, population: 5900, pctIndian: 0.0737, pctAsian: 0.1268, medianHHI: 55394, demMargin: 14.7 },
+    { name: "Bloomingdale", state: "Illinois", metro: "Chicago", population: 22388, pctIndian: 0.0735, pctAsian: 0.152, medianHHI: 98891, demMargin: 13.3 },
+    { name: "Cascades", state: "Virginia", metro: "Washington, D.C.", population: 12489, pctIndian: 0.0735, pctAsian: 0.2164, medianHHI: 166023, demMargin: 16.3 },
+    { name: "Oak Park", state: "California", metro: null, population: 13656, pctIndian: 0.0732, pctAsian: 0.2009, medianHHI: 160484, demMargin: 15.1 },
+    { name: "Corcoran", state: "Minnesota", metro: "Minneapolis–St. Paul", population: 6854, pctIndian: 0.0732, pctAsian: 0.1405, medianHHI: 143250, demMargin: 42.6 },
+    { name: "Mendham", state: "New Jersey", metro: "New York City", population: 5994, pctIndian: 0.0732, pctAsian: 0.0943, medianHHI: 250001, demMargin: -2.7 },
+    { name: "Hutchison", state: "Virginia", metro: "Washington, D.C.", population: 6936, pctIndian: 0.073, pctAsian: 0.2333, medianHHI: 105125, demMargin: 33.4 },
+    { name: "Old Bethpage", state: "New York", metro: "New York City", population: 6179, pctIndian: 0.0727, pctAsian: 0.1712, medianHHI: 186776, demMargin: -4.2 },
+    { name: "Spring House", state: "Pennsylvania", metro: "Philadelphia", population: 5068, pctIndian: 0.0724, pctAsian: 0.1985, medianHHI: 178068, demMargin: 22.8 },
+    { name: "Lakemoor", state: "Illinois", metro: "Chicago", population: 5878, pctIndian: 0.0723, pctAsian: 0.0842, medianHHI: 96929, demMargin: 20.8 },
+    { name: "Skokie", state: "Illinois", metro: "Chicago", population: 66427, pctIndian: 0.0723, pctAsian: 0.2878, medianHHI: 93550, demMargin: 42 },
+    { name: "New Milford", state: "New Jersey", metro: "New York City", population: 16882, pctIndian: 0.0723, pctAsian: 0.2302, medianHHI: 113513, demMargin: 3.4 },
+    { name: "Roselle Park", state: "New Jersey", metro: "New York City", population: 13965, pctIndian: 0.0723, pctAsian: 0.1491, medianHHI: 104418, demMargin: 24.2 },
+    { name: "Medina", state: "Minnesota", metro: "Minneapolis–St. Paul", population: 6858, pctIndian: 0.0722, pctAsian: 0.1276, medianHHI: 219181, demMargin: 42.6 },
+    { name: "Germantown", state: "Maryland", metro: "Washington, D.C.", population: 90521, pctIndian: 0.0721, pctAsian: 0.2362, medianHHI: 112149, demMargin: 53.3 },
+    { name: "Sultan", state: "Washington", metro: "Seattle", population: 5770, pctIndian: 0.0719, pctAsian: 0.1147, medianHHI: 85278, demMargin: 19 },
+    { name: "Livermore", state: "California", metro: "San Francisco Bay Area", population: 85870, pctIndian: 0.0717, pctAsian: 0.2049, medianHHI: 153602, demMargin: 53.6 },
+    { name: "Martinsville", state: "New Jersey", metro: "New York City", population: 12016, pctIndian: 0.0716, pctAsian: 0.1674, medianHHI: 206839, demMargin: 13.9 },
+    { name: "Elkridge", state: "Maryland", metro: "Baltimore", population: 26183, pctIndian: 0.0713, pctAsian: 0.2385, medianHHI: 135412, demMargin: 41.7 },
+    { name: "Bothell West", state: "Washington", metro: "Seattle", population: 21014, pctIndian: 0.0713, pctAsian: 0.2564, medianHHI: 144941, demMargin: 19 },
+    { name: "Irvine", state: "California", metro: "Los Angeles", population: 308160, pctIndian: 0.0709, pctAsian: 0.491, medianHHI: 129647, demMargin: 2.7 },
+    { name: "Palo Alto", state: "California", metro: "San Francisco Bay Area", population: 67231, pctIndian: 0.0708, pctAsian: 0.4121, medianHHI: 220408, demMargin: 40 },
+    { name: "Hiram", state: "Georgia", metro: "Atlanta", population: 5073, pctIndian: 0.0708, pctAsian: 0.0928, medianHHI: 80278, demMargin: -24.1 },
+    { name: "Idylwood", state: "Virginia", metro: "Washington, D.C.", population: 17469, pctIndian: 0.0708, pctAsian: 0.2225, medianHHI: 118443, demMargin: 33.4 },
+    { name: "Hercules", state: "California", metro: "San Francisco Bay Area", population: 26245, pctIndian: 0.0703, pctAsian: 0.4789, medianHHI: 130583, demMargin: 37.9 },
+    { name: "Itasca", state: "Illinois", metro: "Chicago", population: 9525, pctIndian: 0.0699, pctAsian: 0.1662, medianHHI: 111898, demMargin: 13.3 },
+    { name: "East Foothills", state: "California", metro: "San Francisco Bay Area", population: 8630, pctIndian: 0.0698, pctAsian: 0.3634, medianHHI: 188558, demMargin: 40 },
+    { name: "Watchung", state: "New Jersey", metro: "New York City", population: 6429, pctIndian: 0.0698, pctAsian: 0.1476, medianHHI: 166536, demMargin: 13.9 },
+    { name: "Lake Stickney", state: "Washington", metro: "Seattle", population: 15514, pctIndian: 0.0697, pctAsian: 0.2357, medianHHI: 85762, demMargin: 19 },
+    { name: "Blue Ash", state: "Ohio", metro: "Cincinnati", population: 13374, pctIndian: 0.0691, pctAsian: 0.1317, medianHHI: 116663, demMargin: 14.9 },
+    { name: "Farmers Branch", state: "Texas", metro: "Dallas–Fort Worth", population: 36254, pctIndian: 0.0691, pctAsian: 0.1249, medianHHI: 87702, demMargin: 22.2 },
+    { name: "Ancient Oaks", state: "Pennsylvania", metro: "Lehigh Valley", population: 7731, pctIndian: 0.0689, pctAsian: 0.1189, medianHHI: 119419, demMargin: 2.7 },
+    { name: "Cedar Park", state: "Texas", metro: "Austin", population: 77474, pctIndian: 0.0688, pctAsian: 0.1714, medianHHI: 123972, demMargin: 39.3 },
+    { name: "Little Elm", state: "Texas", metro: "Dallas–Fort Worth", population: 51426, pctIndian: 0.0688, pctAsian: 0.1252, medianHHI: 116036, demMargin: -13.2 },
+    { name: "Flanders", state: "New Jersey", metro: "New York City", population: 8949, pctIndian: 0.0685, pctAsian: 0.0984, medianHHI: 149769, demMargin: -2.7 },
+    { name: "Powell", state: "Ohio", metro: "Columbus (OH)", population: 14229, pctIndian: 0.0685, pctAsian: 0.1102, medianHHI: 191250, demMargin: -6.6 },
+    { name: "Burtonsville", state: "Maryland", metro: "Washington, D.C.", population: 10063, pctIndian: 0.0683, pctAsian: 0.2459, medianHHI: 130000, demMargin: 53.3 },
+    { name: "North Hills", state: "New York", metro: "New York City", population: 5419, pctIndian: 0.0679, pctAsian: 0.3263, medianHHI: 196938, demMargin: -4.2 },
+    { name: "Bethel", state: "Pennsylvania", metro: "Philadelphia", population: 9598, pctIndian: 0.0679, pctAsian: 0.1419, medianHHI: 171883, demMargin: 23.7 },
+    { name: "San Carlos", state: "California", metro: "San Francisco Bay Area", population: 29797, pctIndian: 0.0677, pctAsian: 0.2884, medianHHI: 233333, demMargin: 50.3 },
+    { name: "Plymouth", state: "Minnesota", metro: "Minneapolis–St. Paul", population: 79526, pctIndian: 0.0676, pctAsian: 0.1206, medianHHI: 133865, demMargin: 42.6 },
+    { name: "Bordentown", state: "New Jersey", metro: "Philadelphia", population: 11898, pctIndian: 0.0675, pctAsian: 0.1062, medianHHI: 115507, demMargin: 16.6 },
+    { name: "Gaithersburg", state: "Maryland", metro: "Washington, D.C.", population: 69225, pctIndian: 0.067, pctAsian: 0.213, medianHHI: 107496, demMargin: 53.3 },
+    { name: "Westmont", state: "Illinois", metro: "Chicago", population: 24201, pctIndian: 0.0668, pctAsian: 0.149, medianHHI: 83622, demMargin: 13.3 },
+    { name: "Neshanic Station", state: "New Jersey", metro: "New York City", population: 5403, pctIndian: 0.0668, pctAsian: 0.1101, medianHHI: 213682, demMargin: -6.7 },
+    { name: "Wheeling", state: "Illinois", metro: "Chicago", population: 38495, pctIndian: 0.0666, pctAsian: 0.1679, medianHHI: 83251, demMargin: 42 },
+    { name: "Rutherford", state: "New Jersey", metro: "New York City", population: 18748, pctIndian: 0.0665, pctAsian: 0.1737, medianHHI: 136069, demMargin: 3.4 },
+    { name: "Bethpage", state: "New York", metro: "New York City", population: 17334, pctIndian: 0.0663, pctAsian: 0.1464, medianHHI: 132832, demMargin: -4.2 },
+    { name: "Highland Park", state: "New Jersey", metro: "New York City", population: 14981, pctIndian: 0.0662, pctAsian: 0.2193, medianHHI: 101991, demMargin: 8 },
+    { name: "Roslyn Heights", state: "New York", metro: "New York City", population: 6881, pctIndian: 0.0658, pctAsian: 0.3162, medianHHI: 186696, demMargin: -4.2 },
+    { name: "Plainview", state: "New York", metro: "New York City", population: 26251, pctIndian: 0.0657, pctAsian: 0.2169, medianHHI: 185531, demMargin: -4.2 },
+    { name: "Lincolnshire", state: "Illinois", metro: "Chicago", population: 7937, pctIndian: 0.0654, pctAsian: 0.24, medianHHI: 179735, demMargin: 20.8 },
+    { name: "Middlesex", state: "New Jersey", metro: "New York City", population: 14518, pctIndian: 0.0654, pctAsian: 0.1209, medianHHI: 107063, demMargin: 8 },
+    { name: "Hanover", state: "New Jersey", metro: "New York City", population: 14627, pctIndian: 0.0654, pctAsian: 0.16, medianHHI: 159681, demMargin: -2.7 },
+    { name: "Rutgers University-Busch Campus", state: "New Jersey", metro: "New York City", population: 5747, pctIndian: 0.0651, pctAsian: 0.1841, medianHHI: 118750, demMargin: 8 },
+    { name: "New Hempstead", state: "New York", metro: "New York City", population: 5431, pctIndian: 0.065, pctAsian: 0.0749, medianHHI: 131293, demMargin: -11.8 },
+    { name: "Cloverly", state: "Maryland", metro: "Washington, D.C.", population: 16726, pctIndian: 0.0649, pctAsian: 0.218, medianHHI: 146316, demMargin: 53.3 },
+    { name: "Brushy Creek", state: "Texas", metro: "Austin", population: 20953, pctIndian: 0.0648, pctAsian: 0.1587, medianHHI: 137630, demMargin: -2.4 },
+    { name: "East Meadow", state: "New York", metro: "New York City", population: 35806, pctIndian: 0.0647, pctAsian: 0.1995, medianHHI: 128770, demMargin: -4.2 },
+    { name: "Solon", state: "Ohio", metro: "Cleveland", population: 23970, pctIndian: 0.0647, pctAsian: 0.1652, medianHHI: 135180, demMargin: 31.5 },
+    { name: "Sussex", state: "Wisconsin", metro: "Milwaukee", population: 11795, pctIndian: 0.0646, pctAsian: 0.0884, medianHHI: 112031, demMargin: -19.8 },
+    { name: "Newtown Grant", state: "Pennsylvania", metro: "Philadelphia", population: 6070, pctIndian: 0.0644, pctAsian: 0.113, medianHHI: 175403, demMargin: -0.1 },
+    { name: "Dranesville", state: "Virginia", metro: "Washington, D.C.", population: 11860, pctIndian: 0.064, pctAsian: 0.1553, medianHHI: 210766, demMargin: 33.4 },
+    { name: "Keyes", state: "California", metro: "Central Valley", population: 5330, pctIndian: 0.0638, pctAsian: 0.1084, medianHHI: 59338, demMargin: -11 },
+    { name: "Streamwood", state: "Illinois", metro: "Chicago", population: 39055, pctIndian: 0.0638, pctAsian: 0.1556, medianHHI: 101049, demMargin: 42 },
+    { name: "Difficult Run", state: "Virginia", metro: "Washington, D.C.", population: 10202, pctIndian: 0.0638, pctAsian: 0.1345, medianHHI: 250001, demMargin: 33.4 },
+    { name: "Grafton", state: "Massachusetts", metro: "Worcester", population: 19771, pctIndian: 0.0637, pctAsian: 0.1343, medianHHI: 124548, demMargin: 10 },
+    { name: "Duvall", state: "Washington", metro: "Seattle", population: 8279, pctIndian: 0.0637, pctAsian: 0.1652, medianHHI: 178821, demMargin: 51.7 },
+    { name: "Hoboken", state: "New Jersey", metro: "New York City", population: 58340, pctIndian: 0.0636, pctAsian: 0.1501, medianHHI: 176943, demMargin: 28.1 },
+    { name: "River Edge", state: "New Jersey", metro: "New York City", population: 12024, pctIndian: 0.0636, pctAsian: 0.3115, medianHHI: 155827, demMargin: 3.4 },
+    { name: "Preakness", state: "New Jersey", metro: "New York City", population: 18538, pctIndian: 0.0635, pctAsian: 0.1262, medianHHI: 133168, demMargin: -2.9 },
+    { name: "North Star", state: "Delaware", metro: "Philadelphia", population: 8178, pctIndian: 0.0633, pctAsian: 0.1354, medianHHI: 167664, demMargin: 32.6 },
+    { name: "Prosper", state: "Texas", metro: "Dallas–Fort Worth", population: 34567, pctIndian: 0.0633, pctAsian: 0.1278, medianHHI: 187603, demMargin: -11.1 },
+    { name: "Fair Lawn", state: "New Jersey", metro: "New York City", population: 35153, pctIndian: 0.0632, pctAsian: 0.1459, medianHHI: 147952, demMargin: 3.4 },
+    { name: "North Laurel", state: "Maryland", metro: "Baltimore", population: 25201, pctIndian: 0.0631, pctAsian: 0.1844, medianHHI: 119533, demMargin: 41.7 },
+    { name: "Scarsdale", state: "New York", metro: "New York City", population: 18005, pctIndian: 0.063, pctAsian: 0.2157, medianHHI: 250001, demMargin: 26.3 },
+    { name: "North Hempstead", state: "New York", metro: "New York City", population: 236600, pctIndian: 0.063, pctAsian: 0.2314, medianHHI: 158112, demMargin: -4.2 },
+    { name: "Rutherford", state: "Pennsylvania", metro: "Harrisburg", population: 6982, pctIndian: 0.0627, pctAsian: 0.2166, medianHHI: 77306, demMargin: 5.9 },
+    { name: "McKinney", state: "Texas", metro: "Dallas–Fort Worth", population: 202314, pctIndian: 0.0625, pctAsian: 0.1451, medianHHI: 120273, demMargin: -11.1 },
+    { name: "Marshall", state: "Pennsylvania", metro: "Pittsburgh", population: 10117, pctIndian: 0.0624, pctAsian: 0.1581, medianHHI: 158472, demMargin: 20.3 },
+    { name: "Warrington", state: "Pennsylvania", metro: "Philadelphia", population: 25782, pctIndian: 0.0623, pctAsian: 0.1273, medianHHI: 123726, demMargin: -0.1 },
+    { name: "East Hanover", state: "New Jersey", metro: "New York City", population: 11106, pctIndian: 0.0622, pctAsian: 0.1524, medianHHI: 144792, demMargin: -2.7 },
+    { name: "Ardsley", state: "New York", metro: "New York City", population: 5005, pctIndian: 0.0621, pctAsian: 0.1722, medianHHI: 250001, demMargin: 26.3 },
+    { name: "Bellaire", state: "Texas", metro: "Houston", population: 17116, pctIndian: 0.0619, pctAsian: 0.2286, medianHHI: 236311, demMargin: 5.5 },
+    { name: "Manteca", state: "California", metro: "Central Valley", population: 86521, pctIndian: 0.0617, pctAsian: 0.1713, medianHHI: 94718, demMargin: -0.9 },
+    { name: "Concord", state: "Pennsylvania", metro: "Philadelphia", population: 18197, pctIndian: 0.0617, pctAsian: 0.131, medianHHI: 131947, demMargin: 23.7 },
+    { name: "Scotch Plains", state: "New Jersey", metro: "New York City", population: 24667, pctIndian: 0.0616, pctAsian: 0.1446, medianHHI: 173564, demMargin: 24.2 },
+    { name: "Sachse", state: "Texas", metro: "Dallas–Fort Worth", population: 29075, pctIndian: 0.0616, pctAsian: 0.2132, medianHHI: 130839, demMargin: -11.1 },
+    { name: "Florence", state: "New Jersey", metro: "Philadelphia", population: 12798, pctIndian: 0.0611, pctAsian: 0.1092, medianHHI: 104792, demMargin: 16.6 },
+    { name: "Cochituate", state: "Massachusetts", metro: "Boston", population: 6688, pctIndian: 0.061, pctAsian: 0.1618, medianHHI: 190938, demMargin: 39.5 },
+    { name: "Palatine", state: "Illinois", metro: "Chicago", population: 66548, pctIndian: 0.0609, pctAsian: 0.1385, medianHHI: 95950, demMargin: 42 },
+    { name: "Billerica", state: "Massachusetts", metro: "Boston", population: 41700, pctIndian: 0.0609, pctAsian: 0.0936, medianHHI: 139706, demMargin: 39.5 },
+    { name: "Somerville", state: "New Jersey", metro: "New York City", population: 12958, pctIndian: 0.0609, pctAsian: 0.1227, medianHHI: 103869, demMargin: 13.9 },
+    { name: "New Providence", state: "New Jersey", metro: "New York City", population: 13577, pctIndian: 0.0606, pctAsian: 0.1947, medianHHI: 162877, demMargin: 24.2 },
+    { name: "East Brandywine", state: "Pennsylvania", metro: "Philadelphia", population: 9935, pctIndian: 0.0606, pctAsian: 0.0842, medianHHI: 174833, demMargin: 14.5 },
+    { name: "Duluth", state: "Georgia", metro: "Atlanta", population: 31958, pctIndian: 0.0605, pctAsian: 0.257, medianHHI: 95580, demMargin: 16.5 },
+    { name: "Aurora", state: "Illinois", metro: "Chicago", population: 179867, pctIndian: 0.0605, pctAsian: 0.1236, medianHHI: 90109, demMargin: 13.3 },
+    { name: "Ceres", state: "California", metro: "Central Valley", population: 48918, pctIndian: 0.0602, pctAsian: 0.1147, medianHHI: 76862, demMargin: -11 },
+    { name: "Brookfield", state: "Wisconsin", metro: "Milwaukee", population: 41592, pctIndian: 0.0602, pctAsian: 0.1367, medianHHI: 124026, demMargin: -19.8 },
+    { name: "Andover", state: "Massachusetts", metro: "Boston", population: 36465, pctIndian: 0.0598, pctAsian: 0.1742, medianHHI: 167591, demMargin: 20.3 },
+    { name: "Lone Tree", state: "Colorado", metro: "Denver", population: 14136, pctIndian: 0.0597, pctAsian: 0.1321, medianHHI: 125699, demMargin: -7 },
+    { name: "Oyster Bay", state: "New York", metro: "New York City", population: 299519, pctIndian: 0.0597, pctAsian: 0.1649, medianHHI: 159530, demMargin: -4.2 },
+    { name: "Lowes Island", state: "Virginia", metro: "Washington, D.C.", population: 11199, pctIndian: 0.0597, pctAsian: 0.2281, medianHHI: 220238, demMargin: 16.3 },
+    { name: "Connerton", state: "Florida", metro: "Tampa", population: 7159, pctIndian: 0.0594, pctAsian: 0.0874, medianHHI: 121461, demMargin: -25.2 },
+    { name: "Potomac", state: "Maryland", metro: "Washington, D.C.", population: 46230, pctIndian: 0.0594, pctAsian: 0.2373, medianHHI: 239205, demMargin: 53.3 },
+    { name: "Cypress", state: "California", metro: "Los Angeles", population: 49531, pctIndian: 0.0593, pctAsian: 0.4257, medianHHI: 124167, demMargin: 2.7 },
+    { name: "Superior", state: "Colorado", metro: null, population: 13136, pctIndian: 0.0592, pctAsian: 0.1822, medianHHI: 157909, demMargin: 55.8 },
+    { name: "Queens", state: "New York", metro: "New York City", population: 2330124, pctIndian: 0.0592, pctAsian: 0.2798, medianHHI: 84961, demMargin: 24.6 },
+    { name: "Mechanicstown", state: "New York", metro: "New York City", population: 7479, pctIndian: 0.0591, pctAsian: 0.0932, medianHHI: 90414, demMargin: -8.4 },
+    { name: "Lombard", state: "Illinois", metro: "Chicago", population: 43722, pctIndian: 0.059, pctAsian: 0.1315, medianHHI: 97253, demMargin: 13.3 },
+    { name: "Richardson", state: "Texas", metro: "Dallas–Fort Worth", population: 118269, pctIndian: 0.0589, pctAsian: 0.1804, medianHHI: 96257, demMargin: -11.1 },
+    { name: "La Palma", state: "California", metro: "Los Angeles", population: 15375, pctIndian: 0.0587, pctAsian: 0.5569, medianHHI: 115833, demMargin: 2.7 },
+    { name: "University of California-Davis", state: "California", metro: "Sacramento", population: 8158, pctIndian: 0.0585, pctAsian: 0.4245, medianHHI: 17625, demMargin: 36.2 },
+    { name: "Parkland", state: "Florida", metro: "Miami", population: 35799, pctIndian: 0.0583, pctAsian: 0.0899, medianHHI: 200156, demMargin: 17 },
+    { name: "Rochester Hills", state: "Michigan", metro: "Detroit", population: 76086, pctIndian: 0.0581, pctAsian: 0.1462, medianHHI: 119054, demMargin: 10.6 },
+    { name: "East Greenwich", state: "Rhode Island", metro: "Providence", population: 14407, pctIndian: 0.058, pctAsian: 0.1188, medianHHI: 149577, demMargin: 1.9 },
+    { name: "Bolingbrook", state: "Illinois", metro: "Chicago", population: 73813, pctIndian: 0.0579, pctAsian: 0.1551, medianHHI: 107552, demMargin: 13.3 },
+    { name: "Raritan", state: "New Jersey", metro: "New York City", population: 23957, pctIndian: 0.0579, pctAsian: 0.1142, medianHHI: 159808, demMargin: -6.7 },
+    { name: "Franklin Lakes", state: "New Jersey", metro: "New York City", population: 11011, pctIndian: 0.0577, pctAsian: 0.1287, medianHHI: 230987, demMargin: 3.4 },
+    { name: "North Caldwell", state: "New Jersey", metro: "New York City", population: 6622, pctIndian: 0.0577, pctAsian: 0.1219, medianHHI: 203140, demMargin: 44.9 },
+    { name: "Dix Hills", state: "New York", metro: "New York City", population: 25042, pctIndian: 0.0575, pctAsian: 0.1769, medianHHI: 219636, demMargin: -10 },
+    { name: "Springdale", state: "New Jersey", metro: "Philadelphia", population: 15672, pctIndian: 0.0572, pctAsian: 0.1754, medianHHI: 179531, demMargin: 27.4 },
+    { name: "Towaco", state: "New Jersey", metro: "New York City", population: 5627, pctIndian: 0.0572, pctAsian: 0.1473, medianHHI: 197696, demMargin: -2.7 },
+    { name: "Newtown", state: "Pennsylvania", metro: "Philadelphia", population: 19804, pctIndian: 0.0571, pctAsian: 0.1433, medianHHI: 145662, demMargin: -0.1 },
+    { name: "Niles", state: "Illinois", metro: "Chicago", population: 30262, pctIndian: 0.057, pctAsian: 0.214, medianHHI: 78563, demMargin: 42 },
+    { name: "Meridian charter", state: "Michigan", metro: "Lansing", population: 43823, pctIndian: 0.057, pctAsian: 0.1686, medianHHI: 86292, demMargin: 29.7 },
+    { name: "Lyon charter", state: "Michigan", metro: "Detroit", population: 23953, pctIndian: 0.0569, pctAsian: 0.1019, medianHHI: 145000, demMargin: 10.6 },
+    { name: "Natick", state: "Massachusetts", metro: "Boston", population: 36627, pctIndian: 0.0568, pctAsian: 0.1505, medianHHI: 134591, demMargin: 39.5 },
+    { name: "Englewood Cliffs", state: "New Jersey", metro: "New York City", population: 5330, pctIndian: 0.0568, pctAsian: 0.4749, medianHHI: 222192, demMargin: 3.4 },
+    { name: "Hockessin", state: "Delaware", metro: "Philadelphia", population: 13608, pctIndian: 0.0567, pctAsian: 0.1051, medianHHI: 172695, demMargin: 32.6 },
+    { name: "Pittsfield charter", state: "Michigan", metro: null, population: 39159, pctIndian: 0.0567, pctAsian: 0.17, medianHHI: 96057, demMargin: 44.4 },
+    { name: "Bergenfield", state: "New Jersey", metro: "New York City", population: 28269, pctIndian: 0.0567, pctAsian: 0.2838, medianHHI: 124083, demMargin: 3.4 },
+    { name: "Campbell", state: "California", metro: "San Francisco Bay Area", population: 42848, pctIndian: 0.0566, pctAsian: 0.2936, medianHHI: 147128, demMargin: 40 },
+    { name: "Emeryville", state: "California", metro: "San Francisco Bay Area", population: 12756, pctIndian: 0.0566, pctAsian: 0.3264, medianHHI: 120302, demMargin: 53.6 },
+    { name: "Gurnee", state: "Illinois", metro: "Chicago", population: 30486, pctIndian: 0.0564, pctAsian: 0.1452, medianHHI: 121410, demMargin: 20.8 },
+    { name: "Latham", state: "New York", metro: "Albany", population: 14327, pctIndian: 0.0564, pctAsian: 0.1704, medianHHI: 101580, demMargin: 25.8 },
+    { name: "Round Lake", state: "Illinois", metro: "Chicago", population: 18588, pctIndian: 0.0562, pctAsian: 0.1653, medianHHI: 108965, demMargin: 20.8 },
+    { name: "Martha Lake", state: "Washington", metro: "Seattle", population: 22740, pctIndian: 0.056, pctAsian: 0.2914, medianHHI: 132130, demMargin: 19 },
+    { name: "Lake Mary", state: "Florida", metro: "Orlando", population: 16724, pctIndian: 0.0558, pctAsian: 0.0971, medianHHI: 116944, demMargin: -3.6 },
+    { name: "Lilburn", state: "Georgia", metro: "Atlanta", population: 14939, pctIndian: 0.0558, pctAsian: 0.136, medianHHI: 57266, demMargin: 16.5 },
+    { name: "Weehawken", state: "New Jersey", metro: "New York City", population: 16946, pctIndian: 0.0558, pctAsian: 0.1773, medianHHI: 122653, demMargin: 28.1 },
+    { name: "Robertsville", state: "New Jersey", metro: "New York City", population: 11859, pctIndian: 0.0557, pctAsian: 0.1555, medianHHI: 204421, demMargin: -11.4 },
+    { name: "Cambridge", state: "Massachusetts", metro: "Boston", population: 117794, pctIndian: 0.0556, pctAsian: 0.2263, medianHHI: 126469, demMargin: 39.5 },
+    { name: "Maple Valley", state: "Washington", metro: "Seattle", population: 28121, pctIndian: 0.0556, pctAsian: 0.1747, medianHHI: 147546, demMargin: 51.7 },
+    { name: "Bloomington", state: "Illinois", metro: null, population: 78703, pctIndian: 0.0555, pctAsian: 0.0908, medianHHI: 75449, demMargin: 4.9 },
+    { name: "Mundelein", state: "Illinois", metro: "Chicago", population: 31632, pctIndian: 0.0555, pctAsian: 0.1066, medianHHI: 107608, demMargin: 20.8 },
+    { name: "Danville", state: "California", metro: "San Francisco Bay Area", population: 43426, pctIndian: 0.0554, pctAsian: 0.2359, medianHHI: 223206, demMargin: 37.9 },
+    { name: "Calverton", state: "Maryland", metro: "Washington, D.C.", population: 17721, pctIndian: 0.0554, pctAsian: 0.1253, medianHHI: 108315, demMargin: 53.3 },
+    { name: "Willowbrook", state: "Illinois", metro: "Chicago", population: 9138, pctIndian: 0.0549, pctAsian: 0.1884, medianHHI: 97861, demMargin: 13.3 },
+    { name: "Scaggsville", state: "Maryland", metro: "Baltimore", population: 10441, pctIndian: 0.0549, pctAsian: 0.2209, medianHHI: 183125, demMargin: 41.7 },
+    { name: "Dulles Town Center", state: "Virginia", metro: "Washington, D.C.", population: 5541, pctIndian: 0.0549, pctAsian: 0.3595, medianHHI: 114503, demMargin: 16.3 },
+    { name: "Guilderland", state: "New York", metro: "Albany", population: 36922, pctIndian: 0.0548, pctAsian: 0.1136, medianHHI: 107488, demMargin: 25.8 },
+    { name: "Mount Prospect", state: "Illinois", metro: "Chicago", population: 55648, pctIndian: 0.0547, pctAsian: 0.1619, medianHHI: 103911, demMargin: 42 },
+    { name: "Waterford", state: "California", metro: "Central Valley", population: 9177, pctIndian: 0.0546, pctAsian: 0.0697, medianHHI: 73092, demMargin: -11 },
+    { name: "Clarkstown", state: "New York", metro: "New York City", population: 86575, pctIndian: 0.0544, pctAsian: 0.1344, medianHHI: 136513, demMargin: -11.8 },
+    { name: "Los Gatos", state: "California", metro: "San Francisco Bay Area", population: 32773, pctIndian: 0.0542, pctAsian: 0.2263, medianHHI: 207891, demMargin: 40 },
+    { name: "Williston Park", state: "New York", metro: "New York City", population: 7508, pctIndian: 0.0542, pctAsian: 0.1839, medianHHI: 152656, demMargin: -4.2 },
+    { name: "Chatham", state: "New Jersey", metro: "New York City", population: 11001, pctIndian: 0.0541, pctAsian: 0.1535, medianHHI: 223380, demMargin: -2.7 },
+    { name: "Cumberland Hill", state: "Rhode Island", metro: "Providence", population: 8638, pctIndian: 0.0541, pctAsian: 0.086, medianHHI: 131006, demMargin: 14.4 },
+    { name: "Pecan Grove", state: "Texas", metro: "Houston", population: 24798, pctIndian: 0.0541, pctAsian: 0.0896, medianHHI: 137275, demMargin: 1.6 },
+    { name: "Westchase", state: "Florida", metro: "Tampa", population: 24818, pctIndian: 0.0539, pctAsian: 0.1052, medianHHI: 120070, demMargin: -3.1 },
+    { name: "College Park", state: "Maryland", metro: "Washington, D.C.", population: 34397, pctIndian: 0.0539, pctAsian: 0.1703, medianHHI: 74867, demMargin: 75.2 },
+    { name: "Chestnut Hill", state: "Pennsylvania", metro: "Lehigh Valley", population: 6774, pctIndian: 0.0539, pctAsian: 0.1042, medianHHI: 125417, demMargin: -1.8 },
+    { name: "Kirkland", state: "Washington", metro: "Seattle", population: 91614, pctIndian: 0.0539, pctAsian: 0.214, medianHHI: 143533, demMargin: 51.7 },
+    { name: "Burlington", state: "New Jersey", metro: "Philadelphia", population: 23981, pctIndian: 0.0538, pctAsian: 0.105, medianHHI: 96955, demMargin: 16.6 },
+    { name: "Wylie", state: "Texas", metro: "Dallas–Fort Worth", population: 58991, pctIndian: 0.0538, pctAsian: 0.1186, medianHHI: 113661, demMargin: -11.1 },
+    { name: "Holly Springs", state: "North Carolina", metro: "Raleigh–Durham", population: 43429, pctIndian: 0.0537, pctAsian: 0.0915, medianHHI: 132435, demMargin: 25.5 },
+    { name: "Hopewell", state: "New Jersey", metro: "Trenton–Princeton", population: 17469, pctIndian: 0.0535, pctAsian: 0.1702, medianHHI: 177088, demMargin: 33.9 },
+    { name: "South Elgin", state: "Illinois", metro: "Chicago", population: 23984, pctIndian: 0.0534, pctAsian: 0.1351, medianHHI: 123744, demMargin: 9.4 },
+    { name: "Green Brook", state: "New Jersey", metro: "New York City", population: 6982, pctIndian: 0.0534, pctAsian: 0.2736, medianHHI: 218864, demMargin: 13.9 },
+    { name: "Dumont", state: "New Jersey", metro: "New York City", population: 18072, pctIndian: 0.0532, pctAsian: 0.2305, medianHHI: 125585, demMargin: 3.4 },
+    { name: "Blackhawk", state: "California", metro: "San Francisco Bay Area", population: 10404, pctIndian: 0.0531, pctAsian: 0.2451, medianHHI: 239681, demMargin: 37.9 },
+    { name: "South Hanover", state: "Pennsylvania", metro: "Harrisburg", population: 7227, pctIndian: 0.0531, pctAsian: 0.0602, medianHHI: 112902, demMargin: 5.9 },
+    { name: "Black Diamond", state: "Washington", metro: "Seattle", population: 5678, pctIndian: 0.053, pctAsian: 0.1516, medianHHI: 144728, demMargin: 51.7 },
+    { name: "Ballwin", state: "Missouri", metro: "St. Louis", population: 30835, pctIndian: 0.0529, pctAsian: 0.0987, medianHHI: 121170, demMargin: 64.7 },
+    { name: "Long Hill CDP (Greater Bridgeport County)", state: "Connecticut", metro: "Stamford–Bridgeport", population: 8597, pctIndian: 0.0528, pctAsian: 0.0953, medianHHI: 145000, demMargin: null },
+    { name: "Prospect Heights", state: "Illinois", metro: "Chicago", population: 15681, pctIndian: 0.0527, pctAsian: 0.0868, medianHHI: 91599, demMargin: 42 },
+    { name: "Burlingame", state: "California", metro: "San Francisco Bay Area", population: 30526, pctIndian: 0.0526, pctAsian: 0.3121, medianHHI: 168832, demMargin: 50.3 },
+    { name: "Rolling Meadows", state: "Illinois", metro: "Chicago", population: 23981, pctIndian: 0.0526, pctAsian: 0.1201, medianHHI: 100424, demMargin: 42 },
+    { name: "Bargaintown", state: "New Jersey", metro: "Atlantic City", population: 5231, pctIndian: 0.0526, pctAsian: 0.0562, medianHHI: 127734, demMargin: -3 },
+    { name: "Tenafly", state: "New Jersey", metro: "New York City", population: 15252, pctIndian: 0.0526, pctAsian: 0.3261, medianHHI: 208088, demMargin: 3.4 },
+    { name: "Hinsdale", state: "Illinois", metro: "Chicago", population: 17155, pctIndian: 0.0525, pctAsian: 0.1685, medianHHI: 250001, demMargin: 42 },
+    { name: "Fair Oaks", state: "Virginia", metro: "Washington, D.C.", population: 35472, pctIndian: 0.0524, pctAsian: 0.3269, medianHHI: 119387, demMargin: 33.4 },
+    { name: "Fulton", state: "Maryland", metro: "Baltimore", population: 5946, pctIndian: 0.0523, pctAsian: 0.348, medianHHI: 240219, demMargin: 41.7 },
+    { name: "Lionville", state: "Pennsylvania", metro: "Philadelphia", population: 7091, pctIndian: 0.0523, pctAsian: 0.1309, medianHHI: 96381, demMargin: 14.5 },
+    { name: "Port Sheldon", state: "Michigan", metro: null, population: 5334, pctIndian: 0.0521, pctAsian: 0.1239, medianHHI: 99042, demMargin: -20.4 },
+    { name: "Glenn Dale", state: "Maryland", metro: "Washington, D.C.", population: 14896, pctIndian: 0.052, pctAsian: 0.0859, medianHHI: 139625, demMargin: 75.2 },
+    { name: "Fanwood", state: "New Jersey", metro: "New York City", population: 7714, pctIndian: 0.052, pctAsian: 0.1207, medianHHI: 176667, demMargin: 24.2 },
+    { name: "Upper Freehold", state: "New Jersey", metro: "New York City", population: 7237, pctIndian: 0.052, pctAsian: 0.0969, medianHHI: 169597, demMargin: -11.4 },
+    { name: "Allendale", state: "New Jersey", metro: "New York City", population: 6820, pctIndian: 0.0519, pctAsian: 0.2044, medianHHI: 156992, demMargin: 3.4 },
+    { name: "South Abington", state: "Pennsylvania", metro: null, population: 9533, pctIndian: 0.0519, pctAsian: 0.0873, medianHHI: 110426, demMargin: 2.8 },
+    { name: "Superior charter", state: "Michigan", metro: null, population: 14906, pctIndian: 0.0517, pctAsian: 0.0954, medianHHI: 99625, demMargin: 44.4 },
+    { name: "Burke Centre", state: "Virginia", metro: "Washington, D.C.", population: 17447, pctIndian: 0.0517, pctAsian: 0.2011, medianHHI: 159932, demMargin: 33.4 },
+    { name: "Bloomfield charter", state: "Michigan", metro: "Detroit", population: 43973, pctIndian: 0.0516, pctAsian: 0.111, medianHHI: 157300, demMargin: 10.6 },
+    { name: "Town and Country", state: "Missouri", metro: "St. Louis", population: 11605, pctIndian: 0.0512, pctAsian: 0.1166, medianHHI: 237083, demMargin: 64.7 },
+    { name: "Franklin", state: "Tennessee", metro: "Nashville", population: 85575, pctIndian: 0.0511, pctAsian: 0.1028, medianHHI: 115000, demMargin: -32.4 },
+    { name: "Suwanee", state: "Georgia", metro: "Atlanta", population: 21811, pctIndian: 0.051, pctAsian: 0.3062, medianHHI: 105878, demMargin: 16.5 },
+    { name: "Herndon", state: "Virginia", metro: "Washington, D.C.", population: 24529, pctIndian: 0.051, pctAsian: 0.1693, medianHHI: 141418, demMargin: 33.4 },
+    { name: "Montvale", state: "New Jersey", metro: "New York City", population: 8625, pctIndian: 0.0509, pctAsian: 0.1431, medianHHI: 183664, demMargin: 3.4 },
+    { name: "Woodinville", state: "Washington", metro: "Seattle", population: 13440, pctIndian: 0.0507, pctAsian: 0.2135, medianHHI: 158723, demMargin: 51.7 },
+    { name: "Concord", state: "North Carolina", metro: "Charlotte", population: 106518, pctIndian: 0.0506, pctAsian: 0.0748, medianHHI: 84752, demMargin: -7.7 },
+    { name: "Lorton", state: "Virginia", metro: "Washington, D.C.", population: 21961, pctIndian: 0.0506, pctAsian: 0.2307, medianHHI: 136719, demMargin: 33.4 },
+    { name: "Greenwood", state: "Indiana", metro: "Indianapolis", population: 64237, pctIndian: 0.0503, pctAsian: 0.0972, medianHHI: 78765, demMargin: -34.3 },
+    { name: "Millstone", state: "New Jersey", metro: "New York City", population: 10354, pctIndian: 0.0503, pctAsian: 0.0838, medianHHI: 199747, demMargin: -11.4 },
+    { name: "Upper Deerfield", state: "New Jersey", metro: null, population: 7726, pctIndian: 0.05, pctAsian: 0.0654, medianHHI: 76040, demMargin: -3.8 },
+    { name: "Steiner Ranch", state: "Texas", metro: "Austin", population: 18683, pctIndian: 0.05, pctAsian: 0.1075, medianHHI: 195181, demMargin: 39.3 },
   ];
 
   function fmtRate(r) {
@@ -1140,8 +1643,20 @@
   let expandedPlace = null;
   let sortBy = "total";   // 'name' | 'estate' | 'income' | 'capgains' | 'total'
   let sortDir = "desc";   // 'asc' | 'desc'
-  let placesSortBy = "pctIndian"; // 'name' | 'state' | 'pop' | 'pctIndian' | 'total'
+  let placesSortBy = "pctIndian"; // 'name' | 'state' | 'pop' | 'pctIndian' | 'pctAsian' | 'hhi' | 'canopy' | 'total'
   let placesSortDir = "desc";
+  // Per-column numeric range filters for the places table.
+  // Units: pop = raw count; pctIndian = percentage points (5 = 5%);
+  // hhi = thousands of dollars; total = millions of dollars.
+  const placesFilters = {
+    pop:       { min: null, max: null },
+    pctIndian: { min: null, max: null },
+    pctAsian:  { min: null, max: null },
+    demMargin: { min: null, max: null },
+    hhi:       { min: null, max: null },
+    canopy:    { min: null, max: null },
+    total:     { min: null, max: null },
+  };
 
   [elNetWorth, elAnnualIncome, elAnnualGains, elYears].forEach(el =>
     el.addEventListener("input", render)
@@ -1171,6 +1686,23 @@
       }
       render();
     });
+  });
+
+  document.querySelectorAll("#places-filters input").forEach(input => {
+    input.addEventListener("input", () => {
+      const f = input.dataset.filter, b = input.dataset.bound;
+      const v = input.value === "" ? null : parseFloat(input.value);
+      placesFilters[f][b] = Number.isFinite(v) ? v : null;
+      render();
+    });
+  });
+
+  document.getElementById("filter-clear").addEventListener("click", () => {
+    for (const k of Object.keys(placesFilters)) {
+      placesFilters[k] = { min: null, max: null };
+    }
+    document.querySelectorAll("#places-filters input").forEach(i => { i.value = ""; });
+    render();
   });
 
   // Hardcoded: second death scenario, assets passing to children/grandchildren.
@@ -1271,17 +1803,60 @@
       }
     }
 
-    const placeRows = PLACES.map(p => {
+    const allPlaceRows = PLACES.map(p => {
       const s = stateByName[p.state] || { tax: 0, incomeTax: 0, capGainsTax: 0, total: 0, rates: { income: 0, capGains: 0 }, breakdown: "" };
-      return { ...p, deathTax: s.tax, incomeTax: s.incomeTax, capGainsTax: s.capGainsTax, total: s.total, _stateRes: s };
+      const climate = climateFor(p.metro);
+      return {
+        ...p,
+        deathTax: s.tax, incomeTax: s.incomeTax, capGainsTax: s.capGainsTax, total: s.total, _stateRes: s,
+        canopy: climate ? climate.canopy : null,
+      };
     });
 
-    const placeKey = { name: "name", state: "state", pop: "population", pctIndian: "pctIndian", total: "total" };
+    // Apply per-column range filters. Each filter input value uses the unit shown in
+    // the column (population raw, pct as %, HHI in $k, total in $M).
+    const f = placesFilters;
+    const placeRows = allPlaceRows.filter(p => {
+      if (f.pop.min !== null && p.population < f.pop.min) return false;
+      if (f.pop.max !== null && p.population > f.pop.max) return false;
+      const pct = p.pctIndian * 100;
+      if (f.pctIndian.min !== null && pct < f.pctIndian.min) return false;
+      if (f.pctIndian.max !== null && pct > f.pctIndian.max) return false;
+      const asianPct = p.pctAsian === null ? null : p.pctAsian * 100;
+      if (f.pctAsian.min !== null && (asianPct === null || asianPct < f.pctAsian.min)) return false;
+      if (f.pctAsian.max !== null && (asianPct === null || asianPct > f.pctAsian.max)) return false;
+      // Dem margin filter: signed percentage points; null excluded when any bound set.
+      if (f.demMargin.min !== null && (p.demMargin === null || p.demMargin < f.demMargin.min)) return false;
+      if (f.demMargin.max !== null && (p.demMargin === null || p.demMargin > f.demMargin.max)) return false;
+      // HHI filter excludes null (Census-suppressed) entries when any HHI bound is set.
+      const hhiK = p.medianHHI === null ? null : p.medianHHI / 1000;
+      if (f.hhi.min !== null && (hhiK === null || hhiK < f.hhi.min)) return false;
+      if (f.hhi.max !== null && (hhiK === null || hhiK > f.hhi.max)) return false;
+      // Canopy filter: null (no metro climate data) excluded when any bound is set.
+      if (f.canopy.min !== null && (p.canopy === null || p.canopy < f.canopy.min)) return false;
+      if (f.canopy.max !== null && (p.canopy === null || p.canopy > f.canopy.max)) return false;
+      const totM = p.total / 1_000_000;
+      if (f.total.min !== null && totM < f.total.min) return false;
+      if (f.total.max !== null && totM > f.total.max) return false;
+      return true;
+    });
+
+    const anyFilter = Object.values(f).some(r => r.min !== null || r.max !== null);
+    document.getElementById("places-subtitle").textContent = anyFilter
+      ? `Showing ${placeRows.length} of ${PLACES.length} places matching your filters`
+      : `Showing all ${PLACES.length} places`;
+    document.getElementById("filter-clear").style.display = anyFilter ? "inline-block" : "none";
+
+    const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", pctIndian: "pctIndian", pctAsian: "pctAsian", demMargin: "demMargin", hhi: "medianHHI", canopy: "canopy", total: "total" };
     const pk = placeKey[placesSortBy];
-    if (placesSortBy === "name" || placesSortBy === "state") {
-      placeRows.sort((a, b) => a[pk].localeCompare(b[pk]) || a.name.localeCompare(b.name));
+    if (placesSortBy === "name" || placesSortBy === "state" || placesSortBy === "metro") {
+      placeRows.sort((a, b) => (a[pk] || "~").localeCompare(b[pk] || "~") || a.name.localeCompare(b.name));
     } else {
-      placeRows.sort((a, b) => b[pk] - a[pk] || a.name.localeCompare(b.name));
+      // Numeric sort; treat null as -Infinity so it sorts to the bottom on desc.
+      placeRows.sort((a, b) => {
+        const av = a[pk] ?? -Infinity, bv = b[pk] ?? -Infinity;
+        return bv - av || a.name.localeCompare(b.name);
+      });
     }
     if (placesSortDir === "asc") placeRows.reverse();
 
@@ -1295,16 +1870,23 @@
       const pid = `${p.name}|${p.state}`;
       const isExpanded = pid === expandedPlace;
       const isFree = p.total === 0;
+      const hhiDisplay = p.medianHHI === null ? "—" : "$" + Math.round(p.medianHHI / 1000) + "k";
       return `
         <li class="row ${isExpanded ? "expanded" : ""}" data-place="${pid}">
           <div class="rank-num">${i + 1}</div>
           <div class="state">${p.name}</div>
+          <div class="metro-col" style="font-size:13px;color:var(--ink-3)">${p.metro || "—"}</div>
           <div class="state-col-cell" style="font-size:14px;color:var(--ink-2)">${p.state}</div>
           <div class="num-col pop-col" style="color:var(--ink-2)">${p.population.toLocaleString()}</div>
           <div class="num-col">${(p.pctIndian * 100).toFixed(1)}%</div>
+          <div class="num-col asian-col" style="color:var(--ink-2)">${p.pctAsian === null ? "—" : (p.pctAsian * 100).toFixed(1) + "%"}</div>
+          <div class="num-col margin-col" style="color:${p.demMargin === null ? "var(--ink-4)" : p.demMargin > 0 ? "#1d4ed8" : "#b91c1c"}">${p.demMargin === null ? "—" : (p.demMargin > 0 ? "+" : "") + Math.round(p.demMargin)}</div>
+          <div class="num-col hhi-col" style="color:var(--ink-2)">${hhiDisplay}</div>
+          <div class="num-col canopy-col" style="color:var(--ink-2)">${p.canopy === null ? "—" : p.canopy + "%"}</div>
           <div class="num-col total ${isFree ? "zero" : ""}">${fmt$(p.total)}</div>
           <div class="detail">
-            <div><strong>${p.name}, ${p.state}</strong> — population ${p.population.toLocaleString()}, ${(p.pctIndian * 100).toFixed(1)}% Asian Indian (ACS 2023).</div>
+            <div><strong>${p.name}, ${p.state}</strong>${p.metro ? ` (${p.metro} metro)` : ""} — population ${p.population.toLocaleString()}, ${(p.pctIndian * 100).toFixed(1)}% Asian Indian, ${p.pctAsian === null ? "" : (p.pctAsian * 100).toFixed(1) + "% Asian total, "}median household income ${p.medianHHI === null ? "not reported" : "$" + p.medianHHI.toLocaleString()} (ACS 2023).</div>
+            ${p.canopy === null ? "" : `<div style="margin-top:6px"><strong>Tree canopy (${p.metro} metro avg):</strong> ~${p.canopy}%.</div>`}
             <div style="margin-top:10px"><strong>Death tax (${p.state}):</strong> ${fmt$(p.deathTax)}</div>
             <div style="margin-top:6px"><strong>Income tax:</strong> ${fmtRate(p._stateRes.rates.income)} × ${fmt$(annualIncome)}/yr × ${years} yrs = ${fmt$(p.incomeTax)}</div>
             <div style="margin-top:6px"><strong>Capital gains tax:</strong> ${fmtRate(p._stateRes.rates.capGains)} × ${fmt$(annualGains)}/yr × ${years} yrs = ${fmt$(p.capGainsTax)}</div>

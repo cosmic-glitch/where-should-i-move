@@ -1,11 +1,14 @@
 // One-off data acquisition: top US places by % Asian Indian (alone or in any combination).
 //
 // Source: U.S. Census Bureau ACS 5-year estimates, 2023 vintage.
-// Table B02018 "Asian Alone or in Any Combination by Selected Groups".
-// Variable B02018_021E = "South Asian: Asian Indian" (alone or in combination).
-// Variable B01003_001E = total population.
+// Variables:
+//   B02018_021E — "South Asian: Asian Indian" (alone or in combination)
+//   B02011_001E — total Asian (alone or in any combination) — proper unique-persons count
+//                 (NOT B02018_001E which is a tally and can sum to >100% of population)
+//   B01003_001E — total population
+//   B19013_001E — median household income (in inflation-adjusted dollars)
 //
-// Run:  node scripts/fetch_places.mjs > /tmp/places.json
+// Run:  node scripts/fetch_places.mjs > /tmp/places.js
 //       — or paste the printed JS literal directly into index.html.
 //
 // Census API is unkeyed (rate-limited at 500 requests/day per IP). We make 51 calls.
@@ -27,7 +30,219 @@ const STATES = [
 ];
 
 const POP_FLOOR = 5000;
-const TOP_N = 200;
+const PCT_FLOOR = 0.05; // Include all places with ≥ 5% Asian Indian (alone or in combination) population.
+
+// "Strong MCD" states: townships/towns are the primary local government unit,
+// not represented in the Census Place hierarchy. We additionally query their
+// county subdivisions so entries like Plainsboro Township NJ, Edison Township NJ,
+// Lexington Town MA, etc., show up.
+const STRONG_MCD_STATE_FIPS = new Set([
+  "09", // Connecticut
+  "23", // Maine
+  "25", // Massachusetts
+  "26", // Michigan
+  "27", // Minnesota
+  "33", // New Hampshire
+  "34", // New Jersey
+  "36", // New York
+  "42", // Pennsylvania
+  "44", // Rhode Island
+  "50", // Vermont
+  "55", // Wisconsin
+]);
+
+// Curated metro-area lookup: stateFP -> counties (without "County" suffix) -> metro name.
+// Covers the major U.S. CBSAs that contain Indian-heavy places. Lookup falls back to null
+// (place shown without a metro label) for counties not listed.
+const METROS = {
+  "San Francisco Bay Area": { "06": ["Santa Clara","San Mateo","Alameda","San Francisco","Contra Costa","Marin","Solano","Sonoma","Napa"] },
+  "Los Angeles":            { "06": ["Los Angeles","Orange"] },
+  "San Diego":              { "06": ["San Diego"] },
+  "Sacramento":             { "06": ["Sacramento","Placer","El Dorado","Yolo","Sutter","Yuba"] },
+  "Inland Empire":          { "06": ["Riverside","San Bernardino"] },
+  "Central Valley":         { "06": ["San Joaquin","Stanislaus","Merced","Fresno","Madera","Kings","Tulare","Kern"] },
+  "Dallas–Fort Worth":      { "48": ["Dallas","Tarrant","Collin","Denton","Rockwall","Ellis","Kaufman","Johnson","Hood","Wise","Parker","Somervell","Palo Pinto","Hunt"] },
+  "Houston":                { "48": ["Harris","Fort Bend","Montgomery","Brazoria","Galveston","Liberty","Waller","Chambers","Austin","San Jacinto"] },
+  "Austin":                 { "48": ["Travis","Williamson","Hays","Bastrop","Caldwell"] },
+  "San Antonio":            { "48": ["Bexar","Comal","Guadalupe","Wilson","Bandera","Atascosa","Kendall","Medina"] },
+  "New York City":          { "36": ["New York","Bronx","Kings","Queens","Richmond","Nassau","Suffolk","Westchester","Rockland","Orange","Putnam","Dutchess"],
+                              "34": ["Bergen","Essex","Hudson","Hunterdon","Middlesex","Monmouth","Morris","Ocean","Passaic","Somerset","Sussex","Union","Warren"],
+                              "42": ["Pike"] },
+  "Philadelphia":           { "42": ["Philadelphia","Bucks","Chester","Delaware","Montgomery"],
+                              "34": ["Burlington","Camden","Gloucester","Salem"],
+                              "10": ["New Castle"],
+                              "24": ["Cecil"] },
+  "Washington, D.C.":       { "11": ["District of Columbia"],
+                              "51": ["Arlington","Fairfax","Loudoun","Prince William","Stafford","Spotsylvania","Fauquier","Culpeper","Madison","Rappahannock","Warren","Clarke","Alexandria city","Fairfax city","Falls Church city","Manassas city","Manassas Park city","Fredericksburg city"],
+                              "24": ["Montgomery","Prince George's","Frederick","Charles","Calvert"],
+                              "54": ["Jefferson","Berkeley"] },
+  "Baltimore":              { "24": ["Baltimore","Baltimore city","Anne Arundel","Howard","Harford","Carroll","Queen Anne's"] },
+  "Boston":                 { "25": ["Suffolk","Norfolk","Plymouth","Bristol","Essex","Middlesex"],
+                              "33": ["Rockingham","Strafford"] },
+  "Chicago":                { "17": ["Cook","DuPage","Kane","Kendall","Lake","McHenry","Will"],
+                              "18": ["Lake","Porter","Newton","Jasper"],
+                              "55": ["Kenosha"] },
+  "Atlanta":                { "13": ["Fulton","DeKalb","Gwinnett","Cobb","Clayton","Cherokee","Forsyth","Henry","Douglas","Fayette","Paulding","Coweta","Carroll","Newton","Rockdale","Bartow","Pickens","Spalding","Walton","Lamar","Heard","Butts","Jasper","Morgan","Barrow","Dawson","Hall","Haralson","Meriwether","Pike"] },
+  "Detroit":                { "26": ["Wayne","Oakland","Macomb","Livingston","Lapeer","St. Clair"] },
+  "Phoenix":                { "04": ["Maricopa","Pinal"] },
+  "Seattle":                { "53": ["King","Snohomish","Pierce"] },
+  "Minneapolis–St. Paul":   { "27": ["Hennepin","Ramsey","Dakota","Anoka","Washington","Scott","Carver","Wright","Sherburne","Chisago","Isanti","Mille Lacs","Le Sueur","Sibley"],
+                              "55": ["Pierce","St. Croix"] },
+  "Tampa":                  { "12": ["Hillsborough","Pinellas","Pasco","Hernando"] },
+  "Orlando":                { "12": ["Orange","Seminole","Lake","Osceola"] },
+  "Miami":                  { "12": ["Miami-Dade","Broward","Palm Beach"] },
+  "Jacksonville":           { "12": ["Duval","St. Johns","Clay","Nassau","Baker"] },
+  "Charlotte":              { "37": ["Mecklenburg","Cabarrus","Gaston","Union","Iredell","Rowan","Lincoln","Anson"],
+                              "45": ["York","Lancaster","Chester"] },
+  "Raleigh–Durham":         { "37": ["Wake","Johnston","Franklin","Granville","Durham","Orange","Chatham","Person"] },
+  "Pittsburgh":             { "42": ["Allegheny","Westmoreland","Washington","Butler","Beaver","Armstrong","Fayette","Indiana"] },
+  "Portland (OR)":          { "41": ["Multnomah","Washington","Clackamas","Columbia","Yamhill"],
+                              "53": ["Clark","Skamania"] },
+  "Denver":                 { "08": ["Denver","Arapahoe","Jefferson","Adams","Douglas","Broomfield","Elbert","Park","Clear Creek","Gilpin"] },
+  "Indianapolis":           { "18": ["Marion","Hamilton","Hendricks","Johnson","Hancock","Madison","Boone","Morgan","Brown","Putnam","Shelby"] },
+  "Columbus (OH)":          { "39": ["Franklin","Delaware","Fairfield","Licking","Madison","Pickaway","Union"] },
+  "Cincinnati":             { "39": ["Hamilton","Butler","Warren","Clermont"],
+                              "21": ["Boone","Kenton","Campbell"],
+                              "18": ["Dearborn"] },
+  "Cleveland":              { "39": ["Cuyahoga","Lake","Lorain","Medina","Geauga"] },
+  "Memphis":                { "47": ["Shelby","Tipton","Fayette"],
+                              "28": ["DeSoto","Marshall","Tate"],
+                              "05": ["Crittenden"] },
+  "Nashville":              { "47": ["Davidson","Williamson","Rutherford","Wilson","Sumner","Robertson","Dickson","Cheatham","Maury","Smith","Macon","Trousdale","Cannon","Hickman"] },
+  "St. Louis":              { "29": ["St. Louis","St. Louis city","St. Charles","Jefferson","Franklin","Lincoln","Warren"],
+                              "17": ["Madison","St. Clair","Monroe","Clinton","Bond","Macoupin","Jersey","Calhoun"] },
+  "Kansas City":            { "29": ["Jackson","Clay","Cass","Platte","Ray","Caldwell"],
+                              "20": ["Johnson","Wyandotte","Leavenworth","Linn","Miami"] },
+  "Las Vegas":              { "32": ["Clark"] },
+  "Salt Lake City":         { "49": ["Salt Lake","Tooele"] },
+  // Connecticut switched from counties to Planning Regions in the 2022+ ACS.
+  "Hartford":               { "09": ["Hartford","Tolland","Middlesex","Capitol Planning Region","Lower Connecticut River Valley Planning Region","Northeastern Connecticut Planning Region"] },
+  "New Haven":              { "09": ["New Haven","South Central Connecticut Planning Region","Naugatuck Valley Planning Region"] },
+  "Stamford–Bridgeport":    { "09": ["Fairfield","Western Connecticut Planning Region","Greater Bridgeport Planning Region"] },
+  "Trenton–Princeton":      { "34": ["Mercer"] },
+  "Worcester":              { "25": ["Worcester"] },
+  "Allentown":              { "42": ["Lehigh","Northampton","Carbon"] },
+  "Harrisburg":             { "42": ["Dauphin","Cumberland","Perry"] },
+  "Lancaster (PA)":         { "42": ["Lancaster"] },
+  "Reading (PA)":           { "42": ["Berks"] },
+  "Northwest Arkansas":     { "05": ["Benton","Washington","Madison"] },
+  "Lansing":                { "26": ["Ingham","Eaton","Clinton"] },
+  "Lafayette (IN)":         { "18": ["Tippecanoe","Benton","Carroll"] },
+  "Columbus (IN)":          { "18": ["Bartholomew"] },
+  "Akron":                  { "39": ["Summit","Portage"] },
+  "Lehigh Valley":          { "42": ["Lehigh","Northampton"] },
+  "Atlantic City":          { "34": ["Atlantic"] },
+  "Asheville":              { "37": ["Buncombe","Henderson","Madison","Haywood"] },
+  "Winston-Salem":          { "37": ["Forsyth","Davidson","Stokes","Yadkin","Davie"] },
+  "Greensboro":             { "37": ["Guilford","Randolph","Rockingham"] },
+  "Greenville (SC)":        { "45": ["Greenville","Anderson","Pickens","Laurens"] },
+  "Columbia (SC)":          { "45": ["Richland","Lexington","Saluda","Calhoun","Kershaw","Fairfield"] },
+  "Charleston (SC)":        { "45": ["Charleston","Berkeley","Dorchester"] },
+  "Knoxville":              { "47": ["Knox","Anderson","Blount","Loudon","Union","Grainger"] },
+  "Chattanooga":            { "47": ["Hamilton","Marion","Sequatchie"],
+                              "13": ["Walker","Catoosa","Dade"] },
+  "Tucson":                 { "04": ["Pima"] },
+  "Boise":                  { "16": ["Ada","Canyon","Boise","Gem","Owyhee"] },
+  "Spokane":                { "53": ["Spokane","Stevens","Pend Oreille"] },
+  "Eugene":                 { "41": ["Lane"] },
+  "Honolulu":               { "15": ["Honolulu"] },
+  "Anchorage":              { "02": ["Anchorage"] },
+  "Omaha":                  { "31": ["Douglas","Sarpy","Washington"],
+                              "19": ["Pottawattamie"] },
+  "Des Moines":             { "19": ["Polk","Dallas","Warren","Madison","Guthrie","Story","Jasper","Marion"] },
+  "Oklahoma City":          { "40": ["Oklahoma","Cleveland","Canadian","Pottawatomie","Logan","Lincoln","McClain","Grady"] },
+  "Tulsa":                  { "40": ["Tulsa","Rogers","Wagoner","Creek","Okmulgee","Osage","Pawnee"] },
+  "Providence":             { "44": ["Providence","Kent","Newport","Bristol","Washington"] },
+  "Richmond":               { "51": ["Henrico","Chesterfield","Hanover","Goochland","Powhatan","New Kent","Charles City","Dinwiddie","Prince George","Sussex","Amelia","Caroline","King William","King and Queen","Cumberland","Louisa","Richmond city","Hopewell city","Petersburg city","Colonial Heights city"] },
+  "Hampton Roads":          { "51": ["Norfolk city","Virginia Beach city","Chesapeake city","Newport News city","Hampton city","Portsmouth city","Suffolk city","Williamsburg city","Poquoson city","James City","York","Gloucester","Mathews","Isle of Wight","Southampton","Surry"] },
+  "Birmingham":             { "01": ["Jefferson","Shelby","St. Clair","Walker","Blount","Bibb","Chilton"] },
+  "Louisville":             { "21": ["Jefferson","Oldham","Bullitt","Shelby","Spencer","Henry","Trimble"] },
+  "Buffalo":                { "36": ["Erie","Niagara"] },
+  "Albany":                 { "36": ["Albany","Rensselaer","Saratoga","Schenectady"] },
+  "Rochester":              { "36": ["Monroe","Livingston","Ontario","Orleans","Wayne","Yates"] },
+  "Syracuse":               { "36": ["Onondaga","Madison","Oswego"] },
+  "Madison (WI)":           { "55": ["Dane","Iowa","Columbia","Green"] },
+  "Milwaukee":              { "55": ["Milwaukee","Waukesha","Ozaukee","Washington"] },
+  "Reno":                   { "32": ["Washoe","Storey"] },
+};
+// Flatten into a single lookup map: `${stateFP}|${countyName}` -> metro name.
+const COUNTY_TO_METRO = new Map();
+for (const [metro, byState] of Object.entries(METROS)) {
+  for (const [stateFP, counties] of Object.entries(byState)) {
+    for (const c of counties) COUNTY_TO_METRO.set(`${stateFP}|${c}`, metro);
+  }
+}
+
+// Place-to-County crosswalk loaded once at script start from the Census Bureau.
+let PLACE_TO_COUNTY = null;
+// 2024 county-level presidential Democratic margin (per_dem - per_gop, ×100), keyed by
+// `${stateName}|${cleanCounty}`. Loaded once from the tonmcg/MEDSL aggregation.
+let COUNTY_DEM_MARGIN = null;
+
+async function loadCountyElection() {
+  const url = "https://raw.githubusercontent.com/tonmcg/US_County_Level_Election_Results_08-24/master/2024_US_County_Level_Presidential_Results.csv";
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`county election: ${res.status} ${res.statusText}`);
+  const text = await res.text();
+  const map = new Map();
+  const lines = text.split("\n");
+  // Header: state_name,county_fips,county_name,votes_gop,votes_dem,total_votes,diff,per_gop,per_dem,per_point_diff
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const parts = line.split(",");
+    if (parts.length < 10) continue;
+    const stateName = parts[0];
+    let countyName = parts[2].replace(/ (County|Parish|Borough|Census Area|Municipality|city)$/i, "").trim();
+    const perGop = parseFloat(parts[7]);
+    const perDem = parseFloat(parts[8]);
+    if (!Number.isFinite(perGop) || !Number.isFinite(perDem)) continue;
+    const margin = +((perDem - perGop) * 100).toFixed(1);
+    map.set(`${stateName}|${countyName}`, margin);
+  }
+  COUNTY_DEM_MARGIN = map;
+  console.error(`Loaded 2024 county election margins: ${map.size} counties`);
+}
+function demMarginFor(stateName, county) {
+  if (!county || !COUNTY_DEM_MARGIN) return null;
+  const v = COUNTY_DEM_MARGIN.get(`${stateName}|${county}`);
+  return v === undefined ? null : v;
+}
+
+async function loadPlaceToCounty() {
+  const url = "https://www2.census.gov/geo/docs/reference/codes2020/national_place2020.txt";
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`place→county crosswalk: ${res.status} ${res.statusText}`);
+  const text = await res.text();
+  const map = new Map();
+  const lines = text.split("\n");
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split("|");
+    if (parts.length < 9) continue;
+    const stateFP = parts[1], placeFP = parts[2];
+    // Multi-county places use "~~~" separator; take the first (typically the primary).
+    const counties = parts[8].split("~~~").map(s => s.trim()).filter(Boolean);
+    if (counties.length === 0) continue;
+    const first = counties[0].replace(/ (County|Parish|Borough|Census Area|Municipality|city)$/i, "");
+    map.set(`${stateFP}|${placeFP}`, first);
+  }
+  PLACE_TO_COUNTY = map;
+  console.error(`Loaded place→county crosswalk: ${map.size} entries`);
+}
+
+// For county subdivisions, county/region comes from inside the NAME field:
+//   "Plainsboro township, Middlesex County, New Jersey" -> "Middlesex"
+//   "Avon town, Capitol Planning Region, Connecticut" -> "Capitol Planning Region"
+function countyFromMcdName(raw) {
+  const parts = raw.split(",").map(s => s.trim());
+  if (parts.length < 3) return null;
+  return parts[1].replace(/ (County|Parish|Borough|Census Area|Municipality)$/i, "").trim();
+}
+
+function metroFor(stateFP, county) {
+  if (!county) return null;
+  return COUNTY_TO_METRO.get(`${stateFP}|${county}`) || null;
+}
 
 // "Cupertino city, California" -> "Cupertino"
 // "Edison township, New Jersey" -> "Edison"
@@ -42,57 +257,98 @@ function cleanName(raw) {
   return s.trim();
 }
 
-async function fetchState([fips, name]) {
-  const url = `https://api.census.gov/data/2023/acs/acs5?get=NAME,B02018_021E,B01003_001E&for=place:*&in=state:${fips}`;
+async function fetchGeography(fips, name, geoQuery) {
+  const url = `https://api.census.gov/data/2023/acs/acs5?get=NAME,B02018_021E,B02011_001E,B01003_001E,B19013_001E&for=${encodeURIComponent(geoQuery)}&in=state:${fips}`;
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`${name} (${fips}): ${res.status} ${res.statusText}`);
+    throw new Error(`${name} (${fips}, ${geoQuery}): ${res.status} ${res.statusText}`);
   }
   const rows = await res.json();
-  // First row is headers
+  const isPlace = geoQuery === "place:*";
   const out = [];
   for (let i = 1; i < rows.length; i++) {
-    const [rawName, indianStr, popStr] = rows[i];
+    const row = rows[i];
+    const [rawName, indianStr, asianStr, popStr, hhiStr] = row;
     const population = parseInt(popStr, 10);
     const indian = parseInt(indianStr, 10);
+    const asian = parseInt(asianStr, 10);
+    const medianHHI = parseInt(hhiStr, 10);
     if (!Number.isFinite(population) || population < POP_FLOOR) continue;
     if (!Number.isFinite(indian) || indian <= 0) continue;
+    // County: for places, look up via Place-to-County crosswalk; for MCDs, parse from NAME.
+    let county = null;
+    if (isPlace) {
+      const placeFP = row[row.length - 1];
+      county = PLACE_TO_COUNTY ? (PLACE_TO_COUNTY.get(`${fips}|${placeFP}`) || null) : null;
+    } else {
+      county = countyFromMcdName(rawName);
+    }
+    // % Asian = (Asian alone or in combination) / total population.
+    const pctAsian = Number.isFinite(asian) && asian >= 0
+      ? +(asian / population).toFixed(4)
+      : null;
     out.push({
       name: cleanName(rawName),
       state: name,
       population,
       pctIndian: +(indian / population).toFixed(4),
+      pctAsian,
+      // Census returns negative sentinel values (e.g. -666666666) when suppressed; coerce to null.
+      medianHHI: Number.isFinite(medianHHI) && medianHHI > 0 ? medianHHI : null,
+      metro: metroFor(fips, county),
+      demMargin: demMarginFor(name, county),
     });
   }
   return out;
 }
 
+async function fetchState([fips, name]) {
+  const places = await fetchGeography(fips, name, "place:*");
+  if (!STRONG_MCD_STATE_FIPS.has(fips)) return places;
+  // Strong-MCD states: also pull county subdivisions (townships, towns, boroughs).
+  const mcds = await fetchGeography(fips, name, "county subdivision:*");
+  // Dedupe by (cleanName, state): keep the entry with the larger population,
+  // which is usually the township when it conflicts with a CDP it contains.
+  const byKey = new Map();
+  for (const p of [...places, ...mcds]) {
+    const key = `${p.state}|${p.name}`;
+    const prev = byKey.get(key);
+    if (!prev || p.population > prev.population) byKey.set(key, p);
+  }
+  return [...byKey.values()];
+}
+
 async function main() {
-  console.error(`Fetching ${STATES.length} states (population floor ${POP_FLOOR}, top ${TOP_N})...`);
+  await loadPlaceToCounty();
+  await loadCountyElection();
+  console.error(`Fetching ${STATES.length} states (population floor ${POP_FLOOR}, ≥ ${(PCT_FLOOR*100).toFixed(0)}% Asian Indian)...`);
   const all = [];
   for (const s of STATES) {
     try {
       const places = await fetchState(s);
       all.push(...places);
-      console.error(`  ${s[1].padEnd(22)} → ${places.length} places`);
     } catch (e) {
       console.error(`  ${s[1].padEnd(22)} → ERROR: ${e.message}`);
     }
   }
-  all.sort((a, b) => b.pctIndian - a.pctIndian);
-  const top = all.slice(0, TOP_N);
-  console.error(`\nTotal qualifying places: ${all.length}`);
-  console.error(`Top ${top.length} cutoff: ${(top[top.length - 1].pctIndian * 100).toFixed(2)}% Asian Indian`);
-  console.error(`Top 5:`);
-  top.slice(0, 5).forEach((p, i) => console.error(`  ${i + 1}. ${p.name}, ${p.state} — ${(p.pctIndian * 100).toFixed(1)}% (pop ${p.population.toLocaleString()})`));
+  const filtered = all.filter(p => p.pctIndian >= PCT_FLOOR);
+  filtered.sort((a, b) => b.pctIndian - a.pctIndian);
+  console.error(`Total places fetched: ${all.length}`);
+  console.error(`Places ≥ ${(PCT_FLOOR*100).toFixed(0)}% Asian Indian: ${filtered.length}`);
+  console.error(`Top 5 by % Asian Indian:`);
+  filtered.slice(0, 5).forEach((p, i) => console.error(`  ${i + 1}. ${p.name}, ${p.state} — ${(p.pctIndian * 100).toFixed(1)}% Indian (${(p.pctAsian * 100).toFixed(1)}% Asian; pop ${p.population.toLocaleString()})`));
 
   // Emit JS literal to stdout
   console.log(`// Auto-generated by scripts/fetch_places.mjs. Source: U.S. Census ACS 5-year 2023, table B02018.`);
   console.log(`// Variable B02018_021E ("Asian Indian" alone or in combination) / B01003_001E (total population).`);
-  console.log(`// Population floor ${POP_FLOOR}; top ${TOP_N} by % Asian Indian.`);
+  console.log(`// Population floor ${POP_FLOOR}; ≥ ${(PCT_FLOOR*100).toFixed(0)}% Asian Indian (alone or in combination).`);
   console.log(`const PLACES = [`);
-  for (const p of top) {
-    console.log(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, population: ${p.population}, pctIndian: ${p.pctIndian} },`);
+  for (const p of filtered) {
+    const hhi = p.medianHHI === null ? "null" : p.medianHHI;
+    const asian = p.pctAsian === null ? "null" : p.pctAsian;
+    const metro = p.metro ? JSON.stringify(p.metro) : "null";
+    const margin = p.demMargin === null ? "null" : p.demMargin;
+    console.log(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${asian}, medianHHI: ${hhi}, demMargin: ${margin} },`);
   }
   console.log(`];`);
 }
