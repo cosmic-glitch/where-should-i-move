@@ -394,12 +394,12 @@
   .table-shell.places .col-headers,
   .table-shell.places .filter-row,
   .table-shell.places ol.ranking li.row {
-    grid-template-columns: 32px minmax(130px, 1.2fr) minmax(140px, 1.1fr) 90px 88px 78px 78px 80px 88px 78px 80px 92px 92px 92px 92px 96px;
+    grid-template-columns: 32px minmax(130px, 1.2fr) minmax(140px, 1.1fr) 90px 88px 78px 80px 88px 78px 80px 92px 92px 92px 92px 96px;
     gap: 10px;
-    /* Sum of column widths + 15 gaps × 10px ≈ 1660px including padding.
+    /* Sum of column widths + 14 gaps × 10px ≈ 1572px including padding.
        Keeps columns from being squeezed below their fixed widths on narrow viewports;
        the .table-scroll wrapper then provides a horizontal scrollbar when needed. */
-    min-width: 1660px;
+    min-width: 1572px;
   }
 
   /* Horizontal scroll container for the table grid (headers + filters + rows). */
@@ -463,11 +463,11 @@
         minmax(110px, 1.1fr)
         minmax(100px, 1fr)
         100px
-        72px 64px 64px 64px
+        72px 64px 64px
         76px 64px 64px 76px
         76px 76px 76px 80px;
       gap: 8px;
-      min-width: 1320px;
+      min-width: 1248px;
     }
     .table-shell.places .col-headers { padding-left: 12px; padding-right: 12px; }
     .table-shell.places .filter-row { padding-left: 12px; padding-right: 12px; }
@@ -596,7 +596,6 @@
       <div class="col-state-col" data-sort="state">State<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About State">i</button><span class="info-tooltip">U.S. state or the District of Columbia. All tax rates and rules on this row are set by this state's law.</span></span></div>
       <div class="col-num col-pop" data-sort="pop">Population<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Population">i</button><span class="info-tooltip">Total population. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-pct active" data-sort="pctIndian">% Indian<span class="arrow">↓</span><span class="info"><button class="info-btn" type="button" aria-label="About % Indian">i</button><span class="info-tooltip">Share of residents identifying as Asian Indian alone or in any combination with another race (Census variable B02018_021E). Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num col-asian" data-sort="pctAsian">% Asian<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Asian">i</button><span class="info-tooltip">Share of residents identifying as Asian (any subgroup) alone or in any combination with another race. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-margin" data-sort="demMargin">Red/Blue<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Red/Blue">i</button><span class="info-tooltip">2024 presidential margin in percentage points (Harris − Trump) at the <strong>county</strong> level, applied uniformly to every place in the county. Positive = bluer, negative = redder. Within large counties (e.g., Los Angeles, Cook, Travis, Santa Clara), real political variation is wide — the number is most accurate near the county's population center. Source: MIT Election Lab.</span></span></div>
       <div class="col-num col-hhi" data-sort="hhi">Median HHI<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median HHI">i</button><span class="info-tooltip">Median household income. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-bach" data-sort="pctBach">% Bach+<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Bach+">i</button><span class="info-tooltip">Share of adults age 25+ holding a <strong>bachelor's degree or higher</strong> (B.A., M.A., professional, or doctoral). Sum of Census variables B15003_022E through B15003_025E divided by B15003_001E. Source: U.S. Census ACS 5-year 2023.</span></span></div>
@@ -619,10 +618,6 @@
       <div class="filter-cell">
         <input type="number" data-filter="pctIndian" data-bound="min" placeholder="%" autocomplete="off"/>
         <input type="number" data-filter="pctIndian" data-bound="max" placeholder="%" autocomplete="off"/>
-      </div>
-      <div class="filter-cell">
-        <input type="number" data-filter="pctAsian" data-bound="min" placeholder="%" autocomplete="off"/>
-        <input type="number" data-filter="pctAsian" data-bound="max" placeholder="%" autocomplete="off"/>
       </div>
       <div class="filter-cell">
         <input type="number" data-filter="demMargin" data-bound="min" placeholder="min" autocomplete="off"/>
@@ -1217,7 +1212,7 @@
   const elPlacesHeaders = document.getElementById("places-headers");
   const elPlacesRanking = document.getElementById("places-ranking");
   let expandedPlace = null;
-  let placesSortBy = "pctIndian"; // 'name' | 'state' | 'metro' | 'pop' | 'pctIndian' | 'pctAsian' | 'demMargin' | 'hhi' | 'pctBach' | 'pct200k' | 'homeValue' | 'death' | 'income' | 'capgains' | 'total'
+  let placesSortBy = "pctIndian"; // 'name' | 'state' | 'metro' | 'pop' | 'pctIndian' | 'demMargin' | 'hhi' | 'pctBach' | 'pct200k' | 'homeValue' | 'death' | 'income' | 'capgains' | 'total'
   let placesSortDir = "desc";
   // Per-column numeric range filters for the places table.
   // Units: pop = raw count; pct* = percentage points (5 = 5%);
@@ -1225,7 +1220,6 @@
   const placesFilters = {
     pop:       { min: null, max: null },
     pctIndian: { min: null, max: null },
-    pctAsian:  { min: null, max: null },
     demMargin: { min: null, max: null },
     hhi:       { min: null, max: null },
     pctBach:   { min: null, max: null },
@@ -1320,7 +1314,6 @@
     }
     pushRange("pop", fmtNum, "population");
     pushRange("pctIndian", fmtPctVal, "Indian population");
-    pushRange("pctAsian", fmtPctVal, "Asian population");
     // County margin uses the 2024 Harris–Trump signed margin in percentage points.
     // Positive = Harris (blue), negative = Trump (red). Phrasing prefers a color
     // framing ("blue counties (Harris +10 or more)") and falls back to a from/to
@@ -1408,9 +1401,6 @@
       const pct = p.pctIndian * 100;
       if (f.pctIndian.min !== null && pct < f.pctIndian.min) return false;
       if (f.pctIndian.max !== null && pct > f.pctIndian.max) return false;
-      const asianPct = p.pctAsian === null ? null : p.pctAsian * 100;
-      if (f.pctAsian.min !== null && (asianPct === null || asianPct < f.pctAsian.min)) return false;
-      if (f.pctAsian.max !== null && (asianPct === null || asianPct > f.pctAsian.max)) return false;
       // Dem margin filter: signed percentage points; null excluded when any bound set.
       if (f.demMargin.min !== null && (p.demMargin === null || p.demMargin < f.demMargin.min)) return false;
       if (f.demMargin.max !== null && (p.demMargin === null || p.demMargin > f.demMargin.max)) return false;
@@ -1448,7 +1438,7 @@
 
     const anyFilter = Object.values(f).some(r => r.min !== null || r.max !== null);
 
-    const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", pctIndian: "pctIndian", pctAsian: "pctAsian", demMargin: "demMargin", hhi: "medianHHI", pctBach: "pctBach", pct200k: "pct200k", homeValue: "medianHomeValue", death: "deathTax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
+    const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", pctIndian: "pctIndian", demMargin: "demMargin", hhi: "medianHHI", pctBach: "pctBach", pct200k: "pct200k", homeValue: "medianHomeValue", death: "deathTax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
     const pk = placeKey[placesSortBy];
     if (placesSortBy === "name" || placesSortBy === "state" || placesSortBy === "metro") {
       placeRows.sort((a, b) => (a[pk] || "~").localeCompare(b[pk] || "~") || a.name.localeCompare(b.name));
@@ -1500,7 +1490,6 @@
           <div class="state-col-cell" style="font-size:14px;color:var(--ink-2)">${p.state}</div>
           <div class="num-col pop-col" style="color:var(--ink-2)">${p.population.toLocaleString()}</div>
           <div class="num-col">${(p.pctIndian * 100).toFixed(1)}%</div>
-          <div class="num-col asian-col" style="color:var(--ink-2)">${p.pctAsian === null ? "—" : (p.pctAsian * 100).toFixed(1) + "%"}</div>
           <div class="num-col margin-col" style="color:${p.demMargin === null ? "var(--ink-4)" : p.demMargin > 0 ? "#1d4ed8" : "#b91c1c"}">${p.demMargin === null ? "—" : (p.demMargin > 0 ? "+" : "") + Math.round(p.demMargin)}</div>
           <div class="num-col hhi-col" style="color:var(--ink-2)">${hhiDisplay}</div>
           <div class="num-col bach-col" style="color:var(--ink-2)">${bachDisplay}</div>
@@ -1511,7 +1500,7 @@
           <div class="num-col capgains-col ${p.capGainsTax === 0 ? "zero" : ""}">${fmt$(p.capGainsTax)}</div>
           <div class="num-col total ${isFree ? "zero" : ""}">${fmt$(p.total)}</div>
           <div class="detail">
-            <div><strong>${p.name}, ${p.state}</strong>${p.metro ? ` (${p.metro} metro)` : ""} — population ${p.population.toLocaleString()}, ${(p.pctIndian * 100).toFixed(1)}% Asian Indian, ${p.pctAsian === null ? "" : (p.pctAsian * 100).toFixed(1) + "% Asian total, "}median household income ${p.medianHHI === null ? "not reported" : "$" + p.medianHHI.toLocaleString()} (ACS 2023).</div>
+            <div><strong>${p.name}, ${p.state}</strong>${p.metro ? ` (${p.metro} metro)` : ""} — population ${p.population.toLocaleString()}, ${(p.pctIndian * 100).toFixed(1)}% Asian Indian, median household income ${p.medianHHI === null ? "not reported" : "$" + p.medianHHI.toLocaleString()} (ACS 2023).</div>
             <div style="margin-top:10px"><strong>Death tax (${p.state}):</strong> ${fmt$(p.deathTax)} — ${p._stateRes.breakdown || ""}</div>
             ${p._stateRes.calc ? `<div class="calc-line">${p._stateRes.calc}</div>` : ""}
             <div style="margin-top:6px"><strong>Income tax:</strong> ${fmtRate(p._stateRes.rates.income)} × ${fmt$(annualIncome)}/yr × ${years} yrs = ${fmt$(p.incomeTax)}</div>
