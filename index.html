@@ -49,14 +49,41 @@
   header.masthead {
     padding: 32px 0 20px;
   }
+  header.masthead .masthead-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 8px;
+  }
   header.masthead h1 {
     font-weight: 600;
     font-size: clamp(28px, 3.4vw, 36px);
     line-height: 1.15;
     letter-spacing: -0.025em;
-    margin: 0 0 8px;
+    margin: 0;
     color: var(--ink);
   }
+  header.masthead .reset-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--ink-3);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.12s, background 0.12s, border-color 0.12s;
+  }
+  header.masthead .reset-btn:hover {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  header.masthead .reset-btn svg { display: block; }
   header.masthead .dek {
     margin: 0;
     font-size: 15px;
@@ -322,13 +349,6 @@
   ol.ranking li.row .num-col.total { font-weight: 600; }
 
   @media (max-width: 720px) {
-    ol.ranking li.row, .col-headers {
-      grid-template-columns: 28px 1fr 110px;
-      gap: 10px;
-      padding: 10px 14px;
-    }
-    .col-headers .col-estate, .col-headers .col-income, .col-headers .col-capgains,
-    ol.ranking li.row .col-estate-cell, ol.ranking li.row .col-income-cell, ol.ranking li.row .col-capgains-cell { display: none; }
     ol.ranking li.row .detail { padding-left: 0; }
   }
 
@@ -359,34 +379,16 @@
     letter-spacing: -0.01em;
   }
   .section-title .sub {
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--ink-3);
-  }
-  .section-title #share-link { margin-left: auto; }
-  .share-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
-    font: 500 11px/1 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 500;
     color: var(--ink-2);
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: border-color 0.12s, color 0.12s, background 0.12s;
+    letter-spacing: -0.005em;
+    line-height: 1.45;
   }
-  .share-btn:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
-  .share-btn.copied {
-    color: var(--good);
-    border-color: var(--good);
-    background: var(--good-soft);
-  }
+  .section-title .sub .count { color: var(--ink); font-weight: 600; }
+  .section-title .sub .crit  { color: var(--ink-2); }
+  .section-title .sub .sep   { color: var(--ink-4); margin: 0 6px; }
+  .section-title .sub .total { color: var(--ink-3); font-size: 13px; font-weight: 400; margin-left: 6px; }
 
   /* Places table — different column layout */
   .table-shell.places .col-headers,
@@ -404,83 +406,6 @@
   .table-scroll {
     overflow-x: auto;
     overflow-y: visible;
-  }
-
-  /* Pagination bar — sits below the table grid, inside the table shell. */
-  .pagination {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
-    padding: 12px 20px;
-    background: var(--surface-alt);
-    border-top: 1px solid var(--border);
-    font-size: 12px;
-    color: var(--ink-3);
-  }
-  .pg-controls {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .pg-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 10px;
-    font: 500 12px/1 'Inter', -apple-system, system-ui, sans-serif;
-    color: var(--ink-2);
-    cursor: pointer;
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
-  }
-  .pg-btn:hover:not(:disabled) {
-    border-color: var(--ink-3);
-    color: var(--ink);
-  }
-  .pg-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .pg-pageinfo {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--ink-2);
-  }
-  .pg-pageinfo input[type="number"] {
-    width: 54px;
-    padding: 4px 6px;
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    background: var(--surface);
-    text-align: center;
-    font: 500 12px/1 'Inter', -apple-system, system-ui, sans-serif;
-    color: var(--ink);
-    outline: none;
-    -moz-appearance: textfield;
-  }
-  .pg-pageinfo input[type="number"]::-webkit-outer-spin-button,
-  .pg-pageinfo input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none; margin: 0;
-  }
-  .pg-pageinfo input[type="number"]:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-soft);
-  }
-  .pg-size {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .pg-size select {
-    padding: 4px 6px;
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    background: var(--surface);
-    font: 500 12px/1 'Inter', -apple-system, system-ui, sans-serif;
-    color: var(--ink);
-    cursor: pointer;
   }
 
   /* Filter row */
@@ -523,61 +448,85 @@
     background: var(--surface);
     box-shadow: 0 0 0 2px var(--accent-soft);
   }
-  .filter-clear {
-    display: inline-block;
-    margin-left: 12px;
-    font-size: 11px;
-    color: var(--accent);
-    cursor: pointer;
-    text-decoration: none;
-    font-weight: 500;
-  }
-  .filter-clear:hover { text-decoration: underline; }
-
   @media (max-width: 720px) {
+    /* Mobile strategy: keep every column accessible via horizontal scroll.
+       Tighter widths/gap/padding fit ~1320px in a compact form. The rank +
+       place-name columns are pinned to the left edge so the row's identity
+       stays visible while the user scrolls right through the rest. */
+    .wrap { padding: 0 12px; }
+
     .table-shell.places .col-headers,
     .table-shell.places .filter-row,
     .table-shell.places ol.ranking li.row {
-      grid-template-columns: 28px 1fr 80px 110px;
-      gap: 10px;
-      min-width: 0;
+      grid-template-columns:
+        26px
+        minmax(110px, 1.1fr)
+        minmax(100px, 1fr)
+        100px
+        72px 64px 64px 64px
+        76px 64px 64px 76px
+        76px 76px 76px 80px;
+      gap: 8px;
+      min-width: 1320px;
     }
-    .table-shell.places .col-pop,
-    .table-shell.places .col-state-col,
-    .table-shell.places .col-metro,
-    .table-shell.places .col-asian,
-    .table-shell.places .col-margin,
-    .table-shell.places .col-hhi,
-    .table-shell.places .col-bach,
-    .table-shell.places .col-200k,
-    .table-shell.places .col-home,
-    .table-shell.places .col-death,
-    .table-shell.places .col-income,
-    .table-shell.places .col-capgains,
-    .table-shell.places .filter-row > div:nth-child(3),
-    .table-shell.places .filter-row > div:nth-child(4),
-    .table-shell.places .filter-row > div:nth-child(5),
-    .table-shell.places .filter-row > div:nth-child(7),
-    .table-shell.places .filter-row > div:nth-child(8),
-    .table-shell.places .filter-row > div:nth-child(9),
-    .table-shell.places .filter-row > div:nth-child(10),
-    .table-shell.places .filter-row > div:nth-child(11),
-    .table-shell.places .filter-row > div:nth-child(12),
-    .table-shell.places .filter-row > div:nth-child(13),
-    .table-shell.places .filter-row > div:nth-child(14),
-    .table-shell.places .filter-row > div:nth-child(15),
-    .table-shell.places ol.ranking li.row .pop-col,
-    .table-shell.places ol.ranking li.row .state-col-cell,
-    .table-shell.places ol.ranking li.row .metro-col,
-    .table-shell.places ol.ranking li.row .asian-col,
-    .table-shell.places ol.ranking li.row .margin-col,
-    .table-shell.places ol.ranking li.row .hhi-col,
-    .table-shell.places ol.ranking li.row .bach-col,
-    .table-shell.places ol.ranking li.row .twohk-col,
-    .table-shell.places ol.ranking li.row .home-col,
-    .table-shell.places ol.ranking li.row .death-col,
-    .table-shell.places ol.ranking li.row .income-col,
-    .table-shell.places ol.ranking li.row .capgains-col { display: none; }
+    .table-shell.places .col-headers { padding-left: 12px; padding-right: 12px; }
+    .table-shell.places .filter-row { padding-left: 12px; padding-right: 12px; }
+    .table-shell.places ol.ranking li.row { padding-left: 12px; padding-right: 12px; }
+
+    /* Sticky rank + place-name: pin to the left edge of horizontal scroll.
+       The cells need explicit backgrounds (matching each row band) so they
+       paint over the scrolling content behind them. */
+    .table-shell.places .col-headers > div:nth-child(1),
+    .table-shell.places .filter-row > div:nth-child(1),
+    .table-shell.places ol.ranking li.row > .rank-num {
+      position: sticky;
+      left: 12px;
+      z-index: 3;
+    }
+    .table-shell.places .col-headers > div:nth-child(2),
+    .table-shell.places .filter-row > div:nth-child(2),
+    .table-shell.places ol.ranking li.row > .state {
+      position: sticky;
+      left: 46px;
+      z-index: 3;
+      box-shadow: 6px 0 6px -4px rgba(0,0,0,0.10);
+    }
+    .table-shell.places .col-headers > div:nth-child(1),
+    .table-shell.places .col-headers > div:nth-child(2) { background: var(--surface-alt); }
+    .table-shell.places .filter-row > div:nth-child(1),
+    .table-shell.places .filter-row > div:nth-child(2) { background: var(--surface); }
+    .table-shell.places ol.ranking li.row > .rank-num,
+    .table-shell.places ol.ranking li.row > .state { background: var(--surface); }
+    .table-shell.places ol.ranking li.row:hover > .rank-num,
+    .table-shell.places ol.ranking li.row:hover > .state,
+    .table-shell.places ol.ranking li.row.expanded > .rank-num,
+    .table-shell.places ol.ranking li.row.expanded > .state { background: var(--surface-alt); }
+
+    /* Right-edge fade hint signaling more columns are scrollable. The pseudo
+       sits on .table-scroll (which clips the scroll content) so it stays at
+       the visible right edge instead of scrolling with the columns. */
+    .table-scroll { position: relative; }
+    .table-scroll::after {
+      content: "";
+      position: absolute;
+      top: 0; right: 0; bottom: 0;
+      width: 22px;
+      pointer-events: none;
+      background: linear-gradient(to right, transparent, var(--surface));
+    }
+
+    /* Bigger tap target on column-header info buttons. */
+    .col-headers .info-btn { width: 18px; height: 18px; font-size: 11px; }
+
+    /* Expanded detail: clamp width to the visible viewport so prose doesn't
+       reflow across the full 1320px row width. Sticky-left so it stays in
+       view regardless of horizontal scroll position. */
+    .table-shell.places ol.ranking li.row .detail {
+      position: sticky;
+      left: 12px;
+      width: calc(100vw - 24px);
+      padding-left: 0;
+    }
   }
 
   /* Disclaimer */
@@ -595,7 +544,10 @@
 <div class="wrap">
 
 <header class="masthead">
-  <h1>Where should I move?</h1>
+  <div class="masthead-title">
+    <button class="reset-btn" id="reset-filters" type="button" aria-label="Reset all filters" title="Reset all filters"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2Z"/></svg></button>
+    <h1>Where should I move?</h1>
+  </div>
   <p class="dek">Compare 8,000+ U.S. places by total tax cost (estate, income, capital gains over your time horizon), demographics, political alignment, household income, and greenery.</p>
 </header>
 
@@ -634,7 +586,7 @@
     </div>
   </div>
 
-  <div class="section-title">U.S. places (population ≥ 5,000)<span class="sub" id="places-subtitle">Showing all places</span><button class="share-btn" id="share-link" type="button" aria-label="Copy a shareable link to this view">Copy share link</button><a class="filter-clear" id="filter-clear">Clear filters</a></div>
+  <div class="section-title"><span class="sub" id="places-subtitle"></span></div>
   <div class="table-shell places">
     <div class="table-scroll">
     <div class="col-headers" id="places-headers">
@@ -710,22 +662,6 @@
       </div>
     </div>
     <ol class="ranking" id="places-ranking"></ol>
-    </div>
-    <div class="pagination" id="places-pagination">
-      <div class="pg-controls">
-        <button id="pg-prev" class="pg-btn" type="button" aria-label="Previous page">‹ Prev</button>
-        <span class="pg-pageinfo">Page <input type="number" id="pg-page" min="1" value="1" autocomplete="off" /> of <span id="pg-total-pages">1</span></span>
-        <button id="pg-next" class="pg-btn" type="button" aria-label="Next page">Next ›</button>
-      </div>
-      <div class="pg-size">
-        <label for="pg-size-select">Per page:</label>
-        <select id="pg-size-select">
-          <option value="25">25</option>
-          <option value="50" selected>50</option>
-          <option value="100">100</option>
-          <option value="250">250</option>
-        </select>
-      </div>
     </div>
   </div>
 
@@ -1283,14 +1219,6 @@
   let expandedPlace = null;
   let placesSortBy = "pctIndian"; // 'name' | 'state' | 'metro' | 'pop' | 'pctIndian' | 'pctAsian' | 'demMargin' | 'hhi' | 'pctBach' | 'pct200k' | 'homeValue' | 'death' | 'income' | 'capgains' | 'total'
   let placesSortDir = "desc";
-  // Pagination: 0-indexed page over the filtered+sorted list. Reset to 0 on any sort/filter change.
-  let placesPage = 0;
-  let placesPageSize = 50;
-  const elPgPrev = document.getElementById("pg-prev");
-  const elPgNext = document.getElementById("pg-next");
-  const elPgPage = document.getElementById("pg-page");
-  const elPgTotalPages = document.getElementById("pg-total-pages");
-  const elPgSize = document.getElementById("pg-size-select");
   // Per-column numeric range filters for the places table.
   // Units: pop = raw count; pct* = percentage points (5 = 5%);
   // hhi/homeValue = thousands of dollars; tax columns = millions of dollars.
@@ -1322,7 +1250,6 @@
         placesSortBy = key;
         placesSortDir = (key === "name" || key === "state") ? "asc" : "desc";
       }
-      placesPage = 0;
       render();
     });
   });
@@ -1348,33 +1275,16 @@
       const f = input.dataset.filter, b = input.dataset.bound;
       const v = input.value === "" ? null : parseFloat(input.value);
       placesFilters[f][b] = Number.isFinite(v) ? v : null;
-      placesPage = 0;
       render();
     });
   });
 
-  document.getElementById("filter-clear").addEventListener("click", () => {
+  document.getElementById("reset-filters").addEventListener("click", () => {
     for (const k of Object.keys(placesFilters)) {
       placesFilters[k] = { min: null, max: null };
     }
     document.querySelectorAll("#places-filters input").forEach(i => { i.value = ""; });
-    placesPage = 0;
     render();
-  });
-
-  elPgPrev.addEventListener("click", () => { if (placesPage > 0) { placesPage--; render(); } });
-  elPgNext.addEventListener("click", () => { placesPage++; render(); /* clamped in render() */ });
-  elPgPage.addEventListener("change", () => {
-    const v = parseInt(elPgPage.value, 10);
-    if (Number.isFinite(v) && v >= 1) { placesPage = v - 1; render(); }
-  });
-  elPgSize.addEventListener("change", () => {
-    const v = parseInt(elPgSize.value, 10);
-    if (Number.isFinite(v) && v > 0) {
-      placesPageSize = v;
-      placesPage = 0;
-      render();
-    }
   });
 
   // Hardcoded: second death scenario, assets passing to children/grandchildren.
@@ -1390,6 +1300,59 @@
         calc: r.calc || ""
       };
     });
+  }
+
+  // Verbalize the currently-active filters as a human-readable phrase, e.g.,
+  // "Indian population ≥ 5%, median HHI $80k–$150k, and bachelor's-degree share ≥ 40%".
+  // Returns "" when no filter has min or max set.
+  function describeFilters(f) {
+    const parts = [];
+    const fmtNum = n => n.toLocaleString();
+    const fmtPctVal = n => `${n}%`;
+    const fmtK = n => `$${fmtNum(n)}k`;
+    const fmtM = n => `$${n}M`;
+    function pushRange(key, fmt, label) {
+      const { min, max } = f[key];
+      if (min === null && max === null) return;
+      if (min !== null && max !== null) parts.push(`${label} ${fmt(min)}–${fmt(max)}`);
+      else if (min !== null) parts.push(`${label} ≥ ${fmt(min)}`);
+      else parts.push(`${label} ≤ ${fmt(max)}`);
+    }
+    pushRange("pop", fmtNum, "population");
+    pushRange("pctIndian", fmtPctVal, "Indian population");
+    pushRange("pctAsian", fmtPctVal, "Asian population");
+    // County margin uses the 2024 Harris–Trump signed margin in percentage points.
+    // Positive = Harris (blue), negative = Trump (red). Phrasing prefers a color
+    // framing ("blue counties (Harris +10 or more)") and falls back to a from/to
+    // form when the range crosses zero.
+    {
+      const { min, max } = f.demMargin;
+      const partyTag = n => n === 0 ? "even" : (n > 0 ? `Harris +${n}` : `Trump +${-n}`);
+      if (min !== null && max !== null) {
+        if (min >= 0) parts.push(`blue counties (Harris +${min} to +${max})`);
+        else if (max <= 0) parts.push(`red counties (Trump +${-max} to +${-min})`);
+        else parts.push(`counties from ${partyTag(min)} to ${partyTag(max)}`);
+      } else if (min !== null) {
+        if (min > 0) parts.push(`blue counties (Harris +${min} or more)`);
+        else if (min === 0) parts.push(`blue or even counties`);
+        else parts.push(`counties Trump +${-min} or bluer`);
+      } else if (max !== null) {
+        if (max < 0) parts.push(`red counties (Trump +${-max} or more)`);
+        else if (max === 0) parts.push(`red or even counties`);
+        else parts.push(`counties Harris +${max} or redder`);
+      }
+    }
+    pushRange("hhi", fmtK, "median HHI");
+    pushRange("pctBach", fmtPctVal, "bachelor's-degree share");
+    pushRange("pct200k", fmtPctVal, "share earning $200k+");
+    pushRange("homeValue", fmtK, "median home value");
+    pushRange("death", fmtM, "death tax");
+    pushRange("income", fmtM, "income tax");
+    pushRange("capgains", fmtM, "cap-gains tax");
+    pushRange("total", fmtM, "total tax");
+    if (parts.length <= 1) return parts.join("");
+    if (parts.length === 2) return parts.join(" and ");
+    return parts.slice(0, -1).join(", ") + ", and " + parts[parts.length - 1];
   }
 
   function pillFor(type) {
@@ -1484,7 +1447,6 @@
     });
 
     const anyFilter = Object.values(f).some(r => r.min !== null || r.max !== null);
-    document.getElementById("filter-clear").style.display = anyFilter ? "inline-block" : "none";
 
     const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", pctIndian: "pctIndian", pctAsian: "pctAsian", demMargin: "demMargin", hhi: "medianHHI", pctBach: "pctBach", pct200k: "pct200k", homeValue: "medianHomeValue", death: "deathTax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
     const pk = placeKey[placesSortBy];
@@ -1505,27 +1467,21 @@
       h.querySelector(".arrow").textContent = active ? (placesSortDir === "desc" ? "↓" : "↑") : "";
     });
 
-    // Pagination: clamp current page to a valid range, slice the visible window,
-    // and update the pagination chrome + subtitle to reflect the current view.
     const totalRows = placeRows.length;
-    const totalPages = Math.max(1, Math.ceil(totalRows / placesPageSize));
-    if (placesPage > totalPages - 1) placesPage = totalPages - 1;
-    if (placesPage < 0) placesPage = 0;
-    const start = placesPage * placesPageSize;
-    const end = Math.min(start + placesPageSize, totalRows);
-    const visibleRows = placeRows.slice(start, end);
+    const filterDesc = anyFilter ? describeFilters(f) : "";
+    const elSub = document.getElementById("places-subtitle");
+    if (anyFilter) {
+      elSub.innerHTML =
+        `<span class="count">${totalRows.toLocaleString()} places</span>` +
+        `<span class="sep">·</span>` +
+        `<span class="crit">${filterDesc}</span>` +
+        `<span class="total">of ${PLACES.length.toLocaleString()} total</span>`;
+    } else {
+      elSub.innerHTML =
+        `<span class="count">All ${PLACES.length.toLocaleString()} places</span>`;
+    }
 
-    const rangeLabel = totalRows === 0 ? "0" : `${start + 1}–${end}`;
-    document.getElementById("places-subtitle").textContent = anyFilter
-      ? `Showing ${rangeLabel} of ${totalRows.toLocaleString()} places matching your filters (of ${PLACES.length.toLocaleString()} total)`
-      : `Showing ${rangeLabel} of ${PLACES.length.toLocaleString()} places`;
-    elPgTotalPages.textContent = totalPages.toLocaleString();
-    elPgPage.value = String(placesPage + 1);
-    elPgPage.max = String(totalPages);
-    elPgPrev.disabled = placesPage <= 0;
-    elPgNext.disabled = placesPage >= totalPages - 1;
-
-    elPlacesRanking.innerHTML = visibleRows.map((p, i) => {
+    elPlacesRanking.innerHTML = placeRows.map((p, i) => {
       const pid = `${p.name}|${p.state}`;
       const isExpanded = pid === expandedPlace;
       const isFree = p.total === 0;
@@ -1538,7 +1494,7 @@
       const twohkDisplay = p.pct200k == null ? "—" : Math.round(p.pct200k * 100) + "%";
       return `
         <li class="row ${isExpanded ? "expanded" : ""}" data-place="${pid}">
-          <div class="rank-num">${start + i + 1}</div>
+          <div class="rank-num">${i + 1}</div>
           <div class="state">${p.name}</div>
           <div class="metro-col" style="font-size:13px;color:var(--ink-3)">${p.metro || "—"}</div>
           <div class="state-col-cell" style="font-size:14px;color:var(--ink-2)">${p.state}</div>
@@ -1593,8 +1549,6 @@
     e: "40",       // estate at death ($M)
     sb: "pctIndian",
     sd: "desc",
-    ps: "50",
-    p: "1",
   };
   const FILTER_COLS = Object.keys(placesFilters);
 
@@ -1607,8 +1561,6 @@
     setIfNotDefault("e",  elNetWorth.value);
     setIfNotDefault("sb", placesSortBy);
     setIfNotDefault("sd", placesSortDir);
-    setIfNotDefault("ps", String(placesPageSize));
-    setIfNotDefault("p",  String(placesPage + 1));
     if (expandedPlace) sp.set("ep", expandedPlace);
     for (const col of FILTER_COLS) {
       const { min, max } = placesFilters[col];
@@ -1637,13 +1589,6 @@
     if (sb) placesSortBy = sb;
     const sd = sp.get("sd");
     if (sd === "asc" || sd === "desc") placesSortDir = sd;
-    const ps = parseInt(sp.get("ps") || "", 10);
-    if ([25, 50, 100, 250].includes(ps)) {
-      placesPageSize = ps;
-      elPgSize.value = String(ps);
-    }
-    const p = parseInt(sp.get("p") || "", 10);
-    if (Number.isFinite(p) && p >= 1) placesPage = p - 1;
     const ep = sp.get("ep");
     if (ep) expandedPlace = ep;
     for (const col of FILTER_COLS) {
@@ -1660,34 +1605,6 @@
       }
     }
   }
-
-  // Copy-link button: copies the current URL (kept fresh by encodeStateToURL
-  // running on every render()) and gives a brief visual confirmation.
-  const elShare = document.getElementById("share-link");
-  const SHARE_LABEL = elShare.textContent;
-  elShare.addEventListener("click", async () => {
-    const url = window.location.href;
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      // Fallback for older browsers / non-secure contexts.
-      const ta = document.createElement("textarea");
-      ta.value = url;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand("copy"); } catch {}
-      document.body.removeChild(ta);
-    }
-    elShare.classList.add("copied");
-    elShare.textContent = "Copied!";
-    clearTimeout(elShare._copyTimer);
-    elShare._copyTimer = setTimeout(() => {
-      elShare.classList.remove("copied");
-      elShare.textContent = SHARE_LABEL;
-    }, 1500);
-  });
 
   hydrateFromURL();
   render();

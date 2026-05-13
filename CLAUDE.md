@@ -10,7 +10,11 @@ Two source files now make up the app:
 - `index.html` — the app: markup, CSS, and inline JS (tax engine + interaction).
 - `data/places.js` — the place dataset (~8,036 entries, ~1.7 MB), declared as the global `const PLACES = [...]`. Loaded by `index.html` via `<script src="data/places.js"></script>` **before** the inline app script. Auto-generated; do not hand-edit.
 
-The page is **a single 16-column places table** (a separate states-only table existed earlier and was removed; tax math still runs on a per-state engine, but every place inherits its state's values and displays them on its own row). The table is **paginated** (50 rows per page by default, selectable from a dropdown — 25/50/100/250) and **horizontally scrollable** when the viewport is narrower than the sum of column widths; `min-width: 1660px` on the grid rows keeps columns from being squeezed.
+The page is **a single 16-column places table** (a separate states-only table existed earlier and was removed; tax math still runs on a per-state engine, but every place inherits its state's values and displays them on its own row). The table is **non-paginated** — every row in the filtered/sorted set is in the DOM at once, so the user can ctrl-F by place name and fast-eyeball the whole list. **Horizontally scrollable** when the viewport is narrower than the sum of column widths; `min-width: 1660px` on the grid rows (1320px on mobile) keeps columns from being squeezed.
+
+## Working style
+
+Don't test or verify changes proactively. The user does manual testing in their own browser. Do not spin up a local web server, do not use Playwright/MCP browser tools, do not screenshot, and do not exercise filters/sorts/UI flows after editing — even to "sanity-check" the change. Make the edit, optionally run the JS-parse sanity-check below if non-trivial JS changed, and stop. Only run any kind of verification (dev server, browser, end-to-end clicks) when the user explicitly asks.
 
 ## Commands
 
@@ -50,11 +54,11 @@ This is why all 6 inheritance-tax states (KY, MD-Inheritance, NE, NJ, PA, and Io
 
 **Strong-MCD states**: in 12 states (CT, ME, MA, MI, MN, NH, NJ, NY, PA, RI, VT, WI), the primary local government unit is the township/town, not a Census Place. The fetch script queries `county subdivision:*` in addition to `place:*` for these states so entries like Plainsboro Township NJ and Lexington Town MA appear. Deduplication by `(state, cleanName)` keeps the larger-population entry when a township and a same-named CDP collide.
 
-**Rendering** is reactive but now paginated: any change to the four input fields (years, annual income, annual cap gains, estate at death), to a sort header, or to a filter input calls `render()`, which (1) recomputes all tax values for all 8,036 rows, (2) filters and sorts the full list, (3) slices the visible page (`placesPage * placesPageSize` → `+placesPageSize`), and (4) rewrites the places table's innerHTML for only that page (~50 rows by default). Sorts and filters reset `placesPage = 0`; the expand/collapse toggle does not. The tax/filter/sort math still touches all 8,036 rows on every render — only the HTML-string build is bounded by the page. Sort and filter state are scoped to one table now: `placesSortBy` / `placesSortDir` / `placesFilters` / `placesPage` / `placesPageSize` / `expandedPlace`. (Pre-table-merge variables `sortBy`/`sortDir`/`expandedState` no longer exist.)
+**Rendering** is reactive and unpaginated: any change to the four input fields (years, annual income, annual cap gains, estate at death), to a sort header, or to a filter input calls `render()`, which (1) recomputes all tax values for all 8,036 rows, (2) filters and sorts the full list, and (3) rewrites the places table's innerHTML for the full filtered set. With no filters this means ~8k `<li>` rows × ~17 cells each are built and parsed on every keystroke — workable on modern machines but a perf hotspot if it ever feels janky (debouncing the filter `input` listener is the obvious mitigation). Sort and filter state: `placesSortBy` / `placesSortDir` / `placesFilters` / `expandedPlace`.
 
 **Column-header info buttons**: every column header carries a small circled `i` (`.info-btn`) that shows a tooltip on hover (desktop) and toggles on click (touch). Click stops propagation so it doesn't trigger a sort. Tooltips describe the source (Census variable, MIT Election Lab, etc.) and any caveats (county-level margin, state-only tax modeling, etc.).
 
-**No CSS framework, no JS framework, no bundler**. Vanilla DOM + a Google Fonts link for Inter. CSS uses CSS custom properties for the palette (`--ink`, `--accent`, etc.) defined in `:root`. Table max-width is 1700px; viewport-wrap max-width matches. A `.table-scroll` wrapper inside `.table-shell.places` provides horizontal overflow with `overflow-x: auto`; the pagination bar sits below it inside the same shell and is not part of the scroll region.
+**No CSS framework, no JS framework, no bundler**. Vanilla DOM + a Google Fonts link for Inter. CSS uses CSS custom properties for the palette (`--ink`, `--accent`, etc.) defined in `:root`. Table max-width is 1700px; viewport-wrap max-width matches. A `.table-scroll` wrapper inside `.table-shell.places` provides horizontal overflow with `overflow-x: auto`.
 
 ## Files
 
