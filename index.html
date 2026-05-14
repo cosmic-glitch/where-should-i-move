@@ -653,6 +653,33 @@
     letter-spacing: 0.04em;
   }
   .preset-item.preset-none.is-active .preset-desc { color: var(--accent); }
+  /* Chip-style preset rendering — each filter is a separate pill so the
+     preset rows are scannable in parallel. */
+  .preset-item .preset-chips {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .preset-chip {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-2);
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 8px;
+    line-height: 1.4;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .preset-item.is-active .preset-chip {
+    color: var(--accent);
+    background: var(--surface);
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  }
   .preset-divider {
     height: 1px;
     background: var(--border);
@@ -894,10 +921,10 @@
       <div class="col-num col-200k" data-sort="pct200k">%$200k+<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % $200k+ households">i</button><span class="info-tooltip">Share of households with annual income of <strong>$200,000 or more</strong> — the top bracket of Census table B19001. A density-of-high-earners signal that complements median HHI, which compresses the upper tail. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num" data-sort="pctHomeowner">%Owner<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Owner-occupied">i</button><span class="info-tooltip">Share of occupied housing units that are <strong>owner-occupied</strong> (Census variables B25003_002E / B25003_001E). Owner-heavy places skew toward established family suburbs; renter-heavy places skew toward college towns and young-professional urban cores. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-home" data-sort="homeValue">Home<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median home value">i</button><span class="info-tooltip"><strong>Median value of owner-occupied housing units</strong> (B25077_001E) — a quick proxy for the cost of buying a typical home in the place. Self-reported by owners; reflects the existing housing stock, not current listing prices, so it lags transaction markets. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num col-death" data-sort="death">Estate<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Estate tax">i</button><span class="info-tooltip">State tax on the <strong>Estate at death</strong> value, combining true estate taxes (12 states + DC) and inheritance taxes (KY, MD, NE, NJ, PA) into a single column since the dollar impact on heirs is the same regardless of which form the state uses. Assumes the <strong>second death</strong> of a married couple — surviving spouse already gone, so no marital deduction — and that heirs are <strong>lineal descendants</strong> (children/grandchildren), who are Class A in every inheritance-tax state (so KY/MD/NE/NJ resolve to $0; only PA charges children, at 4.5%). State law only; the federal estate tax is <strong>not</strong> included. Reflects 2026 statutes, including Washington's post-July 2026 regime.</span></span></div>
+      <div class="col-num col-death" data-sort="death">Estate tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Estate tax">i</button><span class="info-tooltip">State tax on the <strong>Estate at death</strong> value, combining true estate taxes (12 states + DC) and inheritance taxes (KY, MD, NE, NJ, PA) into a single column since the dollar impact on heirs is the same regardless of which form the state uses. Assumes the <strong>second death</strong> of a married couple — surviving spouse already gone, so no marital deduction — and that heirs are <strong>lineal descendants</strong> (children/grandchildren), who are Class A in every inheritance-tax state (so KY/MD/NE/NJ resolve to $0; only PA charges children, at 4.5%). State law only; the federal estate tax is <strong>not</strong> included. Reflects 2026 statutes, including Washington's post-July 2026 regime.</span></span></div>
       <div class="col-num col-income" data-sort="income">Income<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Income tax">i</button><span class="info-tooltip">State income tax on the <strong>Avg annual income</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. <strong>State-level only</strong> — local income taxes (NYC, Maryland counties, OH/KY/IN municipalities, Yonkers, PA local EIT) are <strong>not</strong> modeled, which understates the true tax for places in those jurisdictions.</span></span></div>
       <div class="col-num col-capgains" data-sort="capgains">Cap gains<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Cap gains">i</button><span class="info-tooltip">State capital gains tax on the <strong>Avg annual cap gains</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. State law only. Washington's 9.9% rate already includes the SB 6346 millionaires' surcharge effective Jan 2028.</span></span></div>
-      <div class="col-num col-total" data-sort="total">Total<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Total tax">i</button><span class="info-tooltip">Sum of <strong>Estate tax + Income tax + Cap gains</strong> over your scenario. State law only — see each column's info button for limitations.</span></span></div>
+      <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Total tax">i</button><span class="info-tooltip">Sum of <strong>Estate tax + Income tax + Cap gains</strong> over your scenario. State law only — see each column's info button for limitations.</span></span></div>
     </div>
     <div class="col-filters" id="col-filters-row"></div>
     <ol class="ranking" id="places-ranking"></ol>
@@ -1556,6 +1583,38 @@
   // Columns that aren't numeric (alignment hint for the chip cells).
   const TEXT_COL_KEYS = new Set(['__rank', 'name', 'metro', 'state']);
 
+  // Long-form labels for preset-list chips. The column-header chips use
+  // compact tokens ("%Bach+", "Med HHI"); presets get the room for full
+  // names so the dropdown reads cleanly. (% Democratic phrases demMargin in
+  // neutral terms rather than naming a candidate.)
+  const PRESET_FILTER_LABEL = {
+    pop:            "Population",
+    popDensity:     "Density",
+    pctIndian:      "% Indian",
+    pctAsian:       "% Asian",
+    pctForeignBorn: "% Foreign-born",
+    medianAge:      "Median age",
+    demMargin:      "% Democratic",
+    hhi:            "Median HHI",
+    asianMedianHHI: "Asian household HHI",
+    pctBach:        "% Bachelor's Degree",
+    pct200k:        "% earning $200k+",
+    pctHomeowner:   "% homeownership",
+    homeValue:      "Median home value",
+    death:          "Estate tax",
+    income:         "Income tax",
+    capgains:       "Cap gains tax",
+    total:          "Total tax",
+  };
+  function presetChipText(key, filter) {
+    const label = PRESET_FILTER_LABEL[key] || key;
+    const fmt = FILTER_META[key].fmt;
+    const { min, max } = filter;
+    if (min !== null && max !== null) return `${label} ${fmt(min)}–${fmt(max)}`;
+    if (min !== null) return `${label} ≥ ${fmt(min)}`;
+    return `${label} ≤ ${fmt(max)}`;
+  }
+
   function chipLabel(key) {
     const { min, max } = placesFilters[key];
     if (min === null && max === null) return '+ filter';
@@ -1689,10 +1748,10 @@
     { key: 'pct200k',        label: '%$200k+',    always: false, dW: '80px',                  mW: '64px',                  dMin: 80,  mMin: 64  },
     { key: 'pctHomeowner',   label: '%Owner',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64, defaultHidden: true },
     { key: 'homeValue',      label: 'Home',       always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
-    { key: 'death',          label: 'Estate',     always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
+    { key: 'death',          label: 'Estate tax', always: false, dW: '100px',                 mW: '84px',                  dMin: 100, mMin: 84  },
     { key: 'income',         label: 'Income',     always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
     { key: 'capgains',       label: 'Cap gains',  always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
-    { key: 'total',          label: 'Total',      always: false, dW: '96px',                  mW: '80px',                  dMin: 96,  mMin: 80  },
+    { key: 'total',          label: 'Total tax',  always: false, dW: '104px',                 mW: '88px',                  dMin: 104, mMin: 88  },
   ];
   const TOGGLEABLE_COLS = COL_DEFS.filter(c => !c.always).map(c => c.key);
   const DEFAULT_HIDDEN_COLS = COL_DEFS.filter(c => c.defaultHidden).map(c => c.key);
@@ -1902,12 +1961,17 @@
          <span class="preset-desc">None — show all places</span>
        </button>
        <div class="preset-divider"></div>` +
-      PLACES_PRESETS.map(p => `
-        <button type="button" class="preset-item" data-preset-id="${p.id}">
-          <svg class="preset-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <span class="preset-desc">${p.description}</span>
-        </button>
-      `).join("");
+      PLACES_PRESETS.map(p => {
+        const chips = Object.entries(p.filters)
+          .map(([k, f]) => `<span class="preset-chip">${presetChipText(k, f)}</span>`)
+          .join("");
+        return `
+          <button type="button" class="preset-item" data-preset-id="${p.id}">
+            <svg class="preset-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <div class="preset-chips">${chips}</div>
+          </button>
+        `;
+      }).join("");
     elPresetsList.querySelectorAll("[data-preset-id]").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = btn.dataset.presetId;
