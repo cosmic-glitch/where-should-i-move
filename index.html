@@ -49,41 +49,14 @@
   header.masthead {
     padding: 32px 0 20px;
   }
-  header.masthead .masthead-title {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin: 0 0 8px;
-  }
   header.masthead h1 {
     font-weight: 600;
     font-size: clamp(28px, 3.4vw, 36px);
     line-height: 1.15;
     letter-spacing: -0.025em;
-    margin: 0;
+    margin: 0 0 8px;
     color: var(--ink);
   }
-  header.masthead .reset-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--ink-3);
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: color 0.12s, background 0.12s, border-color 0.12s;
-  }
-  header.masthead .reset-btn:hover {
-    color: var(--accent);
-    background: var(--accent-soft);
-    border-color: var(--accent);
-  }
-  header.masthead .reset-btn svg { display: block; }
   header.masthead .dek {
     margin: 0;
     font-size: 15px;
@@ -390,6 +363,26 @@
   .places-summary .count { color: var(--ink); font-weight: 600; }
   .places-summary .crit  { color: var(--ink-2); }
   .places-summary .sep   { color: var(--ink-4); margin: 0 6px; }
+  .places-summary .clear-filters {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--ink-3);
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 3px;
+    letter-spacing: inherit;
+    line-height: inherit;
+    transition: color 0.12s, text-decoration-color 0.12s;
+  }
+  .places-summary .clear-filters:hover {
+    color: var(--bad);
+    text-decoration-color: currentColor;
+  }
 
   /* Places table — different column layout */
   .table-shell.places .col-headers,
@@ -653,6 +646,32 @@
     letter-spacing: 0.04em;
   }
   .preset-item.preset-none.is-active .preset-desc { color: var(--accent); }
+  /* Numbered badge on each preset — gives a stable handle to identify a
+     preset, and visually separates rows that would otherwise read as one
+     long chip rail. */
+  .preset-num {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    margin-right: 2px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--ink-3);
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .preset-item.is-active .preset-num {
+    color: var(--accent);
+    background: var(--surface);
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  }
   /* Chip-style preset rendering — each filter is a separate pill so the
      preset rows are scannable in parallel. */
   .preset-item .preset-chips {
@@ -830,10 +849,7 @@
 <div class="wrap">
 
 <header class="masthead">
-  <div class="masthead-title">
-    <button class="reset-btn" id="reset-filters" type="button" aria-label="Reset all filters" title="Reset all filters"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2Z"/></svg></button>
-    <h1>Where should I move?</h1>
-  </div>
+  <h1>Where should I move?</h1>
   <p class="dek">Where you die matters. A $30M estate left to children in WA owes $5M in state estate tax. Move to one of 33 states and that drops to zero — and in 8 of them, state income and capital gains tax disappear too. The hard part is finding somewhere you'd actually want to live. This tool helps you filter 8,000+ U.S. suburbs, towns, and cities by the tax math and the rest of life: education, political lean, demographics, and wealth.</p>
 </header>
 
@@ -1541,7 +1557,10 @@
     }
   });
 
-  document.getElementById("reset-filters").addEventListener("click", () => {
+  // "Clear filters" link inside the places summary — appears only when any
+  // filter is active. Delegated so the listener survives subtitle re-renders.
+  document.getElementById("places-subtitle").addEventListener("click", e => {
+    if (!e.target.classList.contains("clear-filters")) return;
     for (const k of Object.keys(placesFilters)) {
       placesFilters[k] = { min: null, max: null };
     }
@@ -1961,13 +1980,15 @@
          <span class="preset-desc">None — show all places</span>
        </button>
        <div class="preset-divider"></div>` +
-      PLACES_PRESETS.map(p => {
+      PLACES_PRESETS.map((p, i) => {
         const chips = Object.entries(p.filters)
           .map(([k, f]) => `<span class="preset-chip">${presetChipText(k, f)}</span>`)
           .join("");
-        return `
+        const divider = i > 0 ? '<div class="preset-divider"></div>' : '';
+        return `${divider}
           <button type="button" class="preset-item" data-preset-id="${p.id}">
             <svg class="preset-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span class="preset-num">${i + 1}</span>
             <div class="preset-chips">${chips}</div>
           </button>
         `;
@@ -2222,7 +2243,9 @@
       elSub.innerHTML =
         `Showing <span class="count">${totalRows.toLocaleString()} of ${PLACES.length.toLocaleString()} places</span>` +
         `<span class="sep">·</span>` +
-        `<span class="crit">${filterDesc}</span>`;
+        `<span class="crit">${filterDesc}</span>` +
+        `<span class="sep">·</span>` +
+        `<button type="button" class="clear-filters">Clear filters</button>`;
     } else {
       elSub.innerHTML =
         `Showing all <span class="count">${PLACES.length.toLocaleString()} places</span>`;
