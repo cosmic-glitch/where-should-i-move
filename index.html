@@ -1651,8 +1651,7 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeAllChipPops();
   });
-
-  buildColFiltersRow();
+  // Note: buildColFiltersRow() is invoked later, after COL_DEFS is declared.
 
   // ────────────────────────────────────────────────────────────────────────
   //  Column visibility
@@ -2288,6 +2287,7 @@
   }
 
   hydrateFromURL();
+  buildColFiltersRow();
   applyColumnLayout();
   render();
 </script>
