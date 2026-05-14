@@ -568,6 +568,113 @@
   @media (max-width: 420px) {
     .filters-grid { grid-template-columns: 1fr; }
   }
+
+  /* Presets popover — narrower; vertical list of description rows */
+  .presets-popover { width: 480px; padding: 8px; }
+  .preset-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink);
+    transition: background 0.12s, color 0.12s;
+  }
+  .preset-item:hover { background: var(--surface-alt); }
+  .preset-item.is-active { background: var(--accent-soft); color: var(--accent); }
+  .preset-item .preset-check {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  .preset-item.is-active .preset-check { opacity: 1; }
+  .preset-item .preset-desc {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: inherit;
+  }
+  .preset-item.preset-none .preset-desc {
+    color: var(--ink-3);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .preset-item.preset-none.is-active .preset-desc { color: var(--accent); }
+  .preset-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 4px;
+  }
+
+  /* Columns popover — vertical list of checkboxes */
+  .columns-popover { width: 280px; padding: 8px; }
+  .columns-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 4px;
+  }
+  .column-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-2);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s, color 0.12s;
+  }
+  .column-item:hover { background: var(--surface-alt); color: var(--ink); }
+  .column-item input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  .column-item.is-locked {
+    color: var(--ink-4);
+    cursor: not-allowed;
+  }
+  .columns-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .columns-reset {
+    padding: 5px 10px;
+    font: 600 11px/1 inherit;
+    color: var(--ink-3);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .columns-reset:hover { color: var(--ink); border-color: var(--ink-3); }
+  @media (max-width: 720px) {
+    .presets-popover { width: calc(100vw - 24px); }
+    .columns-popover { width: 260px; }
+  }
   @media (max-width: 720px) {
     /* Mobile strategy: keep every column accessible via horizontal scroll.
        Tighter widths/gap/padding fit ~1320px in a compact form. The rank +
@@ -702,6 +809,17 @@
 
   <div class="section-title">
     <div class="filters-bar">
+      <button id="presets-toggle" class="filters-btn" type="button"
+              aria-haspopup="dialog" aria-expanded="false" aria-controls="presets-popover">
+        <svg class="filters-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span>Presets</span>
+        <svg class="filters-caret" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="filters-popover presets-popover" id="presets-popover" role="dialog" aria-label="Preset filters" hidden>
+        <div id="presets-list"></div>
+      </div>
+    </div>
+    <div class="filters-bar">
       <button id="filters-toggle" class="filters-btn" type="button"
               aria-haspopup="dialog" aria-expanded="false" aria-controls="filters-popover">
         <svg class="filters-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="13" y2="6"/><line x1="17" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="15" y2="18"/><line x1="19" y1="18" x2="20" y2="18"/><circle cx="15" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>
@@ -793,6 +911,21 @@
         <div class="filters-footer">
           <button type="button" class="filters-clear" id="filters-clear" hidden>Clear all</button>
           <button type="button" class="filters-done" id="filters-done">Done</button>
+        </div>
+      </div>
+    </div>
+    <div class="filters-bar">
+      <button id="columns-toggle" class="filters-btn" type="button"
+              aria-haspopup="dialog" aria-expanded="false" aria-controls="columns-popover">
+        <svg class="filters-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1.5"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+        <span>Columns</span>
+        <span class="filters-badge" id="columns-badge" hidden>0</span>
+        <svg class="filters-caret" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="filters-popover columns-popover" id="columns-popover" role="dialog" aria-label="Column visibility" hidden>
+        <div class="columns-grid" id="columns-grid"></div>
+        <div class="columns-footer">
+          <button type="button" class="columns-reset" id="columns-reset">Show all</button>
         </div>
       </div>
     </div>
@@ -1486,6 +1619,263 @@
     if (e.key === "Escape" && !elFiltersPopover.hidden) { closeFilters(); elFiltersToggle.focus(); }
   });
 
+  // ────────────────────────────────────────────────────────────────────────
+  //  Column visibility
+  //  ────────────────────────────────────────────────────────────────────────
+  //  COL_DEFS drives the table layout end-to-end: its order is the column
+  //  order in headers and rows, and its widths are the source of truth for
+  //  `grid-template-columns`. Hiding a column rewrites the dynamic <style>
+  //  block below to skip its track entirely (rather than display:none-ing it,
+  //  which would leave a gap in the grid).
+  //  ────────────────────────────────────────────────────────────────────────
+  const COL_DEFS = [
+    { key: '__rank',    label: '#',          always: true,  dW: '32px',                  mW: '26px',                  dMin: 32,  mMin: 26 },
+    { key: 'name',      label: 'Place',      always: true,  dW: 'minmax(130px, 1.2fr)',  mW: 'minmax(110px, 1.1fr)',  dMin: 130, mMin: 110 },
+    { key: 'metro',     label: 'Metro',      always: false, dW: 'minmax(140px, 1.1fr)',  mW: 'minmax(100px, 1fr)',    dMin: 140, mMin: 100 },
+    { key: 'state',     label: 'State',      always: false, dW: '90px',                  mW: '100px',                 dMin: 90,  mMin: 100 },
+    { key: 'pop',       label: 'Population', always: false, dW: '88px',                  mW: '72px',                  dMin: 88,  mMin: 72  },
+    { key: 'pctIndian', label: '% Indian',   always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64  },
+    { key: 'demMargin', label: 'Red/Blue',   always: false, dW: '80px',                  mW: '64px',                  dMin: 80,  mMin: 64  },
+    { key: 'hhi',       label: 'Median HHI', always: false, dW: '88px',                  mW: '76px',                  dMin: 88,  mMin: 76  },
+    { key: 'pctBach',   label: '% Bach+',    always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64  },
+    { key: 'pct200k',   label: '% $200k+',   always: false, dW: '80px',                  mW: '64px',                  dMin: 80,  mMin: 64  },
+    { key: 'homeValue', label: 'Home value', always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
+    { key: 'death',     label: 'Death tax',  always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
+    { key: 'income',    label: 'Income tax', always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
+    { key: 'capgains',  label: 'Cap gains',  always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
+    { key: 'total',     label: 'Total tax',  always: false, dW: '96px',                  mW: '80px',                  dMin: 96,  mMin: 80  },
+  ];
+  const TOGGLEABLE_COLS = COL_DEFS.filter(c => !c.always).map(c => c.key);
+  const placesVisibleCols = new Set(COL_DEFS.map(c => c.key));
+
+  // Maps a COL_DEFS key to its header div (so we can hide/show the column header).
+  // We rely on DOM order matching COL_DEFS order; the rank cell is the unmarked
+  // first <div> in #places-headers.
+  const headerByKey = {};
+  Array.from(elPlacesHeaders.children).forEach((div, i) => {
+    const def = COL_DEFS[i];
+    if (def) headerByKey[def.key] = div;
+  });
+
+  // Dynamic <style> element whose contents we rewrite when column visibility
+  // changes. Lives after the static styles in <head> so it overrides them.
+  const dynColStyle = document.createElement("style");
+  dynColStyle.id = "dyn-cols";
+  document.head.appendChild(dynColStyle);
+
+  function applyColumnLayout() {
+    const visible = COL_DEFS.filter(c => placesVisibleCols.has(c.key));
+    const dCols = visible.map(c => c.dW).join(' ');
+    const mCols = visible.map(c => c.mW).join(' ');
+    const dGap = 10, mGap = 8;
+    // Pad: existing static rules use 1572px (desktop) and 1248px (mobile) for
+    // 15 cols. Sum of column mins + (n-1)*gap leaves room for table padding;
+    // reproduce that buffer (~80 desktop, ~12 mobile) so a full set keeps the
+    // same minimum width it had before this layout became dynamic.
+    const dMin = visible.reduce((s, c) => s + c.dMin, 0) + (visible.length - 1) * dGap + 80;
+    const mMin = visible.reduce((s, c) => s + c.mMin, 0) + (visible.length - 1) * mGap + 12;
+    dynColStyle.textContent =
+      ".table-shell.places .col-headers,\n" +
+      ".table-shell.places ol.ranking li.row {\n" +
+      "  grid-template-columns: " + dCols + ";\n" +
+      "  min-width: " + dMin + "px;\n" +
+      "}\n" +
+      "@media (max-width: 720px) {\n" +
+      "  .table-shell.places .col-headers,\n" +
+      "  .table-shell.places ol.ranking li.row {\n" +
+      "    grid-template-columns: " + mCols + ";\n" +
+      "    min-width: " + mMin + "px;\n" +
+      "  }\n" +
+      "}\n";
+    // Hide/show header cells. Visible cells must be the only ones rendered
+    // (display:none on a grid item removes its track contribution).
+    for (const def of COL_DEFS) {
+      const h = headerByKey[def.key];
+      if (h) h.style.display = placesVisibleCols.has(def.key) ? "" : "none";
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  Per-cell renderers for each column. Render() iterates the visible
+  //  columns and concatenates these into each row.
+  //  ────────────────────────────────────────────────────────────────────────
+  const CELL_RENDERERS = {
+    __rank:    (p, c) => `<div class="rank-num">${c.idx + 1}</div>`,
+    name:      (p)    => `<div class="state">${p.name}</div>`,
+    metro:     (p)    => `<div class="metro-col" style="font-size:13px;color:var(--ink-3)">${p.metro || "—"}</div>`,
+    state:     (p)    => `<div class="state-col-cell" style="font-size:14px;color:var(--ink-2)">${p.state}</div>`,
+    pop:       (p)    => `<div class="num-col pop-col" style="color:var(--ink-2)">${p.population.toLocaleString()}</div>`,
+    pctIndian: (p)    => `<div class="num-col">${(p.pctIndian * 100).toFixed(1)}%</div>`,
+    demMargin: (p)    => `<div class="num-col margin-col" style="color:${p.demMargin === null ? "var(--ink-4)" : p.demMargin > 0 ? "#1d4ed8" : "#b91c1c"}">${p.demMargin === null ? "—" : (p.demMargin > 0 ? "+" : "") + Math.round(p.demMargin)}</div>`,
+    hhi:       (p, c) => `<div class="num-col hhi-col" style="color:var(--ink-2)">${c.hhiDisplay}</div>`,
+    pctBach:   (p, c) => `<div class="num-col bach-col" style="color:var(--ink-2)">${c.bachDisplay}</div>`,
+    pct200k:   (p, c) => `<div class="num-col twohk-col" style="color:var(--ink-2)">${c.twohkDisplay}</div>`,
+    homeValue: (p, c) => `<div class="num-col home-col" style="color:var(--ink-2)">${c.homeDisplay}</div>`,
+    death:     (p)    => `<div class="num-col death-col ${p.deathTax === 0 ? "zero" : ""}">${fmt$(p.deathTax)}</div>`,
+    income:    (p)    => `<div class="num-col income-col ${p.incomeTax === 0 ? "zero" : ""}">${fmt$(p.incomeTax)}</div>`,
+    capgains:  (p)    => `<div class="num-col capgains-col ${p.capGainsTax === 0 ? "zero" : ""}">${fmt$(p.capGainsTax)}</div>`,
+    total:     (p, c) => `<div class="num-col total ${c.isFree ? "zero" : ""}">${fmt$(p.total)}</div>`,
+  };
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  Columns dropdown — checkbox list of toggleable columns
+  //  ────────────────────────────────────────────────────────────────────────
+  const elColumnsToggle  = document.getElementById("columns-toggle");
+  const elColumnsPopover = document.getElementById("columns-popover");
+  const elColumnsBadge   = document.getElementById("columns-badge");
+  const elColumnsGrid    = document.getElementById("columns-grid");
+  const elColumnsReset   = document.getElementById("columns-reset");
+
+  function buildColumnsDropdown() {
+    elColumnsGrid.innerHTML = COL_DEFS
+      .filter(c => !c.always)
+      .map(c => `
+        <label class="column-item" data-col-key="${c.key}">
+          <input type="checkbox" data-col-checkbox="${c.key}"/>
+          <span>${c.label}</span>
+        </label>
+      `).join("");
+    elColumnsGrid.querySelectorAll("input[data-col-checkbox]").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const key = cb.dataset.colCheckbox;
+        if (cb.checked) placesVisibleCols.add(key);
+        else placesVisibleCols.delete(key);
+        applyColumnLayout();
+        refreshColumnsChrome();
+        render();
+      });
+    });
+  }
+  function refreshColumnsChrome() {
+    const hiddenCount = TOGGLEABLE_COLS.filter(k => !placesVisibleCols.has(k)).length;
+    elColumnsBadge.textContent = String(hiddenCount);
+    elColumnsBadge.hidden = hiddenCount === 0;
+    elColumnsToggle.classList.toggle("has-active", hiddenCount > 0);
+    elColumnsGrid.querySelectorAll("input[data-col-checkbox]").forEach(cb => {
+      cb.checked = placesVisibleCols.has(cb.dataset.colCheckbox);
+    });
+  }
+  function openColumns()  { elColumnsPopover.hidden = false; elColumnsToggle.setAttribute("aria-expanded", "true"); }
+  function closeColumns() { elColumnsPopover.hidden = true;  elColumnsToggle.setAttribute("aria-expanded", "false"); }
+  elColumnsToggle.addEventListener("click", () => elColumnsPopover.hidden ? openColumns() : closeColumns());
+  elColumnsReset.addEventListener("click", () => {
+    for (const k of TOGGLEABLE_COLS) placesVisibleCols.add(k);
+    applyColumnLayout();
+    refreshColumnsChrome();
+    render();
+  });
+  document.addEventListener("click", e => {
+    if (elColumnsPopover.hidden) return;
+    if (e.target.closest("#columns-popover") || e.target.closest("#columns-toggle")) return;
+    closeColumns();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !elColumnsPopover.hidden) { closeColumns(); elColumnsToggle.focus(); }
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  Preset filters — bundles of filter values applied as a unit. A preset
+  //  is "active" iff every filter slot in `placesFilters` matches the
+  //  preset's spec (so editing any input deactivates the preset).
+  //  ────────────────────────────────────────────────────────────────────────
+  const PLACES_PRESETS = [
+    {
+      id: 'indian-blue-bach-no-tax',
+      description: "Indian population ≥ 5%, blue counties (Harris +10 or more), bachelor's-degree share ≥ 50%, and total tax ≤ $0M",
+      filters: {
+        pctIndian: { min: 5,    max: null },
+        demMargin: { min: 10,   max: null },
+        pctBach:   { min: 50,   max: null },
+        total:     { min: null, max: 0    },
+      },
+    },
+  ];
+
+  function presetMatches(preset) {
+    for (const key of Object.keys(placesFilters)) {
+      const cur = placesFilters[key];
+      const pre = preset.filters[key] || { min: null, max: null };
+      if (cur.min !== pre.min || cur.max !== pre.max) return false;
+    }
+    return true;
+  }
+  function findActivePreset() {
+    return PLACES_PRESETS.find(presetMatches) || null;
+  }
+  function applyPreset(preset) {
+    // Replace all filter state with the preset (or clear, if preset is null).
+    for (const k of Object.keys(placesFilters)) placesFilters[k] = { min: null, max: null };
+    if (preset) {
+      for (const [k, v] of Object.entries(preset.filters)) {
+        placesFilters[k] = { min: v.min ?? null, max: v.max ?? null };
+      }
+    }
+    // Sync the filter <input> values so the Filters popover shows the right numbers.
+    document.querySelectorAll("#places-filters input[data-filter]").forEach(input => {
+      const k = input.dataset.filter, b = input.dataset.bound;
+      const v = placesFilters[k] ? placesFilters[k][b] : null;
+      input.value = v === null ? "" : String(v);
+    });
+    render();
+  }
+
+  const elPresetsToggle  = document.getElementById("presets-toggle");
+  const elPresetsPopover = document.getElementById("presets-popover");
+  const elPresetsList    = document.getElementById("presets-list");
+  const elPresetsLabel   = elPresetsToggle.querySelector("span");
+
+  function buildPresetsDropdown() {
+    elPresetsList.innerHTML =
+      `<button type="button" class="preset-item preset-none" data-preset-id="">
+         <svg class="preset-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+         <span class="preset-desc">None — show all places</span>
+       </button>
+       <div class="preset-divider"></div>` +
+      PLACES_PRESETS.map(p => `
+        <button type="button" class="preset-item" data-preset-id="${p.id}">
+          <svg class="preset-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="preset-desc">${p.description}</span>
+        </button>
+      `).join("");
+    elPresetsList.querySelectorAll("[data-preset-id]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.presetId;
+        const preset = id ? PLACES_PRESETS.find(p => p.id === id) : null;
+        // Clicking an already-active preset toggles back to "none".
+        const active = findActivePreset();
+        if (preset && active && active.id === preset.id) {
+          applyPreset(null);
+        } else {
+          applyPreset(preset);
+        }
+        closePresets();
+      });
+    });
+  }
+  function refreshPresetsChrome() {
+    const active = findActivePreset();
+    elPresetsToggle.classList.toggle("has-active", !!active);
+    elPresetsList.querySelectorAll("[data-preset-id]").forEach(btn => {
+      const id = btn.dataset.presetId;
+      const isMatch = (id === "" && !active) || (active && active.id === id);
+      btn.classList.toggle("is-active", !!isMatch);
+    });
+  }
+  function openPresets()  { elPresetsPopover.hidden = false; elPresetsToggle.setAttribute("aria-expanded", "true"); }
+  function closePresets() { elPresetsPopover.hidden = true;  elPresetsToggle.setAttribute("aria-expanded", "false"); }
+  elPresetsToggle.addEventListener("click", () => elPresetsPopover.hidden ? openPresets() : closePresets());
+  document.addEventListener("click", e => {
+    if (elPresetsPopover.hidden) return;
+    if (e.target.closest("#presets-popover") || e.target.closest("#presets-toggle")) return;
+    closePresets();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !elPresetsPopover.hidden) { closePresets(); elPresetsToggle.focus(); }
+  });
+
+  buildColumnsDropdown();
+  buildPresetsDropdown();
+
   // Hardcoded: second death scenario, assets passing to children/grandchildren.
   // No marital deduction (the surviving spouse has died); heirs are lineal descendants.
   function computeAll(estate) {
@@ -1687,23 +2077,14 @@
         : "$" + Math.round(homeVal / 1000) + "k";
       const bachDisplay = p.pctBach == null ? "—" : Math.round(p.pctBach * 100) + "%";
       const twohkDisplay = p.pct200k == null ? "—" : Math.round(p.pct200k * 100) + "%";
+      const ctx = { idx: i, isFree, hhiDisplay, homeDisplay, bachDisplay, twohkDisplay };
+      const cells = COL_DEFS
+        .filter(c => placesVisibleCols.has(c.key))
+        .map(c => CELL_RENDERERS[c.key](p, ctx))
+        .join("");
       return `
         <li class="row ${isExpanded ? "expanded" : ""}" data-place="${pid}">
-          <div class="rank-num">${i + 1}</div>
-          <div class="state">${p.name}</div>
-          <div class="metro-col" style="font-size:13px;color:var(--ink-3)">${p.metro || "—"}</div>
-          <div class="state-col-cell" style="font-size:14px;color:var(--ink-2)">${p.state}</div>
-          <div class="num-col pop-col" style="color:var(--ink-2)">${p.population.toLocaleString()}</div>
-          <div class="num-col">${(p.pctIndian * 100).toFixed(1)}%</div>
-          <div class="num-col margin-col" style="color:${p.demMargin === null ? "var(--ink-4)" : p.demMargin > 0 ? "#1d4ed8" : "#b91c1c"}">${p.demMargin === null ? "—" : (p.demMargin > 0 ? "+" : "") + Math.round(p.demMargin)}</div>
-          <div class="num-col hhi-col" style="color:var(--ink-2)">${hhiDisplay}</div>
-          <div class="num-col bach-col" style="color:var(--ink-2)">${bachDisplay}</div>
-          <div class="num-col twohk-col" style="color:var(--ink-2)">${twohkDisplay}</div>
-          <div class="num-col home-col" style="color:var(--ink-2)">${homeDisplay}</div>
-          <div class="num-col death-col ${p.deathTax === 0 ? "zero" : ""}">${fmt$(p.deathTax)}</div>
-          <div class="num-col income-col ${p.incomeTax === 0 ? "zero" : ""}">${fmt$(p.incomeTax)}</div>
-          <div class="num-col capgains-col ${p.capGainsTax === 0 ? "zero" : ""}">${fmt$(p.capGainsTax)}</div>
-          <div class="num-col total ${isFree ? "zero" : ""}">${fmt$(p.total)}</div>
+          ${cells}
           <div class="detail">
             <div><strong>${p.name}, ${p.state}</strong>${p.metro ? ` (${p.metro} metro)` : ""} — population ${p.population.toLocaleString()}, ${(p.pctIndian * 100).toFixed(1)}% Asian Indian, median household income ${p.medianHHI === null ? "not reported" : "$" + p.medianHHI.toLocaleString()} (ACS 2023).</div>
             <div style="margin-top:10px"><strong>Death tax (${p.state}):</strong> ${fmt$(p.deathTax)} — ${p._stateRes.breakdown || ""}</div>
@@ -1726,6 +2107,8 @@
     });
 
     refreshFiltersChrome();
+    refreshPresetsChrome();
+    refreshColumnsChrome();
     encodeStateToURL();
   }
 
@@ -1762,6 +2145,9 @@
       if (min !== null) sp.set("f." + col + ".min", String(min));
       if (max !== null) sp.set("f." + col + ".max", String(max));
     }
+    // Hidden columns (default = none hidden; omit when all visible).
+    const hidden = TOGGLEABLE_COLS.filter(k => !placesVisibleCols.has(k));
+    if (hidden.length) sp.set("hc", hidden.join(","));
     const qs = sp.toString();
     const newUrl = window.location.pathname + (qs ? "?" + qs : "") + window.location.hash;
     if (newUrl !== window.location.pathname + window.location.search + window.location.hash) {
@@ -1799,9 +2185,17 @@
         if (input) input.value = String(n);
       }
     }
+    const hc = sp.get("hc");
+    if (hc) {
+      const validKeys = new Set(TOGGLEABLE_COLS);
+      for (const key of hc.split(",")) {
+        if (validKeys.has(key)) placesVisibleCols.delete(key);
+      }
+    }
   }
 
   hydrateFromURL();
+  applyColumnLayout();
   render();
 </script>
 
