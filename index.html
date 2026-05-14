@@ -924,7 +924,7 @@
             </div>
           </div>
           <div class="filter-cell" data-key="death">
-            <div class="filter-label">Estate/inheritance tax</div>
+            <div class="filter-label">Estate tax</div>
             <div class="filter-inputs">
               <input type="number" data-filter="death" data-bound="min" placeholder="Min $M" autocomplete="off"/>
               <input type="number" data-filter="death" data-bound="max" placeholder="Max $M" autocomplete="off"/>
@@ -994,10 +994,10 @@
       <div class="col-num col-200k" data-sort="pct200k">% $200k+<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % $200k+ households">i</button><span class="info-tooltip">Share of households with annual income of <strong>$200,000 or more</strong> — the top bracket of Census table B19001. A density-of-high-earners signal that complements median HHI, which compresses the upper tail. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num" data-sort="pctHomeowner">% Owner<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Owner-occupied">i</button><span class="info-tooltip">Share of occupied housing units that are <strong>owner-occupied</strong> (Census variables B25003_002E / B25003_001E). Owner-heavy places skew toward established family suburbs; renter-heavy places skew toward college towns and young-professional urban cores. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-home" data-sort="homeValue">Home value<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median home value">i</button><span class="info-tooltip"><strong>Median value of owner-occupied housing units</strong> (B25077_001E) — a quick proxy for the cost of buying a typical home in the place. Self-reported by owners; reflects the existing housing stock, not current listing prices, so it lags transaction markets. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num col-death" data-sort="death">Death tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Death tax">i</button><span class="info-tooltip">Combined state estate + inheritance tax on the <strong>Estate at death</strong> value above. Assumes the <strong>second death</strong> of a married couple — surviving spouse already gone, so no marital deduction — and that heirs are <strong>lineal descendants</strong> (children/grandchildren), who are Class A in every inheritance-tax state. State law only; the federal estate tax is <strong>not</strong> included. Reflects 2026 statutes, including Washington's post-July 2026 regime.</span></span></div>
+      <div class="col-num col-death" data-sort="death">Estate tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Estate tax">i</button><span class="info-tooltip">State tax on the <strong>Estate at death</strong> value, combining true estate taxes (12 states + DC) and inheritance taxes (KY, MD, NE, NJ, PA) into a single column since the dollar impact on heirs is the same regardless of which form the state uses. Assumes the <strong>second death</strong> of a married couple — surviving spouse already gone, so no marital deduction — and that heirs are <strong>lineal descendants</strong> (children/grandchildren), who are Class A in every inheritance-tax state (so KY/MD/NE/NJ resolve to $0; only PA charges children, at 4.5%). State law only; the federal estate tax is <strong>not</strong> included. Reflects 2026 statutes, including Washington's post-July 2026 regime.</span></span></div>
       <div class="col-num col-income" data-sort="income">Income tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Income tax">i</button><span class="info-tooltip">State income tax on the <strong>Avg annual income</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. <strong>State-level only</strong> — local income taxes (NYC, Maryland counties, OH/KY/IN municipalities, Yonkers, PA local EIT) are <strong>not</strong> modeled, which understates the true tax for places in those jurisdictions.</span></span></div>
       <div class="col-num col-capgains" data-sort="capgains">Cap gains<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Cap gains">i</button><span class="info-tooltip">State capital gains tax on the <strong>Avg annual cap gains</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. State law only. Washington's 9.9% rate already includes the SB 6346 millionaires' surcharge effective Jan 2028.</span></span></div>
-      <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Total tax">i</button><span class="info-tooltip">Sum of <strong>Death tax + Income tax + Cap gains</strong> over your scenario. State law only — see each column's info button for limitations.</span></span></div>
+      <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Total tax">i</button><span class="info-tooltip">Sum of <strong>Estate tax + Income tax + Cap gains</strong> over your scenario. State law only — see each column's info button for limitations.</span></span></div>
     </div>
     <ol class="ranking" id="places-ranking"></ol>
     </div>
@@ -1701,7 +1701,7 @@
     { key: 'pct200k',        label: '% $200k+',   always: false, dW: '80px',                  mW: '64px',                  dMin: 80,  mMin: 64  },
     { key: 'pctHomeowner',   label: '% Owner',    always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64, defaultHidden: true },
     { key: 'homeValue',      label: 'Home value', always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
-    { key: 'death',          label: 'Death tax',  always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
+    { key: 'death',          label: 'Estate tax', always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
     { key: 'income',         label: 'Income tax', always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
     { key: 'capgains',       label: 'Cap gains',  always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
     { key: 'total',          label: 'Total tax',  always: false, dW: '96px',                  mW: '80px',                  dMin: 96,  mMin: 80  },
@@ -2011,7 +2011,7 @@
     pushRange("pct200k", fmtPctVal, "share earning $200k+");
     pushRange("pctHomeowner", fmtPctVal, "homeownership rate");
     pushRange("homeValue", fmtK, "median home value");
-    pushRange("death", fmtM, "death tax");
+    pushRange("death", fmtM, "estate tax");
     pushRange("income", fmtM, "income tax");
     pushRange("capgains", fmtM, "cap-gains tax");
     pushRange("total", fmtM, "total tax");
@@ -2195,7 +2195,7 @@
           ${cells}
           <div class="detail">
             <div><strong>${p.name}, ${p.state}</strong>${p.metro ? ` (${p.metro} metro)` : ""} — population ${p.population.toLocaleString()}, ${(p.pctIndian * 100).toFixed(1)}% Asian Indian, median household income ${p.medianHHI === null ? "not reported" : "$" + p.medianHHI.toLocaleString()} (ACS 2023).</div>
-            <div style="margin-top:10px"><strong>Death tax (${p.state}):</strong> ${fmt$(p.deathTax)} — ${p._stateRes.breakdown || ""}</div>
+            <div style="margin-top:10px"><strong>Estate tax (${p.state}):</strong> ${fmt$(p.deathTax)} — ${p._stateRes.breakdown || ""}</div>
             ${p._stateRes.calc ? `<div class="calc-line">${p._stateRes.calc}</div>` : ""}
             <div style="margin-top:6px"><strong>Income tax:</strong> ${fmtRate(p._stateRes.rates.income)} × ${fmt$(annualIncome)}/yr × ${years} yrs = ${fmt$(p.incomeTax)}</div>
             <div style="margin-top:6px"><strong>Capital gains tax:</strong> ${fmtRate(p._stateRes.rates.capGains)} × ${fmt$(annualGains)}/yr × ${years} yrs = ${fmt$(p.capGainsTax)}</div>
