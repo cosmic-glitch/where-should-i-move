@@ -1853,6 +1853,17 @@
         total:     { min: null, max: 0    },
       },
     },
+    {
+      id: 'indian-blue-bach-tight',
+      description: "Indian population ≥ 10%, blue counties (Harris +30 or more), bachelor's-degree share ≥ 60%, estate tax ≤ $0M, and total tax ≤ $1M",
+      filters: {
+        pctIndian: { min: 10,   max: null },
+        demMargin: { min: 30,   max: null },
+        pctBach:   { min: 60,   max: null },
+        death:     { min: null, max: 0    },
+        total:     { min: null, max: 1    },
+      },
+    },
   ];
 
   function presetMatches(preset) {
