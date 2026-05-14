@@ -463,48 +463,60 @@
     top: calc(100% + 6px);
     left: 0;
     z-index: 60;
-    width: 680px;
+    width: 520px;
     max-width: calc(100vw - 24px);
-    padding: 18px;
+    max-height: 80vh;
+    padding: 12px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
     box-shadow: var(--shadow-md), 0 8px 24px rgba(0,0,0,0.06);
-  }
-  .filters-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px 18px;
-  }
-  .filter-cell {
     display: flex;
     flex-direction: column;
-    gap: 5px;
   }
+  /* Vertical list of filter rows. Scrolls internally so the footer stays pinned. */
+  .filters-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0 -4px;
+    padding: 0 4px;
+  }
+  .filter-cell {
+    display: grid;
+    grid-template-columns: 1fr 100px 100px;
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 2px;
+    padding: 7px 4px;
+    border-radius: 6px;
+  }
+  .filter-cell:hover { background: var(--surface-alt); }
+  .filter-cell.is-active,
+  .filter-cell.is-active:hover { background: var(--accent-soft); }
   .filter-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--ink-3);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     line-height: 1.3;
-    min-height: 32px;   /* reserves 2 lines so single- vs two-line labels keep inputs aligned across the row */
+    min-height: 0;
     transition: color 0.12s;
   }
   .filter-cell.is-active .filter-label { color: var(--accent); }
   .filter-help {
-    font-size: 10.5px;
+    grid-column: 1 / -1;
+    font-size: 11px;
     font-weight: 500;
     color: var(--ink-4);
     text-transform: none;
     letter-spacing: 0;
-    margin-top: 2px;
     line-height: 1.35;
   }
-  .filter-inputs {
-    display: flex;
-    gap: 6px;
-  }
+  /* Inputs are the 2nd and 3rd grid items of .filter-cell; display:contents lets the
+     existing wrapper div drop out of the layout while staying in the DOM. */
+  .filter-inputs { display: contents; }
   .filter-inputs input[type="number"] {
     width: 100%;
     min-width: 0;
@@ -563,11 +575,11 @@
   }
   .filters-done:hover { background: var(--ink-2); border-color: var(--ink-2); }
   @media (max-width: 720px) {
-    .filters-grid { grid-template-columns: repeat(2, 1fr); }
-    .filters-popover { padding: 14px; }
+    .filters-popover { padding: 10px; }
+    .filter-cell { grid-template-columns: 1fr 84px 84px; column-gap: 8px; }
   }
   @media (max-width: 420px) {
-    .filters-grid { grid-template-columns: 1fr; }
+    .filter-cell { grid-template-columns: 1fr 72px 72px; column-gap: 6px; }
   }
 
   /* Presets popover — narrower; vertical list of description rows */
