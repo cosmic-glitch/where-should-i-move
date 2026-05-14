@@ -372,14 +372,14 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
-    margin: 36px 0 12px;
+    margin: 0 0 16px;
     font-size: 16px;
     font-weight: 600;
     color: var(--ink);
     letter-spacing: -0.01em;
   }
   .places-summary {
-    margin: 8px 0 16px;
+    margin: 36px 0 10px;
     font-size: 14px;
     font-weight: 500;
     color: var(--ink-2);
@@ -457,6 +457,7 @@
     font-variant-numeric: tabular-nums;
     line-height: 1;
   }
+  .filters-badge[hidden] { display: none; }
   .filters-popover {
     position: absolute;
     top: calc(100% + 6px);
@@ -807,6 +808,7 @@
     </div>
   </div>
 
+  <p class="places-summary" id="places-subtitle"></p>
   <div class="section-title">
     <div class="filters-bar">
       <button id="presets-toggle" class="filters-btn" type="button"
@@ -930,7 +932,6 @@
       </div>
     </div>
   </div>
-  <p class="places-summary" id="places-subtitle"></p>
   <div class="table-shell places">
     <div class="table-scroll">
     <div class="col-headers" id="places-headers">
@@ -1747,10 +1748,11 @@
     });
   }
   function refreshColumnsChrome() {
-    const hiddenCount = TOGGLEABLE_COLS.filter(k => !placesVisibleCols.has(k)).length;
-    elColumnsBadge.textContent = String(hiddenCount);
-    elColumnsBadge.hidden = hiddenCount === 0;
-    elColumnsToggle.classList.toggle("has-active", hiddenCount > 0);
+    const total = TOGGLEABLE_COLS.length;
+    const visibleCount = TOGGLEABLE_COLS.filter(k => placesVisibleCols.has(k)).length;
+    elColumnsBadge.textContent = `${visibleCount}/${total}`;
+    elColumnsBadge.hidden = false;
+    elColumnsToggle.classList.toggle("has-active", visibleCount < total);
     elColumnsGrid.querySelectorAll("input[data-col-checkbox]").forEach(cb => {
       cb.checked = placesVisibleCols.has(cb.dataset.colCheckbox);
     });
