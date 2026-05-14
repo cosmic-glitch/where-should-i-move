@@ -459,6 +459,14 @@
     line-height: 1;
   }
   .filters-badge[hidden] { display: none; }
+  /* The Columns counter is informational, not a state alert — render it as a
+     neutral pill so the button doesn't compete with primary controls. */
+  #columns-badge {
+    background: var(--surface-alt);
+    color: var(--ink-3);
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
   .filters-popover {
     position: absolute;
     top: calc(100% + 6px);
@@ -1806,7 +1814,7 @@
     const visibleCount = TOGGLEABLE_COLS.filter(k => placesVisibleCols.has(k)).length;
     elColumnsBadge.textContent = `${visibleCount}/${total}`;
     elColumnsBadge.hidden = false;
-    elColumnsToggle.classList.toggle("has-active", visibleCount < total);
+    // Columns is a secondary control — keep it neutral, never go accent.
     elColumnsGrid.querySelectorAll("input[data-col-checkbox]").forEach(cb => {
       cb.checked = placesVisibleCols.has(cb.dataset.colCheckbox);
     });
