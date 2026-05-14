@@ -486,7 +486,8 @@
     color: var(--ink-3);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    min-height: 28px;   /* reserves 2 lines so single- vs two-line labels keep inputs aligned across the row */
+    line-height: 1.3;
+    min-height: 32px;   /* reserves 2 lines so single- vs two-line labels keep inputs aligned across the row */
     transition: color 0.12s;
   }
   .filter-cell.is-active .filter-label { color: var(--accent); }
@@ -496,7 +497,7 @@
     color: var(--ink-4);
     text-transform: none;
     letter-spacing: 0;
-    margin-top: -4px;
+    margin-top: 2px;
     line-height: 1.35;
   }
   .filter-inputs {
@@ -718,19 +719,19 @@
             </div>
           </div>
           <div class="filter-cell" data-key="pctIndian">
-            <div class="filter-label">% Asian Indian</div>
+            <div class="filter-label">% Indian</div>
             <div class="filter-inputs">
               <input type="number" data-filter="pctIndian" data-bound="min" placeholder="Min %" autocomplete="off"/>
               <input type="number" data-filter="pctIndian" data-bound="max" placeholder="Max %" autocomplete="off"/>
             </div>
           </div>
           <div class="filter-cell" data-key="demMargin">
-            <div class="filter-label">Political lean (county)</div>
-            <div class="filter-help">Harris − Trump margin, pp. Negative = red, positive = blue.</div>
+            <div class="filter-label">Political lean</div>
             <div class="filter-inputs">
               <input type="number" data-filter="demMargin" data-bound="min" placeholder="From (e.g. −30)" autocomplete="off"/>
               <input type="number" data-filter="demMargin" data-bound="max" placeholder="To (e.g. +30)" autocomplete="off"/>
             </div>
+            <div class="filter-help">Positive for Democrat. Negative for Republican.</div>
           </div>
           <div class="filter-cell" data-key="hhi">
             <div class="filter-label">Median household income</div>
@@ -761,7 +762,7 @@
             </div>
           </div>
           <div class="filter-cell" data-key="death">
-            <div class="filter-label">State estate + inheritance tax</div>
+            <div class="filter-label">Estate/inheritance tax</div>
             <div class="filter-inputs">
               <input type="number" data-filter="death" data-bound="min" placeholder="Min $M" autocomplete="off"/>
               <input type="number" data-filter="death" data-bound="max" placeholder="Max $M" autocomplete="off"/>
