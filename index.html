@@ -475,58 +475,97 @@
     flex-direction: column;
   }
   .filters-popover[hidden] { display: none; }
-  /* Vertical list of filter rows. Scrolls internally so the footer stays pinned. */
-  .filters-grid {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    margin: 0 -4px;
-    padding: 0 4px;
-  }
-  .filter-cell {
+
+  /* Per-column filter chip row — always-visible affordance sitting below the
+     table headers, sharing the same grid-template-columns so chips line up
+     under the columns they filter. Empty chip = dashed "+ filter" pill;
+     active chip = solid accent pill showing the value with × to clear. */
+  .col-filters {
     display: grid;
-    grid-template-columns: 1fr 100px 100px;
+    /* grid-template-columns + min-width come from #dyn-cols (see applyColumnLayout) */
+    gap: 10px;
+    padding: 8px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .col-filter-cell {
+    display: flex;
     align-items: center;
-    column-gap: 10px;
-    row-gap: 2px;
-    padding: 7px 4px;
-    border-radius: 6px;
+    position: relative;
+    min-width: 0;
   }
-  .filter-cell:hover { background: var(--surface-alt); }
-  .filter-cell.is-active,
-  .filter-cell.is-active:hover { background: var(--accent-soft); }
-  .filter-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ink-3);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    line-height: 1.3;
-    min-height: 0;
-    transition: color 0.12s;
-  }
-  .filter-cell.is-active .filter-label { color: var(--accent); }
-  .filter-help {
-    grid-column: 1 / -1;
+  .col-filter-cell.num { justify-content: flex-end; }
+  .col-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font: inherit;
     font-size: 11px;
     font-weight: 500;
     color: var(--ink-4);
-    text-transform: none;
-    letter-spacing: 0;
-    line-height: 1.35;
+    background: transparent;
+    border: 1px dashed var(--border-strong);
+    border-radius: 999px;
+    padding: 2px 9px;
+    cursor: pointer;
+    line-height: 1.4;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
   }
-  /* Inputs are the 2nd and 3rd grid items of .filter-cell; display:contents lets the
-     existing wrapper div drop out of the layout while staying in the DOM. */
-  .filter-inputs { display: contents; }
-  .filter-inputs input[type="number"] {
-    width: 100%;
-    min-width: 0;
-    padding: 6px 8px;
+  .col-filter-chip:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .col-filter-chip.is-active {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+    font-weight: 600;
+    padding: 2px 5px 2px 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .col-filter-chip .x {
+    color: var(--ink-3);
+    font-weight: 700;
+    margin-left: 1px;
+    padding: 0 4px;
+    border-radius: 50%;
+    line-height: 1;
+  }
+  .col-filter-chip .x:hover {
+    color: var(--bad);
+    background: var(--surface);
+  }
+  .col-filter-pop {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 50;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md), 0 8px 24px rgba(0,0,0,0.06);
+    white-space: nowrap;
+  }
+  .col-filter-pop[hidden] { display: none; }
+  .col-filter-cell:not(.num) .col-filter-pop { right: auto; left: 0; }
+  .col-filter-pop input[type="number"] {
+    width: 74px;
+    padding: 5px 7px;
     font-family: inherit;
     font-size: 12px;
     font-weight: 500;
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 5px;
     outline: none;
     background: var(--surface-alt);
     color: var(--ink);
@@ -534,53 +573,29 @@
     font-variant-numeric: tabular-nums;
     -moz-appearance: textfield;
   }
-  .filter-inputs input[type="number"]::-webkit-outer-spin-button,
-  .filter-inputs input[type="number"]::-webkit-inner-spin-button {
+  .col-filter-pop input[type="number"]::-webkit-outer-spin-button,
+  .col-filter-pop input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
   }
-  .filter-inputs input[type="number"]::placeholder { color: var(--ink-4); }
-  .filter-inputs input[type="number"]:focus {
+  .col-filter-pop input[type="number"]::placeholder { color: var(--ink-4); font-weight: 400; }
+  .col-filter-pop input[type="number"]:focus {
     border-color: var(--accent);
     background: var(--surface);
     box-shadow: 0 0 0 2px var(--accent-soft);
   }
-  .filters-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
+  .col-filter-pop .dash { color: var(--ink-4); font-size: 12px; }
+  .col-filter-pop .help {
+    flex-basis: 100%;
+    margin-top: 2px;
+    font-size: 10.5px;
+    color: var(--ink-4);
+    text-align: left;
+    white-space: normal;
   }
-  .filters-clear,
-  .filters-done {
-    padding: 7px 14px;
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
-  }
-  .filters-clear {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--ink-2);
-  }
-  .filters-clear:hover { color: var(--bad); border-color: var(--bad); }
-  .filters-done {
-    background: var(--ink);
-    border: 1px solid var(--ink);
-    color: #fff;
-  }
-  .filters-done:hover { background: var(--ink-2); border-color: var(--ink-2); }
   @media (max-width: 720px) {
-    .filters-popover { padding: 10px; }
-    .filter-cell { grid-template-columns: 1fr 84px 84px; column-gap: 8px; }
-  }
-  @media (max-width: 420px) {
-    .filter-cell { grid-template-columns: 1fr 72px 72px; column-gap: 6px; }
+    .col-filters { padding: 6px 12px; gap: 8px; }
+    .col-filter-pop input[type="number"] { width: 62px; }
   }
 
   /* Presets popover — narrower; vertical list of description rows */
@@ -835,143 +850,6 @@
       </div>
     </div>
     <div class="filters-bar">
-      <button id="filters-toggle" class="filters-btn" type="button"
-              aria-haspopup="dialog" aria-expanded="false" aria-controls="filters-popover">
-        <svg class="filters-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="13" y2="6"/><line x1="17" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="15" y2="18"/><line x1="19" y1="18" x2="20" y2="18"/><circle cx="15" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>
-        <span>Custom filters</span>
-        <span class="filters-badge" id="filters-badge" hidden>0</span>
-        <svg class="filters-caret" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-      <div class="filters-popover" id="filters-popover" role="dialog" aria-label="Column filters" hidden>
-        <div class="filters-grid" id="places-filters">
-          <div class="filter-cell" data-key="pop">
-            <div class="filter-label">Population</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="pop" data-bound="min" placeholder="Min" autocomplete="off"/>
-              <input type="number" data-filter="pop" data-bound="max" placeholder="Max" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="pctIndian">
-            <div class="filter-label">% Indian</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="pctIndian" data-bound="min" placeholder="Min %" autocomplete="off"/>
-              <input type="number" data-filter="pctIndian" data-bound="max" placeholder="Max %" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="pctAsian">
-            <div class="filter-label">% Asian</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="pctAsian" data-bound="min" placeholder="Min %" autocomplete="off"/>
-              <input type="number" data-filter="pctAsian" data-bound="max" placeholder="Max %" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="pctForeignBorn">
-            <div class="filter-label">% foreign-born</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="pctForeignBorn" data-bound="min" placeholder="Min %" autocomplete="off"/>
-              <input type="number" data-filter="pctForeignBorn" data-bound="max" placeholder="Max %" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="medianAge">
-            <div class="filter-label">Median age</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="medianAge" data-bound="min" placeholder="Min yrs" autocomplete="off"/>
-              <input type="number" data-filter="medianAge" data-bound="max" placeholder="Max yrs" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="popDensity">
-            <div class="filter-label">Pop density</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="popDensity" data-bound="min" placeholder="Min /mi²" autocomplete="off"/>
-              <input type="number" data-filter="popDensity" data-bound="max" placeholder="Max /mi²" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="demMargin">
-            <div class="filter-label">Political lean</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="demMargin" data-bound="min" placeholder="From (e.g. −30)" autocomplete="off"/>
-              <input type="number" data-filter="demMargin" data-bound="max" placeholder="To (e.g. +30)" autocomplete="off"/>
-            </div>
-            <div class="filter-help">Positive for Democrat. Negative for Republican.</div>
-          </div>
-          <div class="filter-cell" data-key="hhi">
-            <div class="filter-label">Median household income</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="hhi" data-bound="min" placeholder="Min $k" autocomplete="off"/>
-              <input type="number" data-filter="hhi" data-bound="max" placeholder="Max $k" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="asianMedianHHI">
-            <div class="filter-label">Asian household income</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="asianMedianHHI" data-bound="min" placeholder="Min $k" autocomplete="off"/>
-              <input type="number" data-filter="asianMedianHHI" data-bound="max" placeholder="Max $k" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="pctBach">
-            <div class="filter-label">% with bachelor's degree+</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="pctBach" data-bound="min" placeholder="Min %" autocomplete="off"/>
-              <input type="number" data-filter="pctBach" data-bound="max" placeholder="Max %" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="pct200k">
-            <div class="filter-label">% of households earning $200k+</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="pct200k" data-bound="min" placeholder="Min %" autocomplete="off"/>
-              <input type="number" data-filter="pct200k" data-bound="max" placeholder="Max %" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="pctHomeowner">
-            <div class="filter-label">% homeownership</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="pctHomeowner" data-bound="min" placeholder="Min %" autocomplete="off"/>
-              <input type="number" data-filter="pctHomeowner" data-bound="max" placeholder="Max %" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="homeValue">
-            <div class="filter-label">Median home value</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="homeValue" data-bound="min" placeholder="Min $k" autocomplete="off"/>
-              <input type="number" data-filter="homeValue" data-bound="max" placeholder="Max $k" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="death">
-            <div class="filter-label">Estate tax</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="death" data-bound="min" placeholder="Min $M" autocomplete="off"/>
-              <input type="number" data-filter="death" data-bound="max" placeholder="Max $M" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="income">
-            <div class="filter-label">State income tax</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="income" data-bound="min" placeholder="Min $M" autocomplete="off"/>
-              <input type="number" data-filter="income" data-bound="max" placeholder="Max $M" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="capgains">
-            <div class="filter-label">State capital gains tax</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="capgains" data-bound="min" placeholder="Min $M" autocomplete="off"/>
-              <input type="number" data-filter="capgains" data-bound="max" placeholder="Max $M" autocomplete="off"/>
-            </div>
-          </div>
-          <div class="filter-cell" data-key="total">
-            <div class="filter-label">Total state tax</div>
-            <div class="filter-inputs">
-              <input type="number" data-filter="total" data-bound="min" placeholder="Min $M" autocomplete="off"/>
-              <input type="number" data-filter="total" data-bound="max" placeholder="Max $M" autocomplete="off"/>
-            </div>
-          </div>
-        </div>
-        <div class="filters-footer">
-          <button type="button" class="filters-clear" id="filters-clear" hidden>Clear all</button>
-          <button type="button" class="filters-done" id="filters-done">Done</button>
-        </div>
-      </div>
-    </div>
-    <div class="filters-bar">
       <button id="columns-toggle" class="filters-btn" type="button"
               aria-haspopup="dialog" aria-expanded="false" aria-controls="columns-popover">
         <svg class="filters-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1.5"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
@@ -1012,6 +890,7 @@
       <div class="col-num col-capgains" data-sort="capgains">Cap gains<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Cap gains">i</button><span class="info-tooltip">State capital gains tax on the <strong>Avg annual cap gains</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. State law only. Washington's 9.9% rate already includes the SB 6346 millionaires' surcharge effective Jan 2028.</span></span></div>
       <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Total tax">i</button><span class="info-tooltip">Sum of <strong>Estate tax + Income tax + Cap gains</strong> over your scenario. State law only — see each column's info button for limitations.</span></span></div>
     </div>
+    <div class="col-filters" id="col-filters-row"></div>
     <ol class="ranking" id="places-ranking"></ol>
     </div>
   </div>
@@ -1626,66 +1505,154 @@
     }
   });
 
-  document.querySelectorAll("#places-filters input").forEach(input => {
-    input.addEventListener("input", () => {
-      const f = input.dataset.filter, b = input.dataset.bound;
-      const v = input.value === "" ? null : parseFloat(input.value);
-      placesFilters[f][b] = Number.isFinite(v) ? v : null;
-      render();
-    });
-  });
-
   document.getElementById("reset-filters").addEventListener("click", () => {
     for (const k of Object.keys(placesFilters)) {
       placesFilters[k] = { min: null, max: null };
     }
-    document.querySelectorAll("#places-filters input").forEach(i => { i.value = ""; });
     render();
   });
 
   // ────────────────────────────────────────────────────────────────────────
-  //  Filters popover chrome — count badge, active-cell tinting, open/close.
-  //  The popover wraps #places-filters; all existing input/reset/URL wiring
-  //  above keeps working because the ids and data-* attributes are unchanged.
+  //  Per-column chip filters (Option C).
+  //  A chip row sits below the table headers, one cell per column, sharing
+  //  the same grid-template-columns. Filterable columns get a chip; empty
+  //  state shows "+ filter", active state shows the value (e.g. "≥ 5%")
+  //  with a × to clear. Clicking the chip toggles a tiny Min/Max popover
+  //  anchored to that column.
   //  ────────────────────────────────────────────────────────────────────────
-  const elFiltersToggle  = document.getElementById("filters-toggle");
-  const elFiltersPopover = document.getElementById("filters-popover");
-  const elFiltersBadge   = document.getElementById("filters-badge");
-  const elFiltersClear   = document.getElementById("filters-clear");
-  const elFiltersDone    = document.getElementById("filters-done");
+  const elColFiltersRow = document.getElementById("col-filters-row");
 
-  function activeFilterCount() {
-    return Object.values(placesFilters)
-      .reduce((n, r) => n + (r.min !== null || r.max !== null ? 1 : 0), 0);
+  // Per-key input placeholders + display formatters. Drives both the
+  // popover input UX and the active chip's compact label.
+  const FILTER_META = {
+    pop:            { min: 'Min',        max: 'Max',        fmt: v => v.toLocaleString() },
+    popDensity:     { min: 'Min',        max: 'Max',        fmt: v => v.toLocaleString() + '/mi²' },
+    pctIndian:      { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
+    pctAsian:       { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
+    pctForeignBorn: { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
+    medianAge:      { min: 'Min yrs',    max: 'Max yrs',    fmt: v => v + '' },
+    demMargin:      { min: 'From',       max: 'To',         fmt: v => (v > 0 ? '+' + v : '' + v),
+                      help: 'Positive = Democrat. Negative = Republican.' },
+    hhi:            { min: 'Min $k',     max: 'Max $k',     fmt: v => '$' + v + 'k' },
+    asianMedianHHI: { min: 'Min $k',     max: 'Max $k',     fmt: v => '$' + v + 'k' },
+    pctBach:        { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
+    pct200k:        { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
+    pctHomeowner:   { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
+    homeValue:      { min: 'Min $k',     max: 'Max $k',     fmt: v => '$' + v + 'k' },
+    death:          { min: 'Min $M',     max: 'Max $M',     fmt: v => '$' + v + 'M' },
+    income:         { min: 'Min $M',     max: 'Max $M',     fmt: v => '$' + v + 'M' },
+    capgains:       { min: 'Min $M',     max: 'Max $M',     fmt: v => '$' + v + 'M' },
+    total:          { min: 'Min $M',     max: 'Max $M',     fmt: v => '$' + v + 'M' },
+  };
+  // Columns that aren't numeric (alignment hint for the chip cells).
+  const TEXT_COL_KEYS = new Set(['__rank', 'name', 'metro', 'state']);
+
+  function chipLabel(key) {
+    const { min, max } = placesFilters[key];
+    if (min === null && max === null) return '+ filter';
+    const f = FILTER_META[key].fmt;
+    if (min !== null && max !== null) return `${f(min)}–${f(max)}`;
+    if (min !== null) return `≥ ${f(min)}`;
+    return `≤ ${f(max)}`;
   }
-  function refreshFiltersChrome() {
-    const n = activeFilterCount();
-    elFiltersBadge.textContent = String(n);
-    elFiltersBadge.hidden = n === 0;
-    elFiltersToggle.classList.toggle("has-active", n > 0);
-    elFiltersClear.hidden = n === 0;
-    document.querySelectorAll("#places-filters .filter-cell").forEach(c => {
-      const k = c.dataset.key;
-      if (!k) return;
-      const { min, max } = placesFilters[k];
-      c.classList.toggle("is-active", min !== null || max !== null);
+
+  function buildColFiltersRow() {
+    elColFiltersRow.innerHTML = COL_DEFS.map(col => {
+      const meta = FILTER_META[col.key];
+      const isNum = !TEXT_COL_KEYS.has(col.key);
+      if (!meta) {
+        // Non-filterable column: empty cell preserves the grid track.
+        return `<div class="col-filter-cell${isNum ? ' num' : ''}" data-col="${col.key}"></div>`;
+      }
+      const helpHtml = meta.help ? `<div class="help">${meta.help}</div>` : '';
+      return `
+        <div class="col-filter-cell${isNum ? ' num' : ''}" data-col="${col.key}">
+          <button type="button" class="col-filter-chip" data-chip-key="${col.key}">+ filter</button>
+          <div class="col-filter-pop" data-pop-key="${col.key}" hidden>
+            <input type="number" data-filter="${col.key}" data-bound="min" placeholder="${meta.min}" autocomplete="off"/>
+            <span class="dash">–</span>
+            <input type="number" data-filter="${col.key}" data-bound="max" placeholder="${meta.max}" autocomplete="off"/>
+            ${helpHtml}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // Chip click: toggle the popover (× clears the filter, doesn't open).
+    elColFiltersRow.querySelectorAll('.col-filter-chip').forEach(chip => {
+      chip.addEventListener('click', e => {
+        e.stopPropagation();
+        const key = chip.dataset.chipKey;
+        if (e.target.classList.contains('x')) {
+          placesFilters[key] = { min: null, max: null };
+          closeAllChipPops();
+          render();
+          return;
+        }
+        const pop = elColFiltersRow.querySelector(`[data-pop-key="${key}"]`);
+        const wasOpen = !pop.hidden;
+        closeAllChipPops();
+        if (!wasOpen) {
+          pop.hidden = false;
+          const firstInput = pop.querySelector('input');
+          if (firstInput) firstInput.focus();
+        }
+      });
+    });
+
+    // Input typing: write to placesFilters and re-render. Don't close on input.
+    elColFiltersRow.querySelectorAll('.col-filter-pop input[data-filter]').forEach(input => {
+      input.addEventListener('input', () => {
+        const k = input.dataset.filter, b = input.dataset.bound;
+        const v = input.value === '' ? null : parseFloat(input.value);
+        placesFilters[k][b] = Number.isFinite(v) ? v : null;
+        render();
+      });
     });
   }
-  function openFilters()  { elFiltersPopover.hidden = false; elFiltersToggle.setAttribute("aria-expanded", "true"); }
-  function closeFilters() { elFiltersPopover.hidden = true;  elFiltersToggle.setAttribute("aria-expanded", "false"); }
 
-  elFiltersToggle.addEventListener("click", () => elFiltersPopover.hidden ? openFilters() : closeFilters());
-  elFiltersDone.addEventListener("click", closeFilters);
-  elFiltersClear.addEventListener("click", () => document.getElementById("reset-filters").click());
+  function closeAllChipPops() {
+    elColFiltersRow.querySelectorAll('.col-filter-pop').forEach(p => p.hidden = true);
+  }
 
-  document.addEventListener("click", e => {
-    if (elFiltersPopover.hidden) return;
-    if (e.target.closest("#filters-popover") || e.target.closest("#filters-toggle")) return;
-    closeFilters();
+  function refreshChipsChrome() {
+    elColFiltersRow.querySelectorAll('.col-filter-chip').forEach(chip => {
+      const key = chip.dataset.chipKey;
+      const { min, max } = placesFilters[key];
+      const active = min !== null || max !== null;
+      chip.classList.toggle('is-active', active);
+      if (active) {
+        // textContent first to escape, then wrap with × span.
+        chip.textContent = chipLabel(key);
+        const x = document.createElement('span');
+        x.className = 'x';
+        x.textContent = '×';
+        chip.appendChild(document.createTextNode(' '));
+        chip.appendChild(x);
+      } else {
+        chip.textContent = '+ filter';
+      }
+    });
+    // Sync popover input values; don't disturb the currently-focused input
+    // (it would reset the caret mid-type).
+    elColFiltersRow.querySelectorAll('.col-filter-pop input[data-filter]').forEach(input => {
+      if (document.activeElement === input) return;
+      const k = input.dataset.filter, b = input.dataset.bound;
+      const v = placesFilters[k][b];
+      input.value = v === null ? '' : String(v);
+    });
+  }
+
+  // Click outside any chip popover closes it. Esc also closes.
+  document.addEventListener('click', e => {
+    if (e.target.closest('.col-filter-pop') || e.target.closest('.col-filter-chip')) return;
+    closeAllChipPops();
   });
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !elFiltersPopover.hidden) { closeFilters(); elFiltersToggle.focus(); }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAllChipPops();
   });
+
+  buildColFiltersRow();
 
   // ────────────────────────────────────────────────────────────────────────
   //  Column visibility
@@ -1753,22 +1720,27 @@
     const mMin = visible.reduce((s, c) => s + c.mMin, 0) + (visible.length - 1) * mGap + 12;
     dynColStyle.textContent =
       ".table-shell.places .col-headers,\n" +
+      ".table-shell.places .col-filters,\n" +
       ".table-shell.places ol.ranking li.row {\n" +
       "  grid-template-columns: " + dCols + ";\n" +
       "  min-width: " + dMin + "px;\n" +
       "}\n" +
       "@media (max-width: 720px) {\n" +
       "  .table-shell.places .col-headers,\n" +
+      "  .table-shell.places .col-filters,\n" +
       "  .table-shell.places ol.ranking li.row {\n" +
       "    grid-template-columns: " + mCols + ";\n" +
       "    min-width: " + mMin + "px;\n" +
       "  }\n" +
       "}\n";
-    // Hide/show header cells. Visible cells must be the only ones rendered
-    // (display:none on a grid item removes its track contribution).
+    // Hide/show header cells and matching chip cells. Visible cells must be
+    // the only ones rendered (display:none on a grid item removes its track).
     for (const def of COL_DEFS) {
+      const visible = placesVisibleCols.has(def.key);
       const h = headerByKey[def.key];
-      if (h) h.style.display = placesVisibleCols.has(def.key) ? "" : "none";
+      if (h) h.style.display = visible ? "" : "none";
+      const chipCell = document.querySelector(`#col-filters-row .col-filter-cell[data-col="${def.key}"]`);
+      if (chipCell) chipCell.style.display = visible ? "" : "none";
     }
   }
 
@@ -1894,12 +1866,8 @@
         placesFilters[k] = { min: v.min ?? null, max: v.max ?? null };
       }
     }
-    // Sync the filter <input> values so the Filters popover shows the right numbers.
-    document.querySelectorAll("#places-filters input[data-filter]").forEach(input => {
-      const k = input.dataset.filter, b = input.dataset.bound;
-      const v = placesFilters[k] ? placesFilters[k][b] : null;
-      input.value = v === null ? "" : String(v);
-    });
+    // refreshChipsChrome() (called inside render) re-syncs the chip popover
+    // input values from placesFilters, so no manual DOM sync needed here.
     render();
   }
 
@@ -2227,7 +2195,7 @@
       });
     });
 
-    refreshFiltersChrome();
+    refreshChipsChrome();
     refreshPresetsChrome();
     refreshColumnsChrome();
     encodeStateToURL();
@@ -2302,12 +2270,9 @@
         const n = parseFloat(v);
         if (!Number.isFinite(n)) continue;
         placesFilters[col][b] = n;
-        const input = document.querySelector(
-          '#places-filters input[data-filter="' + col + '"][data-bound="' + b + '"]'
-        );
-        if (input) input.value = String(n);
       }
     }
+    // Chip popover input values are synced by refreshChipsChrome() during render().
     // hc=… present (even empty) means "URL specifies visibility, override the
     // built-in default-hidden set". hc absent means "use the default".
     const hc = sp.get("hc");
