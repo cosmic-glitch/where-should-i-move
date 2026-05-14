@@ -23,9 +23,11 @@
 // Census API is unkeyed (rate-limited at 500 requests/day per IP). We make 51+ calls.
 
 // Load Census API key from .env (simple parser — no dotenv dep) or env var.
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, join } from "node:path";
+import { tmpdir } from "node:os";
+import { execSync } from "node:child_process";
 function loadCensusKey() {
   if (process.env.CENSUS_API_KEY) return process.env.CENSUS_API_KEY;
   try {
@@ -259,6 +261,49 @@ async function loadPlaceToCounty() {
   console.error(`Loaded place→county crosswalk: ${map.size} entries`);
 }
 
+// Land area in sq mi, keyed by full GEOID (state+place FIPS for places,
+// state+county+cousub FIPS for cousubs — both as zero-padded strings).
+// Sourced from the 2023 Census Gazetteer (zipped tab-separated files).
+let LAND_AREA = null;
+function unzipFirstEntry(zipBuf) {
+  // The Gazetteer zips contain a single text file; shell out to `unzip -p`
+  // to extract it (no dependency, present on macOS/Linux by default).
+  const dir = mkdtempSync(join(tmpdir(), "gaz-"));
+  const zipPath = join(dir, "in.zip");
+  writeFileSync(zipPath, zipBuf);
+  return execSync(`unzip -p "${zipPath}"`, { maxBuffer: 128 * 1024 * 1024 }).toString("utf8");
+}
+async function loadLandArea() {
+  const urls = [
+    "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2023_Gazetteer/2023_Gaz_place_national.zip",
+    "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2023_Gazetteer/2023_Gaz_cousubs_national.zip",
+  ];
+  const map = new Map();
+  for (const url of urls) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`gazetteer ${url}: ${res.status} ${res.statusText}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const text = unzipFirstEntry(buf);
+    const lines = text.split(/\r?\n/);
+    const header = lines[0].split("\t").map(s => s.trim());
+    const geoidIdx = header.indexOf("GEOID");
+    const sqmiIdx = header.indexOf("ALAND_SQMI");
+    if (geoidIdx < 0 || sqmiIdx < 0) {
+      throw new Error(`gazetteer ${url}: missing GEOID or ALAND_SQMI columns (header was ${header.join("|")})`);
+    }
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split("\t");
+      if (parts.length <= sqmiIdx) continue;
+      const geoid = parts[geoidIdx].trim();
+      const sqmi = parseFloat(parts[sqmiIdx]);
+      if (!geoid || !Number.isFinite(sqmi) || sqmi <= 0) continue;
+      map.set(geoid, sqmi);
+    }
+  }
+  LAND_AREA = map;
+  console.error(`Loaded land-area gazetteer: ${map.size} geographies`);
+}
+
 // For county subdivisions, county/region comes from inside the NAME field:
 //   "Plainsboro township, Middlesex County, New Jersey" -> "Middlesex"
 //   "Avon town, Capitol Planning Region, Connecticut" -> "Capitol Planning Region"
@@ -300,6 +345,12 @@ const ACS_VARS = [
   "B15003_025E", // doctorate degree
   "B19001_001E", // total households
   "B19001_017E", // households earning $200k+
+  "B05012_001E", // total (nativity denominator)
+  "B05012_003E", // foreign born
+  "B01002_001E", // median age (total population)
+  "B25003_001E", // total occupied housing units (tenure denom)
+  "B25003_002E", // owner-occupied housing units
+  "B19013D_001E",// median HHI, Asian-alone householder (suppressed for small N)
 ].join(",");
 
 async function fetchGeography(fips, name, geoQuery) {
@@ -318,6 +369,10 @@ async function fetchGeography(fips, name, geoQuery) {
       indianStr, asianStr, popStr, hhiStr, homeStr,
       eduTotalStr, eduBachStr, eduMastStr, eduProfStr, eduDocStr,
       hhTotalStr, hh200kStr,
+      natTotalStr, natForeignStr,
+      medianAgeStr,
+      tenTotalStr, tenOwnerStr,
+      asianHhiStr,
     ] = row;
     const population = parseInt(popStr, 10);
     const indian = parseInt(indianStr, 10);
@@ -330,14 +385,28 @@ async function fetchGeography(fips, name, geoQuery) {
       .reduce((a, v) => a + (Number.isFinite(v) && v >= 0 ? v : 0), 0);
     const hhTotal = parseInt(hhTotalStr, 10);
     const hh200k = parseInt(hh200kStr, 10);
+    const natTotal = parseInt(natTotalStr, 10);
+    const natForeign = parseInt(natForeignStr, 10);
+    const medianAgeRaw = parseFloat(medianAgeStr);
+    const tenTotal = parseInt(tenTotalStr, 10);
+    const tenOwner = parseInt(tenOwnerStr, 10);
+    const asianHhi = parseInt(asianHhiStr, 10);
     if (!Number.isFinite(population) || population < POP_FLOOR) continue;
-    // County: for places, look up via Place-to-County crosswalk; for MCDs, parse from NAME.
+    // County + GEOID: for places, look up via Place-to-County crosswalk;
+    // for MCDs, parse county from NAME. GEOID key for the land-area lookup
+    // is `${stateFP}${placeFP}` (places, 7 digits) or `${stateFP}${countyFP}${cousubFP}`
+    // (cousubs, 10 digits) — matches the Census Gazetteer GEOID column.
     let county = null;
+    let geoid = null;
     if (isPlace) {
       const placeFP = row[row.length - 1];
       county = PLACE_TO_COUNTY ? (PLACE_TO_COUNTY.get(`${fips}|${placeFP}`) || null) : null;
+      geoid = `${fips}${placeFP}`;
     } else {
       county = countyFromMcdName(rawName);
+      const cousubFP = row[row.length - 1];
+      const countyFP = row[row.length - 2];
+      geoid = `${fips}${countyFP}${cousubFP}`;
     }
     // % Asian = (Asian alone or in combination) / total population.
     const pctAsian = Number.isFinite(asian) && asian >= 0
@@ -351,6 +420,21 @@ async function fetchGeography(fips, name, geoQuery) {
     const pct200k = Number.isFinite(hhTotal) && hhTotal > 0 && Number.isFinite(hh200k) && hh200k >= 0
       ? +(hh200k / hhTotal).toFixed(4)
       : null;
+    // % foreign-born (B05012_003 / B05012_001).
+    const pctForeignBorn = Number.isFinite(natTotal) && natTotal > 0 && Number.isFinite(natForeign) && natForeign >= 0
+      ? +(natForeign / natTotal).toFixed(4)
+      : null;
+    // Median age — Census uses negative sentinels for suppression.
+    const medianAge = Number.isFinite(medianAgeRaw) && medianAgeRaw > 0 ? +medianAgeRaw.toFixed(1) : null;
+    // % homeownership (owner-occupied / total occupied).
+    const pctHomeowner = Number.isFinite(tenTotal) && tenTotal > 0 && Number.isFinite(tenOwner) && tenOwner >= 0
+      ? +(tenOwner / tenTotal).toFixed(4)
+      : null;
+    // Asian-alone-householder median HHI (suppressed for small N).
+    const asianMedianHHI = Number.isFinite(asianHhi) && asianHhi > 0 ? asianHhi : null;
+    // Population density: people per square mile of land area.
+    const landSqMi = LAND_AREA ? LAND_AREA.get(geoid) : null;
+    const popDensity = landSqMi && landSqMi > 0 ? Math.round(population / landSqMi) : null;
     out.push({
       name: cleanName(rawName),
       state: name,
@@ -364,6 +448,11 @@ async function fetchGeography(fips, name, geoQuery) {
       medianHomeValue: Number.isFinite(medianHomeValue) && medianHomeValue > 0 ? medianHomeValue : null,
       pctBach,
       pct200k,
+      pctForeignBorn,
+      medianAge,
+      pctHomeowner,
+      asianMedianHHI,
+      popDensity,
       metro: metroFor(fips, county),
       demMargin: demMarginFor(name, county),
     });
@@ -390,6 +479,7 @@ async function fetchState([fips, name]) {
 async function main() {
   await loadPlaceToCounty();
   await loadCountyElection();
+  await loadLandArea();
   console.error(`Fetching ${STATES.length} states (population floor ${POP_FLOOR}, no demographic filter)...`);
   const all = [];
   for (const s of STATES) {
@@ -419,6 +509,11 @@ async function main() {
     `//   medianHomeValue = B25077_001E`,
     `//   pctBach         = sum(B15003_022..025E) / B15003_001E`,
     `//   pct200k         = B19001_017E / B19001_001E`,
+    `//   pctForeignBorn  = B05012_003E / B05012_001E`,
+    `//   medianAge       = B01002_001E`,
+    `//   pctHomeowner    = B25003_002E / B25003_001E`,
+    `//   asianMedianHHI  = B19013D_001E   (Asian-alone householder; suppressed for small N → null)`,
+    `//   popDensity      = population / ALAND_SQMI  (people/mi²; ALAND_SQMI from 2023 Census Gazetteer)`,
     `//   demMargin       = 2024 county presidential margin (Harris − Trump, pct points; MIT/MEDSL)`,
     `// Includes Census Places + county subdivisions (townships/towns) for the 12 strong-MCD states.`,
     `// Population floor ${POP_FLOOR.toLocaleString("en-US")}; no demographic filter (users filter in-UI).`,
@@ -426,15 +521,10 @@ async function main() {
     `// Re-generate with: node scripts/fetch_places.mjs`,
     `const PLACES = [`,
   ];
+  const num = v => (v === null || v === undefined ? "null" : v);
   for (const p of filtered) {
-    const hhi = p.medianHHI === null ? "null" : p.medianHHI;
-    const home = p.medianHomeValue === null ? "null" : p.medianHomeValue;
-    const asian = p.pctAsian === null ? "null" : p.pctAsian;
-    const bach = p.pctBach === null ? "null" : p.pctBach;
-    const hh200k = p.pct200k === null ? "null" : p.pct200k;
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    const margin = p.demMargin === null ? "null" : p.demMargin;
-    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${asian}, medianHHI: ${hhi}, medianHomeValue: ${home}, pctBach: ${bach}, pct200k: ${hh200k}, demMargin: ${margin} },`);
+    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)} },`);
   }
   lines.push(`];`, ``);
   writeFileSync(outPath, lines.join("\n"));
