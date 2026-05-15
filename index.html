@@ -864,7 +864,7 @@
       </div>
     </div>
     <div class="control-group">
-      <label for="annual-income">Avg annual income</label>
+      <label for="annual-income">Annual income in that period</label>
       <div class="input-wrap">
         <span class="prefix">$</span>
         <input type="number" id="annual-income" value="1" min="0" step="0.1" autocomplete="off"/>
@@ -872,7 +872,7 @@
       </div>
     </div>
     <div class="control-group">
-      <label for="annual-gains">Avg annual cap gains</label>
+      <label for="annual-gains">Annual realized capital gains</label>
       <div class="input-wrap">
         <span class="prefix">$</span>
         <input type="number" id="annual-gains" value="0.5" min="0" step="0.1" autocomplete="off"/>
@@ -939,8 +939,8 @@
       <div class="col-num" data-sort="pctHomeowner">%Owner<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Owner-occupied">i</button><span class="info-tooltip">Share of occupied housing units that are <strong>owner-occupied</strong> (Census variables B25003_002E / B25003_001E). Owner-heavy places skew toward established family suburbs; renter-heavy places skew toward college towns and young-professional urban cores. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-home" data-sort="homeValue">Home<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median home value">i</button><span class="info-tooltip"><strong>Median value of owner-occupied housing units</strong> (B25077_001E) — a quick proxy for the cost of buying a typical home in the place. Self-reported by owners; reflects the existing housing stock, not current listing prices, so it lags transaction markets. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-death" data-sort="death">Estate tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Estate tax">i</button><span class="info-tooltip">State tax on the <strong>Estate at death</strong> value, combining true estate taxes (12 states + DC) and inheritance taxes (KY, MD, NE, NJ, PA) into a single column since the dollar impact on heirs is the same regardless of which form the state uses. Assumes the <strong>second death</strong> of a married couple — surviving spouse already gone, so no marital deduction — and that heirs are <strong>lineal descendants</strong> (children/grandchildren), who are Class A in every inheritance-tax state (so KY/MD/NE/NJ resolve to $0; only PA charges children, at 4.5%). State law only; the federal estate tax is <strong>not</strong> included. Reflects 2026 statutes, including Washington's post-July 2026 regime.</span></span></div>
-      <div class="col-num col-income" data-sort="income">Income<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Income tax">i</button><span class="info-tooltip">State income tax on the <strong>Avg annual income</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. <strong>State-level only</strong> — local income taxes (NYC, Maryland counties, OH/KY/IN municipalities, Yonkers, PA local EIT) are <strong>not</strong> modeled, which understates the true tax for places in those jurisdictions.</span></span></div>
-      <div class="col-num col-capgains" data-sort="capgains">Cap gains<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Cap gains">i</button><span class="info-tooltip">State capital gains tax on the <strong>Avg annual cap gains</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. State law only. Washington's 9.9% rate already includes the SB 6346 millionaires' surcharge effective Jan 2028.</span></span></div>
+      <div class="col-num col-income" data-sort="income">Income<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Income tax">i</button><span class="info-tooltip">State income tax on the <strong>Annual income</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. <strong>State-level only</strong> — local income taxes (NYC, Maryland counties, OH/KY/IN municipalities, Yonkers, PA local EIT) are <strong>not</strong> modeled, which understates the true tax for places in those jurisdictions.</span></span></div>
+      <div class="col-num col-capgains" data-sort="capgains">Cap gains<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Cap gains">i</button><span class="info-tooltip">State capital gains tax on the <strong>Annual realized capital gains</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. State law only. Washington's 9.9% rate already includes the SB 6346 millionaires' surcharge effective Jan 2028.</span></span></div>
       <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Total tax">i</button><span class="info-tooltip">Sum of <strong>Estate tax + Income tax + Cap gains</strong> over your scenario. State law only — see each column's info button for limitations.</span></span></div>
     </div>
     <div class="col-filters" id="col-filters-row"></div>
