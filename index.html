@@ -56,6 +56,7 @@
     letter-spacing: -0.025em;
     margin: 0 0 8px;
     color: var(--ink);
+    cursor: pointer;
   }
   header.masthead .dek {
     margin: 0;
@@ -1557,15 +1558,23 @@
     }
   });
 
-  // "Clear filters" link inside the places summary — appears only when any
-  // filter is active. Delegated so the listener survives subtitle re-renders.
-  document.getElementById("places-subtitle").addEventListener("click", e => {
-    if (!e.target.classList.contains("clear-filters")) return;
+  // Reset all column filters back to their empty state, then re-render.
+  function clearAllFilters() {
     for (const k of Object.keys(placesFilters)) {
       placesFilters[k] = { min: null, max: null };
     }
     render();
+  }
+
+  // "Clear filters" link inside the places summary — appears only when any
+  // filter is active. Delegated so the listener survives subtitle re-renders.
+  document.getElementById("places-subtitle").addEventListener("click", e => {
+    if (!e.target.classList.contains("clear-filters")) return;
+    clearAllFilters();
   });
+
+  // Clicking the page title acts as a "home" reset — clears all filters.
+  document.querySelector("header.masthead h1").addEventListener("click", clearAllFilters);
 
   // ────────────────────────────────────────────────────────────────────────
   //  Per-column chip filters (Option C).
