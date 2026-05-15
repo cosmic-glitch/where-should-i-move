@@ -138,6 +138,9 @@
   .table-shell.places { max-width: 1700px; }
   ol.ranking {
     list-style: none; padding: 0; margin: 0;
+    /* Virtual scrolling: rows are absolutely positioned inside this box,
+       whose height is set to rowCount × ROW_H. */
+    position: relative;
   }
   ol.ranking li.row {
     display: grid;
@@ -146,12 +149,20 @@
     align-items: center;
     padding: 12px 20px;
     border-bottom: 1px solid var(--border);
-    transition: background 0.12s;
-    cursor: pointer;
+    box-sizing: border-box;
+    /* Positioned by paintWindow(); height must stay in sync with ROW_H (44). */
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 44px;
   }
-  ol.ranking li.row:last-child { border-bottom: none; }
-  ol.ranking li.row:hover { background: var(--surface-alt); }
-  ol.ranking li.row.expanded { background: var(--surface-alt); }
+  ol.ranking .rows-empty {
+    position: static;
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--ink-3);
+    font-size: 14px;
+  }
   ol.ranking li.row .rank-num {
     font-size: 13px;
     font-weight: 500;
@@ -164,10 +175,9 @@
     font-weight: 500;
     color: var(--ink);
     letter-spacing: -0.005em;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   ol.ranking li.row .amount {
     font-size: 15px;
@@ -183,35 +193,13 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
-  ol.ranking li.row .detail {
-    grid-column: 1 / -1;
-    padding: 12px 0 4px 48px;
-    font-size: 13.5px;
-    line-height: 1.55;
-    color: var(--ink-2);
-    display: none;
+  /* Text cells truncate to a single line so every row is exactly ROW_H tall. */
+  ol.ranking li.row .metro-col,
+  ol.ranking li.row .state-col-cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  ol.ranking li.row.expanded .detail { display: block; }
-  ol.ranking li.row .detail .calc-line {
-    font-family: 'SF Mono', ui-monospace, 'Roboto Mono', monospace;
-    font-size: 12px;
-    color: var(--ink);
-    margin-top: 8px;
-    padding: 8px 10px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    display: inline-block;
-  }
-  ol.ranking li.row .detail .note {
-    margin-top: 10px;
-    padding: 10px 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--ink-2);
-  }
-  ol.ranking li.row .detail .note strong { color: var(--ink); font-weight: 600; }
 
   /* Column headers */
   .col-headers {
@@ -323,10 +311,6 @@
   ol.ranking li.row .num-col.zero { color: var(--good); font-weight: 400; }
   ol.ranking li.row .num-col.total { font-weight: 600; }
 
-  @media (max-width: 720px) {
-    ol.ranking li.row .detail { padding-left: 0; }
-  }
-
   /* Pills */
   .pill {
     display: inline-flex;
@@ -395,6 +379,10 @@
        the .table-scroll wrapper then provides a horizontal scrollbar when needed. */
     min-width: 1572px;
   }
+  /* The <ul> needs the same min-width: its rows are absolutely positioned and
+     stretch to its content box (left:0/right:0), so they'd otherwise collapse
+     to the viewport width and squeeze the columns. */
+  .table-shell.places ol.ranking { min-width: 1572px; }
 
   /* Horizontal scroll container for the table grid (headers + filters + rows). */
   .table-scroll {
@@ -498,6 +486,21 @@
     min-width: 0;
   }
   .col-filter-cell.num { justify-content: flex-end; }
+
+  /* Free-text search box — spans the place/metro/state columns of the filter row. */
+  .col-search-cell { display: flex; align-items: center; }
+  .col-search {
+    width: 100%;
+    font: 500 12px 'Inter', -apple-system, system-ui, sans-serif;
+    padding: 5px 10px;
+    border: 1px solid var(--ink-3);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    outline: none;
+  }
+  .col-search::placeholder { color: var(--ink-4); font-weight: 400; }
+  .col-search:focus { border-color: var(--accent); }
   .col-filter-chip {
     display: inline-flex;
     align-items: center;
@@ -788,6 +791,7 @@
       gap: 8px;
       min-width: 1248px;
     }
+    .table-shell.places ol.ranking { min-width: 1248px; }
     .table-shell.places .col-headers { padding-left: 12px; padding-right: 12px; }
     .table-shell.places ol.ranking li.row { padding-left: 12px; padding-right: 12px; }
 
@@ -811,10 +815,6 @@
     .table-shell.places .col-headers > div:nth-child(2) { background: var(--surface-alt); }
     .table-shell.places ol.ranking li.row > .rank-num,
     .table-shell.places ol.ranking li.row > .state { background: var(--surface); }
-    .table-shell.places ol.ranking li.row:hover > .rank-num,
-    .table-shell.places ol.ranking li.row:hover > .state,
-    .table-shell.places ol.ranking li.row.expanded > .rank-num,
-    .table-shell.places ol.ranking li.row.expanded > .state { background: var(--surface-alt); }
 
     /* Right-edge fade hint signaling more columns are scrollable. The pseudo
        sits on .table-scroll (which clips the scroll content) so it stays at
@@ -831,16 +831,6 @@
 
     /* Bigger tap target on column-header info buttons. */
     .col-headers .info-btn { width: 18px; height: 18px; font-size: 11px; }
-
-    /* Expanded detail: clamp width to the visible viewport so prose doesn't
-       reflow across the full 1320px row width. Sticky-left so it stays in
-       view regardless of horizontal scroll position. */
-    .table-shell.places ol.ranking li.row .detail {
-      position: sticky;
-      left: 12px;
-      width: calc(100vw - 24px);
-      padding-left: 0;
-    }
   }
 
   /* Disclaimer */
@@ -1501,13 +1491,24 @@
     return (n*100).toFixed(2) + "%";
   }
 
+  // Escape user-supplied text before it goes into innerHTML.
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
   const elNetWorth = document.getElementById("net-worth");
   const elAnnualIncome = document.getElementById("annual-income");
   const elAnnualGains = document.getElementById("annual-gains");
   const elYears = document.getElementById("years");
   const elPlacesHeaders = document.getElementById("places-headers");
   const elPlacesRanking = document.getElementById("places-ranking");
-  let expandedPlace = null;
+  // Virtual scrolling: only the rows whose band intersects the viewport are
+  // built into the DOM. ROW_H must match the li.row height in CSS.
+  const ROW_H = 44, OVERSCAN = 8;
+  let placeRowsFull = [];                 // full filtered+sorted result set
+  let renderedStart = -1, renderedEnd = -1; // currently-painted index range
+  // Free-text search over place / state / metro names.
+  let placesSearch = "";
+  let elPlacesSearch = null;
+  let searchTimer = null;
   let placesSortBy = "pctIndian"; // 'name' | 'state' | 'metro' | 'pop' | 'pctIndian' | 'demMargin' | 'hhi' | 'pctBach' | 'pct200k' | 'homeValue' | 'death' | 'income' | 'capgains' | 'total'
   let placesSortDir = "desc";
   // Per-column numeric range filters for the places table.
@@ -1571,6 +1572,8 @@
     for (const k of Object.keys(placesFilters)) {
       placesFilters[k] = { min: null, max: null };
     }
+    placesSearch = "";
+    if (elPlacesSearch) elPlacesSearch.value = "";
     render();
   }
 
@@ -1662,6 +1665,16 @@
 
   function buildColFiltersRow() {
     elColFiltersRow.innerHTML = COL_DEFS.map(col => {
+      // Place / metro / state share a single search box: it's rendered in the
+      // `name` cell and spans the others (see applyColumnLayout), so metro and
+      // state emit no cell of their own.
+      if (col.key === 'metro' || col.key === 'state') return '';
+      if (col.key === 'name') {
+        return `<div class="col-filter-cell col-search-cell" data-col="name">`
+          + `<input type="search" id="places-search" class="col-search"`
+          + ` placeholder="Search place, state, or metro…" autocomplete="off"`
+          + ` aria-label="Search place, state, or metro"/></div>`;
+      }
       const meta = FILTER_META[col.key];
       const isNum = !TEXT_COL_KEYS.has(col.key);
       if (!meta) {
@@ -1712,6 +1725,15 @@
         placesFilters[k][b] = Number.isFinite(v) ? v : null;
         render();
       });
+    });
+
+    // Search box: pick up any URL-hydrated value, then re-render (debounced).
+    elPlacesSearch = document.getElementById('places-search');
+    elPlacesSearch.value = placesSearch;
+    elPlacesSearch.addEventListener('input', () => {
+      placesSearch = elPlacesSearch.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(render, 150);
     });
   }
 
@@ -1828,6 +1850,7 @@
       "  grid-template-columns: " + dCols + ";\n" +
       "  min-width: " + dMin + "px;\n" +
       "}\n" +
+      ".table-shell.places ol.ranking { min-width: " + dMin + "px; }\n" +
       "@media (max-width: 720px) {\n" +
       "  .table-shell.places .col-headers,\n" +
       "  .table-shell.places .col-filters,\n" +
@@ -1835,6 +1858,7 @@
       "    grid-template-columns: " + mCols + ";\n" +
       "    min-width: " + mMin + "px;\n" +
       "  }\n" +
+      "  .table-shell.places ol.ranking { min-width: " + mMin + "px; }\n" +
       "}\n";
     // Hide/show header cells and matching chip cells. Visible cells must be
     // the only ones rendered (display:none on a grid item removes its track).
@@ -1844,6 +1868,13 @@
       if (h) h.style.display = visible ? "" : "none";
       const chipCell = document.querySelector(`#col-filters-row .col-filter-cell[data-col="${def.key}"]`);
       if (chipCell) chipCell.style.display = visible ? "" : "none";
+    }
+    // The search box spans whichever of place/metro/state are visible, so it
+    // stays aligned under those headers as columns are toggled.
+    const searchCell = elColFiltersRow.querySelector('.col-search-cell');
+    if (searchCell) {
+      searchCell.style.gridColumn = 'span ' +
+        (1 + (placesVisibleCols.has('metro') ? 1 : 0) + (placesVisibleCols.has('state') ? 1 : 0));
     }
   }
 
@@ -2170,7 +2201,14 @@
     // Apply per-column range filters. Each filter input value uses the unit shown in
     // the column (population raw, pct as %, HHI in $k, total in $M).
     const f = placesFilters;
+    // Free-text search: every whitespace-separated token must appear (in any
+    // order) in the place's name / state / metro.
+    const searchTokens = placesSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const placeRows = allPlaceRows.filter(p => {
+      if (searchTokens.length) {
+        const hay = (p.name + " " + p.state + " " + (p.metro || "")).toLowerCase();
+        for (const t of searchTokens) if (!hay.includes(t)) return false;
+      }
       if (f.pop.min !== null && p.population < f.pop.min) return false;
       if (f.pop.max !== null && p.population > f.pop.max) return false;
       // Pop density filter (people/mi²); null excluded when any bound set.
@@ -2233,7 +2271,7 @@
       return true;
     });
 
-    const anyFilter = Object.values(f).some(r => r.min !== null || r.max !== null);
+    const anyFilter = searchTokens.length > 0 || Object.values(f).some(r => r.min !== null || r.max !== null);
 
     const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", popDensity: "popDensity", pctIndian: "pctIndian", pctAsian: "pctAsian", pctForeignBorn: "pctForeignBorn", medianAge: "medianAge", demMargin: "demMargin", hhi: "medianHHI", asianMedianHHI: "asianMedianHHI", pctBach: "pctBach", pct200k: "pct200k", pctHomeowner: "pctHomeowner", homeValue: "medianHomeValue", death: "deathTax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
     const pk = placeKey[placesSortBy];
@@ -2255,7 +2293,11 @@
     });
 
     const totalRows = placeRows.length;
-    const filterDesc = anyFilter ? describeFilters(f) : "";
+    const descParts = [];
+    if (searchTokens.length) descParts.push(`matching “${esc(placesSearch.trim())}”`);
+    const colDesc = describeFilters(f);
+    if (colDesc) descParts.push(colDesc);
+    const filterDesc = descParts.join(" · ");
     const elSub = document.getElementById("places-subtitle");
     if (anyFilter) {
       elSub.innerHTML =
@@ -2269,55 +2311,17 @@
         `Showing all <span class="count">${PLACES.length.toLocaleString()} places</span>`;
     }
 
-    elPlacesRanking.innerHTML = placeRows.map((p, i) => {
-      const pid = `${p.name}|${p.state}`;
-      const isExpanded = pid === expandedPlace;
-      const isFree = p.total === 0;
-      const hhiDisplay = p.medianHHI === null ? "—" : "$" + Math.round(p.medianHHI / 1000) + "k";
-      const homeVal = p.medianHomeValue == null ? null : p.medianHomeValue;
-      const homeDisplay = homeVal === null ? "—"
-        : homeVal >= 1_000_000 ? "$" + (homeVal / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
-        : "$" + Math.round(homeVal / 1000) + "k";
-      const bachDisplay = p.pctBach == null ? "—" : Math.round(p.pctBach * 100) + "%";
-      const twohkDisplay = p.pct200k == null ? "—" : Math.round(p.pct200k * 100) + "%";
-      const asianDisplay = p.pctAsian == null ? "—" : (p.pctAsian * 100).toFixed(1) + "%";
-      const fbornDisplay = p.pctForeignBorn == null ? "—" : Math.round(p.pctForeignBorn * 100) + "%";
-      const ageDisplay = p.medianAge == null ? "—" : Math.round(p.medianAge);
-      const ownerDisplay = p.pctHomeowner == null ? "—" : Math.round(p.pctHomeowner * 100) + "%";
-      const asianHhi = p.asianMedianHHI;
-      const asianHhiDisplay = asianHhi == null ? "—"
-        : asianHhi >= 1_000_000 ? "$" + (asianHhi / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
-        : "$" + Math.round(asianHhi / 1000) + "k";
-      const densityDisplay = p.popDensity == null ? "—" : p.popDensity.toLocaleString();
-      const ctx = { idx: i, isFree, hhiDisplay, homeDisplay, bachDisplay, twohkDisplay,
-                    asianDisplay, fbornDisplay, ageDisplay, ownerDisplay, asianHhiDisplay, densityDisplay };
-      const cells = COL_DEFS
-        .filter(c => placesVisibleCols.has(c.key))
-        .map(c => CELL_RENDERERS[c.key](p, ctx))
-        .join("");
-      return `
-        <li class="row ${isExpanded ? "expanded" : ""}" data-place="${pid}">
-          ${cells}
-          <div class="detail">
-            <div><strong>${p.name}, ${p.state}</strong>${p.metro ? ` (${p.metro} metro)` : ""} — population ${p.population.toLocaleString()}, ${(p.pctIndian * 100).toFixed(1)}% Asian Indian, median household income ${p.medianHHI === null ? "not reported" : "$" + p.medianHHI.toLocaleString()} (ACS 2023).</div>
-            <div style="margin-top:10px"><strong>Estate tax (${p.state}):</strong> ${fmt$(p.deathTax)} — ${p._stateRes.breakdown || ""}</div>
-            ${p._stateRes.calc ? `<div class="calc-line">${p._stateRes.calc}</div>` : ""}
-            <div style="margin-top:6px"><strong>Income tax:</strong> ${fmtRate(p._stateRes.rates.income)} × ${fmt$(annualIncome)}/yr × ${years} yrs = ${fmt$(p.incomeTax)}</div>
-            <div style="margin-top:6px"><strong>Capital gains tax:</strong> ${fmtRate(p._stateRes.rates.capGains)} × ${fmt$(annualGains)}/yr × ${years} yrs = ${fmt$(p.capGainsTax)}</div>
-            ${p._stateRes.rates.note ? `<div class="note"><strong>Income / cap gains note:</strong> ${p._stateRes.rates.note}</div>` : ""}
-            <div style="margin-top:6px"><strong>Total over ${years} years:</strong> ${fmt$(p.total)}</div>
-          </div>
-        </li>
-      `;
-    }).join("");
-
-    elPlacesRanking.querySelectorAll("li.row").forEach(li => {
-      li.addEventListener("click", () => {
-        const pid = li.dataset.place;
-        expandedPlace = (expandedPlace === pid) ? null : pid;
-        render();
-      });
-    });
+    // Virtual scrolling: store the full result set, size the <ul> to it, and
+    // paint only the rows near the viewport.
+    placeRowsFull = placeRows;
+    if (placeRows.length === 0) {
+      elPlacesRanking.style.height = "";
+      elPlacesRanking.innerHTML = `<li class="rows-empty">No places match these filters.</li>`;
+    } else {
+      elPlacesRanking.style.height = (placeRows.length * ROW_H) + "px";
+      renderedStart = renderedEnd = -1;   // force paintWindow to repaint
+      paintWindow();
+    }
 
     refreshChipsChrome();
     refreshPresetsChrome();
@@ -2325,10 +2329,70 @@
     encodeStateToURL();
   }
 
+  // Build one row's <li>. `i` is the global index in the filtered list, so the
+  // rank cell (CELL_RENDERERS.__rank uses ctx.idx) and the absolute `top`
+  // offset are both globally correct regardless of which window is painted.
+  function renderRowHTML(p, i) {
+    const isFree = p.total === 0;
+    const hhiDisplay = p.medianHHI === null ? "—" : "$" + Math.round(p.medianHHI / 1000) + "k";
+    const homeVal = p.medianHomeValue == null ? null : p.medianHomeValue;
+    const homeDisplay = homeVal === null ? "—"
+      : homeVal >= 1_000_000 ? "$" + (homeVal / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
+      : "$" + Math.round(homeVal / 1000) + "k";
+    const bachDisplay = p.pctBach == null ? "—" : Math.round(p.pctBach * 100) + "%";
+    const twohkDisplay = p.pct200k == null ? "—" : Math.round(p.pct200k * 100) + "%";
+    const asianDisplay = p.pctAsian == null ? "—" : (p.pctAsian * 100).toFixed(1) + "%";
+    const fbornDisplay = p.pctForeignBorn == null ? "—" : Math.round(p.pctForeignBorn * 100) + "%";
+    const ageDisplay = p.medianAge == null ? "—" : Math.round(p.medianAge);
+    const ownerDisplay = p.pctHomeowner == null ? "—" : Math.round(p.pctHomeowner * 100) + "%";
+    const asianHhi = p.asianMedianHHI;
+    const asianHhiDisplay = asianHhi == null ? "—"
+      : asianHhi >= 1_000_000 ? "$" + (asianHhi / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
+      : "$" + Math.round(asianHhi / 1000) + "k";
+    const densityDisplay = p.popDensity == null ? "—" : p.popDensity.toLocaleString();
+    const ctx = { idx: i, isFree, hhiDisplay, homeDisplay, bachDisplay, twohkDisplay,
+                  asianDisplay, fbornDisplay, ageDisplay, ownerDisplay, asianHhiDisplay, densityDisplay };
+    const cells = COL_DEFS
+      .filter(c => placesVisibleCols.has(c.key))
+      .map(c => CELL_RENDERERS[c.key](p, ctx))
+      .join("");
+    return `<li class="row" style="top:${i * ROW_H}px">${cells}</li>`;
+  }
+
+  // Render only the rows whose vertical band intersects the viewport (plus an
+  // OVERSCAN buffer). Called on scroll/resize and at the end of render().
+  function paintWindow() {
+    const total = placeRowsFull.length;
+    if (total === 0) return;
+    const ulTop = elPlacesRanking.getBoundingClientRect().top + window.scrollY;
+    const viewTop = window.scrollY;
+    const viewBot = viewTop + window.innerHeight;
+    let start = Math.floor((viewTop - ulTop) / ROW_H) - OVERSCAN;
+    let end = Math.ceil((viewBot - ulTop) / ROW_H) + OVERSCAN;
+    start = Math.max(0, start);
+    end = Math.min(total, Math.max(end, start));
+    if (start === renderedStart && end === renderedEnd) return;
+    renderedStart = start;
+    renderedEnd = end;
+    let html = "";
+    for (let i = start; i < end; i++) html += renderRowHTML(placeRowsFull[i], i);
+    elPlacesRanking.innerHTML = html;
+  }
+
+  // rAF-throttled repaint as the page scrolls or the viewport resizes.
+  let paintScheduled = false;
+  function schedulePaint() {
+    if (paintScheduled) return;
+    paintScheduled = true;
+    requestAnimationFrame(() => { paintScheduled = false; paintWindow(); });
+  }
+  window.addEventListener("scroll", schedulePaint, { passive: true });
+  window.addEventListener("resize", schedulePaint, { passive: true });
+
   // ────────────────────────────────────────────────────────────────────────
   //  Shareable URLs
   //  ────────────────────────────────────────────────────────────────────────
-  //  The full UI state (4 inputs + sort + page + filters + expanded row) is
+  //  The full UI state (4 inputs + sort + filters + search query) is
   //  reflected in the URL query string with short keys, so any link people
   //  share auto-populates everything. Defaults are omitted to keep links short.
   //  history.replaceState (not pushState) means typing in an input doesn't
@@ -2352,7 +2416,7 @@
     setIfNotDefault("e",  elNetWorth.value);
     setIfNotDefault("sb", placesSortBy);
     setIfNotDefault("sd", placesSortDir);
-    if (expandedPlace) sp.set("ep", expandedPlace);
+    if (placesSearch.trim()) sp.set("q", placesSearch.trim());
     for (const col of FILTER_COLS) {
       const { min, max } = placesFilters[col];
       if (min !== null) sp.set("f." + col + ".min", String(min));
@@ -2385,8 +2449,8 @@
     if (sb) placesSortBy = sb;
     const sd = sp.get("sd");
     if (sd === "asc" || sd === "desc") placesSortDir = sd;
-    const ep = sp.get("ep");
-    if (ep) expandedPlace = ep;
+    const q = sp.get("q");
+    if (q) placesSearch = q;
     for (const col of FILTER_COLS) {
       for (const b of ["min", "max"]) {
         const v = sp.get("f." + col + "." + b);
