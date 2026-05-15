@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Where should I move? — Compare U.S. places by tax, demographics, and more</title>
+<title>Where should we move? — Compare U.S. places by tax, demographics, and more</title>
 <meta name="description" content="Rank 8,000+ U.S. places by total tax cost (estate, income, capital gains) over your time horizon. Filter by demographics, political lean, household income, education, home value, and population." />
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Where should I move?" />
+<meta property="og:title" content="Where should we move?" />
 <meta property="og:description" content="Compare 8,000+ U.S. places by total tax cost, demographics, political alignment, household income, and more." />
 <meta name="twitter:card" content="summary" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -715,7 +715,7 @@
   }
   .column-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     padding: 6px 8px;
     border-radius: 6px;
@@ -731,8 +731,15 @@
     accent-color: var(--accent);
     width: 13px;
     height: 13px;
-    margin: 0;
+    margin: 1px 0 0;
     flex-shrink: 0;
+  }
+  .column-item-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .column-item-desc {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--ink-4);
+    line-height: 1.3;
   }
   .column-item.is-locked {
     color: var(--ink-4);
@@ -850,7 +857,7 @@
 <div class="wrap">
 
 <header class="masthead">
-  <h1>Where should I move?</h1>
+  <h1>Where should we move?</h1>
   <p class="dek">Where you die matters. A $30M estate left to children in WA owes $5M in state estate tax. Move to one of 34 states and that drops to zero, and in 8 of them state income and capital gains tax disappear too. The hard part is cutting that tax bill while landing somewhere you'd actually enjoy living: who your neighbors are, how educated and affluent they are, how they vote. This tool lets you optimize all of it across 8,000+ U.S. suburbs, towns, and cities at once.</p>
 </header>
 
@@ -929,18 +936,18 @@
       <div class="col-num" data-sort="popDensity">Density<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Density">i</button><span class="info-tooltip">Population per square mile of land area (people/mi²). Population from Census ACS 5-year 2023; land area (ALAND_SQMI) from the 2023 Census Gazetteer. Separates walkable density from acreage exurbs.</span></span></div>
       <div class="col-num col-pct active" data-sort="pctIndian">%Indian<span class="arrow">↓</span><span class="info"><button class="info-btn" type="button" aria-label="About % Indian">i</button><span class="info-tooltip">Share of residents identifying as Asian Indian alone or in any combination with another race (Census variable B02018_021E). Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num" data-sort="pctAsian">%Asian<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Asian">i</button><span class="info-tooltip">Share of residents identifying as <strong>Asian alone or in any combination</strong> — includes Indian, Chinese, Korean, Vietnamese, Filipino, Japanese, etc. (Census variable B02011_001E). Useful as a broader diaspora signal: Indian-American cultural infrastructure typically co-locates with East-Asian community hubs. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="pctForeignBorn">%F-born<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Foreign-born">i</button><span class="info-tooltip">Share of residents born outside the U.S. (Census variables B05012_003E / B05012_001E). Indicates overall immigrant share independent of any one origin. Source: U.S. Census ACS 5-year 2023.</span></span></div>
+      <div class="col-num" data-sort="pctForeignBorn">%Foreign<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Foreign-born">i</button><span class="info-tooltip">Share of residents born outside the U.S. (Census variables B05012_003E / B05012_001E). Indicates overall immigrant share independent of any one origin. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num" data-sort="medianAge">Med age<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median age">i</button><span class="info-tooltip">Median age of residents (Census variable B01002_001E). Separates family-suburb places (low-30s) from retirement towns (high-50s+). Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-margin" data-sort="demMargin">Red/Blue<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Red/Blue">i</button><span class="info-tooltip">2024 presidential margin in percentage points (Harris − Trump) at the <strong>county</strong> level, applied uniformly to every place in the county. Positive = bluer, negative = redder. Within large counties (e.g., Los Angeles, Cook, Travis, Santa Clara), real political variation is wide — the number is most accurate near the county's population center. Source: MIT Election Lab.</span></span></div>
-      <div class="col-num col-hhi" data-sort="hhi">Med HHI<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median HHI">i</button><span class="info-tooltip">Median household income. Source: U.S. Census ACS 5-year 2023.</span></span></div>
+      <div class="col-num col-hhi" data-sort="hhi">HHI<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median HHI">i</button><span class="info-tooltip">Median household income. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num" data-sort="asianMedianHHI">Asian HHI<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Asian-household HHI">i</button><span class="info-tooltip">Median household income for households with an <strong>Asian-alone householder</strong> (Census variable B19013D_001E). Distinguishes places where the Asian community itself is affluent (Saratoga, Short Hills) from places with a working-class Asian population. ACS suppresses this estimate when the Asian-household sample is too small, shown as "—". Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-bach" data-sort="pctBach">%Bach+<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Bach+">i</button><span class="info-tooltip">Share of adults age 25+ holding a <strong>bachelor's degree or higher</strong> (B.A., M.A., professional, or doctoral). Sum of Census variables B15003_022E through B15003_025E divided by B15003_001E. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-200k" data-sort="pct200k">%$200k+<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % $200k+ households">i</button><span class="info-tooltip">Share of households with annual income of <strong>$200,000 or more</strong> — the top bracket of Census table B19001. A density-of-high-earners signal that complements median HHI, which compresses the upper tail. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num" data-sort="pctHomeowner">%Owner<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Owner-occupied">i</button><span class="info-tooltip">Share of occupied housing units that are <strong>owner-occupied</strong> (Census variables B25003_002E / B25003_001E). Owner-heavy places skew toward established family suburbs; renter-heavy places skew toward college towns and young-professional urban cores. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-home" data-sort="homeValue">Home<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median home value">i</button><span class="info-tooltip"><strong>Median value of owner-occupied housing units</strong> (B25077_001E) — a quick proxy for the cost of buying a typical home in the place. Self-reported by owners; reflects the existing housing stock, not current listing prices, so it lags transaction markets. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num col-death" data-sort="death">Estate tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Estate tax">i</button><span class="info-tooltip">State tax on the <strong>Estate at death</strong> value, combining true estate taxes (12 states + DC) and inheritance taxes (KY, MD, NE, NJ, PA) into a single column since the dollar impact on heirs is the same regardless of which form the state uses. Assumes the <strong>second death</strong> of a married couple — surviving spouse already gone, so no marital deduction — and that heirs are <strong>lineal descendants</strong> (children/grandchildren), who are Class A in every inheritance-tax state (so KY/MD/NE/NJ resolve to $0; only PA charges children, at 4.5%). State law only; the federal estate tax is <strong>not</strong> included. Reflects 2026 statutes, including Washington's post-July 2026 regime.</span></span></div>
-      <div class="col-num col-income" data-sort="income">Income<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Income tax">i</button><span class="info-tooltip">State income tax on the <strong>Annual income</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. <strong>State-level only</strong> — local income taxes (NYC, Maryland counties, OH/KY/IN municipalities, Yonkers, PA local EIT) are <strong>not</strong> modeled, which understates the true tax for places in those jurisdictions.</span></span></div>
-      <div class="col-num col-capgains" data-sort="capgains">Cap gains<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Cap gains">i</button><span class="info-tooltip">State capital gains tax on the <strong>Annual realized capital gains</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. State law only. Washington's 9.9% rate already includes the SB 6346 millionaires' surcharge effective Jan 2028.</span></span></div>
+      <div class="col-num col-income" data-sort="income">Income tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Income tax">i</button><span class="info-tooltip">State income tax on the <strong>Annual income</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. <strong>State-level only</strong> — local income taxes (NYC, Maryland counties, OH/KY/IN municipalities, Yonkers, PA local EIT) are <strong>not</strong> modeled, which understates the true tax for places in those jurisdictions.</span></span></div>
+      <div class="col-num col-capgains" data-sort="capgains">CG tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About CG tax">i</button><span class="info-tooltip">State capital gains tax on the <strong>Annual realized capital gains</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. State law only. Washington's 9.9% rate already includes the SB 6346 millionaires' surcharge effective Jan 2028.</span></span></div>
       <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Total tax">i</button><span class="info-tooltip">Sum of <strong>Estate tax + Income tax + Cap gains</strong> over your scenario. State law only — see each column's info button for limitations.</span></span></div>
     </div>
     <div class="col-filters" id="col-filters-row"></div>
@@ -1761,25 +1768,25 @@
   const COL_DEFS = [
     { key: '__rank',         label: '#',          always: true,  dW: '32px',                  mW: '26px',                  dMin: 32,  mMin: 26 },
     { key: 'name',           label: 'Place',      always: true,  dW: 'minmax(130px, 1.2fr)',  mW: 'minmax(110px, 1.1fr)',  dMin: 130, mMin: 110 },
-    { key: 'metro',          label: 'Metro',      always: false, dW: 'minmax(140px, 1.1fr)',  mW: 'minmax(100px, 1fr)',    dMin: 140, mMin: 100 },
-    { key: 'state',          label: 'State',      always: false, dW: '90px',                  mW: '100px',                 dMin: 90,  mMin: 100 },
-    { key: 'pop',            label: 'Population', always: false, dW: '88px',                  mW: '72px',                  dMin: 88,  mMin: 72  },
-    { key: 'popDensity',     label: 'Density',    always: false, dW: '88px',                  mW: '74px',                  dMin: 88,  mMin: 74, defaultHidden: true },
-    { key: 'pctIndian',      label: '%Indian',    always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64  },
-    { key: 'pctAsian',       label: '%Asian',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64, defaultHidden: true },
-    { key: 'pctForeignBorn', label: '%F-born',    always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64, defaultHidden: true },
-    { key: 'medianAge',      label: 'Med age',    always: false, dW: '76px',                  mW: '62px',                  dMin: 76,  mMin: 62, defaultHidden: true },
-    { key: 'demMargin',      label: 'Red/Blue',   always: false, dW: '80px',                  mW: '64px',                  dMin: 80,  mMin: 64  },
-    { key: 'hhi',            label: 'Med HHI',    always: false, dW: '88px',                  mW: '76px',                  dMin: 88,  mMin: 76  },
-    { key: 'asianMedianHHI', label: 'Asian HHI',  always: false, dW: '92px',                  mW: '78px',                  dMin: 92,  mMin: 78, defaultHidden: true },
-    { key: 'pctBach',        label: '%Bach+',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64  },
-    { key: 'pct200k',        label: '%$200k+',    always: false, dW: '80px',                  mW: '64px',                  dMin: 80,  mMin: 64  },
-    { key: 'pctHomeowner',   label: '%Owner',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64, defaultHidden: true },
-    { key: 'homeValue',      label: 'Home',       always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
-    { key: 'death',          label: 'Estate tax', always: false, dW: '100px',                 mW: '84px',                  dMin: 100, mMin: 84  },
-    { key: 'income',         label: 'Income',     always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
-    { key: 'capgains',       label: 'Cap gains',  always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76  },
-    { key: 'total',          label: 'Total tax',  always: false, dW: '104px',                 mW: '88px',                  dMin: 104, mMin: 88  },
+    { key: 'metro',          label: 'Metro',      always: false, dW: 'minmax(140px, 1.1fr)',  mW: 'minmax(100px, 1fr)',    dMin: 140, mMin: 100, desc: 'Core-Based Statistical Area the place sits in' },
+    { key: 'state',          label: 'State',      always: false, dW: '90px',                  mW: '100px',                 dMin: 90,  mMin: 100, desc: 'U.S. state or the District of Columbia' },
+    { key: 'pop',            label: 'Population', always: false, dW: '88px',                  mW: '72px',                  dMin: 88,  mMin: 72,  desc: 'Total population' },
+    { key: 'popDensity',     label: 'Density',    always: false, dW: '88px',                  mW: '74px',                  dMin: 88,  mMin: 74,  defaultHidden: true, desc: 'People per square mile of land area' },
+    { key: 'pctIndian',      label: '%Indian',    always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  desc: 'Share of residents who are Asian Indian' },
+    { key: 'pctAsian',       label: '%Asian',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  defaultHidden: true, desc: 'Share of residents who are Asian' },
+    { key: 'pctForeignBorn', label: '%Foreign',   always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  defaultHidden: true, desc: 'Share of residents born outside the U.S.' },
+    { key: 'medianAge',      label: 'Med age',    always: false, dW: '76px',                  mW: '62px',                  dMin: 76,  mMin: 62,  defaultHidden: true, desc: 'Median age of residents' },
+    { key: 'demMargin',      label: 'Red/Blue',   always: false, dW: '80px',                  mW: '64px',                  dMin: 80,  mMin: 64,  desc: '2024 county presidential margin (Harris − Trump)' },
+    { key: 'hhi',            label: 'HHI',        always: false, dW: '88px',                  mW: '76px',                  dMin: 88,  mMin: 76,  desc: 'Median household income' },
+    { key: 'asianMedianHHI', label: 'Asian HHI',  always: false, dW: '92px',                  mW: '78px',                  dMin: 92,  mMin: 78,  defaultHidden: true, desc: 'Median household income, Asian-alone householder' },
+    { key: 'pctBach',        label: '%Bach+',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  desc: "Adults 25+ with a bachelor's degree or higher" },
+    { key: 'pct200k',        label: '%$200k+',    always: false, dW: '80px',                  mW: '64px',                  dMin: 80,  mMin: 64,  desc: 'Share of households earning $200,000 or more' },
+    { key: 'pctHomeowner',   label: '%Owner',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  defaultHidden: true, desc: 'Share of homes that are owner-occupied' },
+    { key: 'homeValue',      label: 'Home',       always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76,  desc: 'Median value of owner-occupied homes' },
+    { key: 'death',          label: 'Estate tax', always: false, dW: '100px',                 mW: '84px',                  dMin: 100, mMin: 84,  desc: 'State estate / inheritance tax on the estate' },
+    { key: 'income',         label: 'Income tax', always: false, dW: '100px',                 mW: '84px',                  dMin: 100, mMin: 84,  desc: 'State income tax over your horizon' },
+    { key: 'capgains',       label: 'CG tax',     always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76,  desc: 'State capital gains tax over your horizon' },
+    { key: 'total',          label: 'Total tax',  always: false, dW: '104px',                 mW: '88px',                  dMin: 104, mMin: 88,  desc: 'Estate + income + capital gains tax combined' },
   ];
   const TOGGLEABLE_COLS = COL_DEFS.filter(c => !c.always).map(c => c.key);
   const DEFAULT_HIDDEN_COLS = COL_DEFS.filter(c => c.defaultHidden).map(c => c.key);
@@ -1882,7 +1889,10 @@
       .map(c => `
         <label class="column-item" data-col-key="${c.key}">
           <input type="checkbox" data-col-checkbox="${c.key}"/>
-          <span>${c.label}</span>
+          <span class="column-item-text">
+            <span class="column-item-label">${c.label}</span>
+            <span class="column-item-desc">${c.desc || ""}</span>
+          </span>
         </label>
       `).join("");
     elColumnsGrid.querySelectorAll("input[data-col-checkbox]").forEach(cb => {
