@@ -407,7 +407,11 @@ async function loadClimate(places) {
         p.janTempF = agg.janTempF;
         p.julTempF = agg.julTempF;
         p.sunnyDays = agg.sunnyDays;
-        cache[keyOf(p)] = agg;
+        // Don't cache an all-null aggregate (e.g. a short/partial API response):
+        // leaving it uncached lets a later run retry the place.
+        if (agg.janTempF !== null || agg.julTempF !== null || agg.sunnyDays !== null) {
+          cache[keyOf(p)] = agg;
+        }
       });
     } catch (e) {
       console.error(`  climate batch ${i}-${i + batch.length} failed: ${e.message}`);
