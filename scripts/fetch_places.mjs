@@ -475,6 +475,12 @@ const ACS_VARS = [
   "B25003_001E", // total occupied housing units (tenure denom)
   "B25003_002E", // owner-occupied housing units
   "B19013D_001E",// median HHI, Asian-alone householder (suppressed for small N)
+  "B03002_001E", // race/ethnicity total (Hispanic-origin-by-race denominator)
+  "B03002_003E", // White alone, not Hispanic or Latino
+  "B03002_004E", // Black or African American alone, not Hispanic or Latino
+  "B03002_012E", // Hispanic or Latino (of any race)
+  "B17001_001E", // population for whom poverty status is determined
+  "B17001_002E", // income in the past 12 months below the poverty level
 ].join(",");
 
 async function fetchGeography(fips, name, geoQuery) {
@@ -497,6 +503,8 @@ async function fetchGeography(fips, name, geoQuery) {
       medianAgeStr,
       tenTotalStr, tenOwnerStr,
       asianHhiStr,
+      raceTotalStr, whiteStr, blackStr, hispanicStr,
+      povTotalStr, povBelowStr,
     ] = row;
     const population = parseInt(popStr, 10);
     const indian = parseInt(indianStr, 10);
@@ -515,6 +523,12 @@ async function fetchGeography(fips, name, geoQuery) {
     const tenTotal = parseInt(tenTotalStr, 10);
     const tenOwner = parseInt(tenOwnerStr, 10);
     const asianHhi = parseInt(asianHhiStr, 10);
+    const raceTotal = parseInt(raceTotalStr, 10);
+    const white = parseInt(whiteStr, 10);
+    const black = parseInt(blackStr, 10);
+    const hispanic = parseInt(hispanicStr, 10);
+    const povTotal = parseInt(povTotalStr, 10);
+    const povBelow = parseInt(povBelowStr, 10);
     if (!Number.isFinite(population) || population < POP_FLOOR) continue;
     // County + GEOID: for places, look up via Place-to-County crosswalk;
     // for MCDs, parse county from NAME. GEOID key for the land-area lookup
@@ -548,6 +562,18 @@ async function fetchGeography(fips, name, geoQuery) {
     const pctForeignBorn = Number.isFinite(natTotal) && natTotal > 0 && Number.isFinite(natForeign) && natForeign >= 0
       ? +(natForeign / natTotal).toFixed(4)
       : null;
+    // Race/ethnicity shares from B03002 (mutually exclusive): Hispanic of any
+    // race, and non-Hispanic White / Black alone.
+    const raceShare = n => Number.isFinite(raceTotal) && raceTotal > 0 && Number.isFinite(n) && n >= 0
+      ? +(n / raceTotal).toFixed(4)
+      : null;
+    const pctHispanic = raceShare(hispanic);
+    const pctWhite = raceShare(white);
+    const pctBlack = raceShare(black);
+    // % of people below the poverty line (B17001_002 / B17001_001).
+    const pctPoverty = Number.isFinite(povTotal) && povTotal > 0 && Number.isFinite(povBelow) && povBelow >= 0
+      ? +(povBelow / povTotal).toFixed(4)
+      : null;
     // Median age — Census uses negative sentinels for suppression.
     const medianAge = Number.isFinite(medianAgeRaw) && medianAgeRaw > 0 ? +medianAgeRaw.toFixed(1) : null;
     // % homeownership (owner-occupied / total occupied).
@@ -574,6 +600,10 @@ async function fetchGeography(fips, name, geoQuery) {
       pctBach,
       pct200k,
       pctForeignBorn,
+      pctHispanic,
+      pctBlack,
+      pctWhite,
+      pctPoverty,
       medianAge,
       pctHomeowner,
       asianMedianHHI,
@@ -638,6 +668,10 @@ async function main() {
     `//   pctBach         = sum(B15003_022..025E) / B15003_001E`,
     `//   pct200k         = B19001_017E / B19001_001E`,
     `//   pctForeignBorn  = B05012_003E / B05012_001E`,
+    `//   pctHispanic     = B03002_012E / B03002_001E   (Hispanic or Latino, any race)`,
+    `//   pctBlack        = B03002_004E / B03002_001E   (Black alone, non-Hispanic)`,
+    `//   pctWhite        = B03002_003E / B03002_001E   (White alone, non-Hispanic)`,
+    `//   pctPoverty      = B17001_002E / B17001_001E   (people below the poverty line)`,
     `//   medianAge       = B01002_001E`,
     `//   pctHomeowner    = B25003_002E / B25003_001E`,
     `//   asianMedianHHI  = B19013D_001E   (Asian-alone householder; suppressed for small N → null)`,
@@ -654,7 +688,7 @@ async function main() {
   const num = v => (v === null || v === undefined ? "null" : v);
   for (const p of filtered) {
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
+    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
   }
   lines.push(`];`, ``);
   writeFileSync(outPath, lines.join("\n"));
