@@ -2487,8 +2487,18 @@
     if (spec !== null) applyHiddenSpec(spec);
   }
 
+  // A shared URL may filter on a column that hc=/localStorage leaves hidden.
+  // Run after hydrateColumns() so the filter the link encodes is actually shown.
+  function revealFilteredColumns() {
+    for (const col of FILTER_COLS) {
+      const { min, max } = placesFilters[col];
+      if (min !== null || max !== null) placesVisibleCols.add(col);
+    }
+  }
+
   hydrateFromURL();
   hydrateColumns();
+  revealFilteredColumns();
   buildColFiltersRow();
   applyColumnLayout();
   render();
