@@ -1,137 +1,138 @@
 # Climate columns — design
 
 **Date:** 2026-05-15
-**Status:** Approved for planning
+**Status:** Approved for planning (revised — see "Revision" below)
+
+## Revision (2026-05-15)
+
+The original design fetched three columns (Jan temp, Jul temp, sunny days) from
+the Open-Meteo Historical Weather API. Implementation reached the dataset
+regeneration step and **Open-Meteo's free tier could not handle the volume** —
+8,036 places each requesting 10 years of daily data is far over the free
+rate/weight limits (only ~150 places fetched before sustained HTTP 429s).
+
+The design was revised with the user: **two columns** (January and July mean
+temperature) sourced from **NOAA's 1991–2020 U.S. Climate Normals**, a bulk file
+download with no API key and no rate limits. The **sunny-days column is
+dropped** — NOAA's sunshine normals exist for too few stations to cover 8,036
+places, and no other free, rate-limit-free national source was available.
+
+The rest of this document reflects the revised (final) design.
 
 ## Goal
 
 Add per-place climate information to the "Where should I move?" places table so
 relocation decisions can weigh weather alongside tax, demographics, and politics.
-Scope is **climate only** — greenery (tree canopy / NDVI) is explicitly deferred.
+Scope is **temperature only** — greenery and sunshine are out of scope.
 
 ## What ships
 
-Three new numeric columns, each wired exactly like the existing `popDensity` /
+Two new numeric columns, each wired exactly like the existing `popDensity` /
 `demMargin` columns (sortable, range-filterable, with a header info tooltip):
 
-| Field key  | Header   | Meaning                                                              |
-|------------|----------|----------------------------------------------------------------------|
-| `janTempF` | Jan °F   | Average daily mean temperature in January, °F                        |
-| `julTempF` | Jul °F   | Average daily mean temperature in July, °F                           |
-| `sunnyDays`| Sun days | Sunny days per year (days where sunshine ≥ 70% of daylight)           |
+| Field key  | Header  | Meaning                                              |
+|------------|---------|------------------------------------------------------|
+| `janTempF` | Jan °F  | Average January temperature, °F (1991–2020 normal)   |
+| `julTempF` | Jul °F  | Average July temperature, °F (1991–2020 normal)      |
 
-Design decisions (all confirmed with the user):
+Design decisions (confirmed with the user):
 
 - **Temperature framing:** January mean and July mean — symmetric, one number
-  each, the standard climate-normal metric. January and July are the
-  coldest/warmest month for the overwhelming majority of U.S. places; the
-  columns are labelled with the fixed month names so this is honest, not implied
-  to be a per-place coldest/warmest detection.
-- **Sunshine metric:** "Sunny days per year" — concrete and relatable. A day
-  counts as sunny when its sunshine duration is ≥ 70% of that day's daylight
-  duration (a ratio, so it is not biased against short winter days).
-- **Default visibility:** all three columns are `defaultHidden: true` in the
-  column picker — consistent with `popDensity`, and avoids widening an already-
-  wide table by default. The user opts in via the column picker.
+  each, the standard climate-normal metric. Labelled with the fixed month names.
+- **Default visibility:** both columns are `defaultHidden: true` in the column
+  picker — consistent with `popDensity`, avoids widening an already-wide table
+  by default. The user opts in via the column picker.
 - **Column placement:** grouped immediately after **Density**, the other
   "physical place" column.
 
 ## Data source
 
-**Open-Meteo Historical Weather API** (`https://archive-api.open-meteo.com/v1/archive`).
-Free, no API key, lat/lon-native. One source covers all three metrics.
+**NOAA 1991–2020 U.S. Climate Normals — Monthly product.** Free, no API key, no
+rate limits. Two HTTPS downloads, performed once at dataset-build time:
 
-Rejected alternatives: NOAA Climate Normals (station-based → nearest-station
-mapping error; sparse sunshine coverage, needs a second source); PRISM + NREL
-(multi-GB raster downloads + GDAL tooling — overkill).
+1. **Station inventory** (~1.3 MB fixed-width text):
+   `https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/doc/inventory_30yr.txt`
+   Each line is space-delimited: station ID, latitude, longitude, elevation,
+   state, name. Provides the lat/lon for every normals station.
+
+2. **Monthly temperature archive** (~28 MB `.tar.gz`):
+   `https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/archive/us-climate-normals_1991-2020_v1.0.1_monthly_temperature_by-variable_c20230403.tar.gz`
+   Unpacks to `mly-normal-allall.csv` — one row per station per month, with the
+   field `MLY-TAVG-NORMAL` (monthly average temperature normal, whole °F) and a
+   measurement flag `meas_flag_MLY-TAVG-NORMAL` (`M` = missing → skip).
+
+Rejected alternatives: Open-Meteo free tier (rate-limited far below the needed
+volume — this is what the original design hit); a paid Open-Meteo key (avoids
+the cost); PRISM rasters (multi-GB downloads + GDAL tooling).
 
 ### Inputs
 
-Every place needs a latitude/longitude. The fetch script **already downloads**
-the 2023 Census Gazetteer (place + cousub zips) and parses `ALAND_SQMI` from it.
-The same Gazetteer rows carry `INTPTLAT` and `INTPTLONG` (the geography's
-interior point) — we just don't parse those columns today.
+Every place needs a latitude/longitude for nearest-station matching. The fetch
+script already parses each place's interior-point lat/lon from the 2023 Census
+Gazetteer (this work — capturing `INTPTLAT`/`INTPTLONG` — is already complete in
+the build script).
 
-### Request
+### Processing (in the fetch script, once at build time)
 
-For the 2015-01-01 … 2024-12-31 window (10 full years), daily variables:
-
-- `temperature_2m_mean`
-- `sunshine_duration`
-- `daylight_duration`
-
-With `temperature_unit=fahrenheit` and `timezone=auto`.
-
-Open-Meteo accepts comma-separated `latitude`/`longitude` for **multiple
-locations in one request**. The fetch batches places (~100–200 per request),
-reducing ~8,000 single calls to ~50–80 batched calls. Throttle politely and
-retry on HTTP 429 with backoff. Single-location requests are an acceptable
-fallback if a batch fails.
-
-### Aggregation (in the fetch script)
-
-- `janTempF` = mean of `temperature_2m_mean` over all January days in the
-  window, rounded to the nearest integer.
-- `julTempF` = same for July days.
-- `sunnyDays` = (count of days where `sunshine_duration / daylight_duration ≥
-  0.70`) ÷ 10 years, rounded to the nearest integer.
+1. Download and parse `inventory_30yr.txt` → a map of station ID → `{lat, lon}`.
+2. Download the temperature `.tar.gz`, extract `mly-normal-allall.csv`, and parse
+   it → a map of station ID → `{jan, jul}` mean temperature, reading the
+   `MLY-TAVG-NORMAL` value for `month == "01"` and `month == "07"`, skipping rows
+   whose measurement flag is `M`.
+3. Join the two maps → a list of stations that have both coordinates and a
+   January-and-July normal (~7,000+ stations).
+4. For each place, find the **nearest station by great-circle (Haversine)
+   distance** and copy that station's `jan`/`jul` values, rounded to whole °F,
+   into `janTempF` / `julTempF`.
 
 ### Null handling
 
-- A place with no Gazetteer GEOID match (no lat/lon) → all three fields `null`.
-- A place whose Open-Meteo data fails after retries → all three fields `null`,
-  logged to stderr; the run continues.
+- A place with no Gazetteer lat/lon → both fields `null`.
 - `null` renders as "—" in the table, identical to existing ACS-suppressed
   values, and is excluded from filtering/sorting the same way.
+- With ~7,000 stations spread across the U.S., every place with a lat/lon gets a
+  match; nearest-station distance is small for populated areas.
+
+### Accuracy caveats (reflected in the column tooltips)
+
+- **Station-based.** A place's temperature is its nearest station's normal.
+  Accuracy is best where a station is close, worse for remote places.
+- **Elevation.** Nearest-station matching ignores elevation; a place at a
+  markedly different elevation than its station can be off by a few °F.
 
 ## Files changed
 
 ### `scripts/fetch_places.mjs`
 
-1. **Gazetteer parser:** extend the existing land-area parser so the map value
-   becomes `{ sqmi, lat, lon }` (or a parallel map) — read `INTPTLAT` /
-   `INTPTLONG` alongside `ALAND_SQMI`. Existing `popDensity` math is unaffected.
-2. **New fetch step:** after places are assembled, batch-request Open-Meteo for
-   all places that have a lat/lon, aggregate to the three fields, attach them to
-   each place object. Throttled, with retry/backoff.
-3. **Serialization:** emit `janTempF`, `julTempF`, `sunnyDays` in each row and
-   document them in the generated header comment.
+The Open-Meteo climate code (`aggregateClimate`, `fetchClimateBatch`,
+`loadClimate`, and the `existsSync`/cache machinery) is **replaced** by a NOAA
+loader: inventory parse, archive download + extract, CSV parse, Haversine
+nearest-station match. The loader keeps the name `loadClimate(places)` and the
+same call site in `main()`, so the build wiring is unchanged. Serialization
+emits `janTempF` and `julTempF` (no `sunnyDays`); the generated header comment
+documents the two fields and the NOAA source. The Open-Meteo resumable-cache
+file and its `.gitignore` entry are removed.
 
 ### `data/places.js` (regenerated, not hand-edited)
 
-Each row gains `janTempF`, `julTempF`, `sunnyDays` (integer or `null`).
+Each row gains `janTempF` and `julTempF` (integer °F or `null`).
 
 ### `index.html`
 
-Each new column is wired the same way `popDensity` is — touch the same set of
-places:
-
-- **Header markup** (`.col-headers`): three `<div data-sort="…">` cells, each
-  with an `.info` / `.info-btn` / `.info-tooltip`. Tooltip text states: source
-  (Open-Meteo, ERA5 reanalysis), the 2015–2024 window, the sunny-day definition,
-  the temperature framing (Jan/Jul daily mean), and a granularity caveat — the
-  value is sampled at the place's Gazetteer interior point on a ~9–11 km
-  reanalysis grid, so it represents the place's center, not micro-climates.
-- **Column-list config** (the `{ key, label, always, dW, mW, dMin, mMin,
-  defaultHidden, desc }` array): three entries with `defaultHidden: true` and
-  compact numeric widths matching Density / Red-Blue.
-- **`placesFilters`:** three `{ min: null, max: null }` entries.
-- **Filter-config map:** three entries with `min`/`max` placeholder labels and a
-  `fmt` (e.g. `v => v + '°F'`, `v => v + ' days'`).
-- **Filter label map:** human-readable names for the filter dropdown
-  (e.g. "Jan temp", "Jul temp", "Sunny days").
-- **Cell-renderer map:** three renderers producing a `num-col` cell; `null` → "—".
-
-Sorting works through the existing generic numeric sort once the keys are
-registered (same as `popDensity`).
+Two columns (`janTempF`, `julTempF`) are wired exactly the way `popDensity` is —
+header cell with info tooltip, column-list config entry (`defaultHidden: true`),
+`placesFilters` slot, filter-config + filter-label entries, and cell renderer.
+The header tooltips cite NOAA's 1991–2020 Climate Normals and the
+nearest-station / elevation caveats. (No `sunnyDays` column.)
 
 ## Out of scope
 
+- Sunshine / sunny-days — dropped; no free, rate-limit-free national source.
 - Greenery (tree canopy, NDVI) — a separate future feature.
-- Precipitation, humidity, snowfall — only the three agreed columns ship.
+- Precipitation, humidity, snowfall.
 - Per-place coldest/warmest-month detection — fixed January/July is intentional.
-- Local micro-climate accuracy — interior-point sampling is accepted, caveated
-  in the tooltip.
+- Elevation-adjusted temperature matching — nearest-station is accepted,
+  caveated in the tooltip.
 
 ## Verification
 
@@ -139,8 +140,7 @@ Consistent with project norms (no test suite; the user does manual browser
 testing):
 
 - After editing `index.html`, run the JS-parse sanity check from `CLAUDE.md`.
-- For `fetch_places.mjs`, dry-run the Open-Meteo step against a small slice of
-  places (e.g. first 5) and eyeball that `janTempF` < `julTempF` and `sunnyDays`
-  is in a plausible 0–365 range before a full regeneration.
-- Full dataset regeneration (`node scripts/fetch_places.mjs`) is a deliberate,
-  user-initiated step — not run automatically.
+- After editing `fetch_places.mjs`, run `node --check`.
+- Full dataset regeneration (`node scripts/fetch_places.mjs`) populates the two
+  fields; verify `janTempF < julTempF` for essentially all places and that
+  known cities look plausible.

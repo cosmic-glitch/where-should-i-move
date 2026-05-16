@@ -287,21 +287,145 @@ async function loadLandArea() {
     const lines = text.split(/\r?\n/);
     const header = lines[0].split("\t").map(s => s.trim());
     const geoidIdx = header.indexOf("GEOID");
-    const sqmiIdx = header.indexOf("ALAND_SQMI");
-    if (geoidIdx < 0 || sqmiIdx < 0) {
-      throw new Error(`gazetteer ${url}: missing GEOID or ALAND_SQMI columns (header was ${header.join("|")})`);
+    const sqmiIdx  = header.indexOf("ALAND_SQMI");
+    const latIdx   = header.indexOf("INTPTLAT");
+    const lonIdx   = header.indexOf("INTPTLONG");
+    if (geoidIdx < 0 || sqmiIdx < 0 || latIdx < 0 || lonIdx < 0) {
+      throw new Error(`gazetteer ${url}: missing GEOID/ALAND_SQMI/INTPTLAT/INTPTLONG columns (header was ${header.join("|")})`);
     }
+    const maxIdx = Math.max(geoidIdx, sqmiIdx, latIdx, lonIdx);
     for (let i = 1; i < lines.length; i++) {
       const parts = lines[i].split("\t");
-      if (parts.length <= sqmiIdx) continue;
+      if (parts.length <= maxIdx) continue;
       const geoid = parts[geoidIdx].trim();
       const sqmi = parseFloat(parts[sqmiIdx]);
+      const lat  = parseFloat(parts[latIdx]);
+      const lon  = parseFloat(parts[lonIdx]);
       if (!geoid || !Number.isFinite(sqmi) || sqmi <= 0) continue;
-      map.set(geoid, sqmi);
+      map.set(geoid, {
+        sqmi,
+        lat: Number.isFinite(lat) ? lat : null,
+        lon: Number.isFinite(lon) ? lon : null,
+      });
     }
   }
   LAND_AREA = map;
   console.error(`Loaded land-area gazetteer: ${map.size} geographies`);
+}
+
+// ── Climate ────────────────────────────────────────────────────────────────
+// Per-place January and July mean temperature (°F) from NOAA's 1991-2020 U.S.
+// Climate Normals (monthly product). Two bulk files are downloaded once: a
+// station inventory (lat/lon) and a temperature archive. Each place is matched
+// to its nearest normals station by great-circle distance. No API key, no
+// rate limits.
+const NOAA_INVENTORY_URL =
+  "https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/doc/inventory_30yr.txt";
+const NOAA_TEMP_ARCHIVE_URL =
+  "https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/archive/" +
+  "us-climate-normals_1991-2020_v1.0.1_monthly_temperature_by-variable_c20230403.tar.gz";
+
+// Parse inventory_30yr.txt → Map<stationId, {lat, lon}>. Each line is
+// whitespace-delimited: ID, latitude, longitude, elevation, state, name…
+function parseStationInventory(text) {
+  const map = new Map();
+  for (const line of text.split(/\r?\n/)) {
+    const f = line.trim().split(/\s+/);
+    if (f.length < 3) continue;
+    const id = f[0];
+    const lat = parseFloat(f[1]);
+    const lon = parseFloat(f[2]);
+    if (id && Number.isFinite(lat) && Number.isFinite(lon)) map.set(id, { lat, lon });
+  }
+  return map;
+}
+
+// Parse mly-normal-allall.csv → Map<stationId, {jan, jul}> in °F. One row per
+// station per month; columns are looked up by header name; rows whose
+// measurement flag is "M" (missing) are skipped.
+function parseMonthlyTavg(csv) {
+  const lines = csv.split(/\r?\n/);
+  const header = lines[0].split(",").map(s => s.replace(/^"|"$/g, "").trim());
+  const idIdx    = header.indexOf("GHCN_ID");
+  const monthIdx = header.indexOf("month");
+  const tavgIdx  = header.indexOf("MLY-TAVG-NORMAL");
+  const flagIdx  = header.indexOf("meas_flag_MLY-TAVG-NORMAL");
+  if (idIdx < 0 || monthIdx < 0 || tavgIdx < 0 || flagIdx < 0) {
+    throw new Error(`NOAA normals: missing expected columns (header was ${header.join("|")})`);
+  }
+  const map = new Map();
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i]) continue;
+    // Naive comma-split is safe: this NOAA by-variable file has only station
+    // IDs, numbers, dates, and single-char flags — no quoted free-text fields.
+    const p = lines[i].split(",").map(s => s.replace(/^"|"$/g, "").trim());
+    if (p.length <= flagIdx) continue;
+    const month = p[monthIdx];
+    if (month !== "01" && month !== "07") continue;
+    if (p[flagIdx] === "M") continue;
+    const tavg = parseFloat(p[tavgIdx]);
+    if (!Number.isFinite(tavg)) continue;
+    let rec = map.get(p[idIdx]);
+    if (!rec) { rec = { jan: null, jul: null }; map.set(p[idIdx], rec); }
+    if (month === "01") rec.jan = tavg; else rec.jul = tavg;
+  }
+  return map;
+}
+
+// Great-circle distance in km.
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371, rad = d => d * Math.PI / 180;
+  const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Set janTempF/julTempF on every place from its nearest NOAA normals station.
+// Mutates `places`.
+async function loadClimate(places) {
+  // Station coordinates.
+  const invRes = await fetch(NOAA_INVENTORY_URL);
+  if (!invRes.ok) throw new Error(`NOAA inventory: ${invRes.status} ${invRes.statusText}`);
+  const inventory = parseStationInventory(await invRes.text());
+  console.error(`Loaded NOAA station inventory: ${inventory.size} stations`);
+
+  // Temperature archive → extract mly-normal-allall.csv.
+  const arcRes = await fetch(NOAA_TEMP_ARCHIVE_URL);
+  if (!arcRes.ok) throw new Error(`NOAA temperature archive: ${arcRes.status} ${arcRes.statusText}`);
+  const dir = mkdtempSync(join(tmpdir(), "noaa-"));
+  const tarPath = join(dir, "temp.tar.gz");
+  writeFileSync(tarPath, Buffer.from(await arcRes.arrayBuffer()));
+  execSync(`tar -xzf "${tarPath}" -C "${dir}"`, { maxBuffer: 256 * 1024 * 1024 });
+  const found = execSync(`find "${dir}" -name "mly-normal-allall.csv"`).toString().trim();
+  if (!found) throw new Error("NOAA temperature archive: mly-normal-allall.csv not found");
+  const tavgByStation = parseMonthlyTavg(readFileSync(found.split("\n")[0], "utf8"));
+
+  // Stations with both coordinates and a Jan+Jul normal.
+  const stations = [];
+  for (const [id, t] of tavgByStation) {
+    const loc = inventory.get(id);
+    if (loc && t.jan !== null && t.jul !== null) {
+      stations.push({ lat: loc.lat, lon: loc.lon, jan: t.jan, jul: t.jul });
+    }
+  }
+  console.error(`NOAA climate stations with Jan+Jul TAVG: ${stations.length}`);
+  if (stations.length === 0) throw new Error("NOAA climate: no usable stations");
+
+  // Nearest-station match for each place.
+  let matched = 0;
+  for (const p of places) {
+    if (p._lat == null || p._lon == null) { p.janTempF = null; p.julTempF = null; continue; }
+    let best = null, bestD = Infinity;
+    for (const s of stations) {
+      const d = haversineKm(p._lat, p._lon, s.lat, s.lon);
+      if (d < bestD) { bestD = d; best = s; }
+    }
+    p.janTempF = Math.round(best.jan);
+    p.julTempF = Math.round(best.jul);
+    matched++;
+  }
+  console.error(`Climate: matched ${matched}/${places.length} places to a NOAA station.`);
 }
 
 // For county subdivisions, county/region comes from inside the NAME field:
@@ -433,7 +557,8 @@ async function fetchGeography(fips, name, geoQuery) {
     // Asian-alone-householder median HHI (suppressed for small N).
     const asianMedianHHI = Number.isFinite(asianHhi) && asianHhi > 0 ? asianHhi : null;
     // Population density: people per square mile of land area.
-    const landSqMi = LAND_AREA ? LAND_AREA.get(geoid) : null;
+    const gaz = LAND_AREA ? LAND_AREA.get(geoid) : null;
+    const landSqMi = gaz ? gaz.sqmi : null;
     const popDensity = landSqMi && landSqMi > 0 ? Math.round(population / landSqMi) : null;
     out.push({
       name: cleanName(rawName),
@@ -455,6 +580,8 @@ async function fetchGeography(fips, name, geoQuery) {
       popDensity,
       metro: metroFor(fips, county),
       demMargin: demMarginFor(name, county),
+      _lat: gaz ? gaz.lat : null,
+      _lon: gaz ? gaz.lon : null,
     });
   }
   return out;
@@ -490,8 +617,9 @@ async function main() {
       console.error(`  ${s[1].padEnd(22)} → ERROR: ${e.message}`);
     }
   }
-  all.sort((a, b) => b.pctIndian - a.pctIndian);
   console.error(`Total places fetched: ${all.length}`);
+  await loadClimate(all);
+  all.sort((a, b) => b.pctIndian - a.pctIndian);
   console.error(`Top 5 by % Asian Indian:`);
   all.slice(0, 5).forEach((p, i) => console.error(`  ${i + 1}. ${p.name}, ${p.state} — ${(p.pctIndian * 100).toFixed(1)}% Indian (pop ${p.population.toLocaleString()})`));
   const filtered = all;
@@ -515,6 +643,8 @@ async function main() {
     `//   asianMedianHHI  = B19013D_001E   (Asian-alone householder; suppressed for small N → null)`,
     `//   popDensity      = population / ALAND_SQMI  (people/mi²; ALAND_SQMI from 2023 Census Gazetteer)`,
     `//   demMargin       = 2024 county presidential margin (Harris − Trump, pct points; MIT/MEDSL)`,
+    `//   janTempF        = January mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
+    `//   julTempF        = July mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
     `// Includes Census Places + county subdivisions (townships/towns) for the 12 strong-MCD states.`,
     `// Population floor ${POP_FLOOR.toLocaleString("en-US")}; no demographic filter (users filter in-UI).`,
     `// Loaded by index.html via <script src="data/places.js"></script>; declares global PLACES.`,
@@ -524,7 +654,7 @@ async function main() {
   const num = v => (v === null || v === undefined ? "null" : v);
   for (const p of filtered) {
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)} },`);
+    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
   }
   lines.push(`];`, ``);
   writeFileSync(outPath, lines.join("\n"));

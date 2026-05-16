@@ -925,6 +925,8 @@
       <div class="col-state-col" data-sort="state">State<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About State">i</button><span class="info-tooltip">U.S. state or the District of Columbia. All tax rates and rules on this row are set by this state's law.</span></span></div>
       <div class="col-num col-pop" data-sort="pop">Population<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Population">i</button><span class="info-tooltip">Total population. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num" data-sort="popDensity">Density<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Density">i</button><span class="info-tooltip">Population per square mile of land area (people/mi²). Population from Census ACS 5-year 2023; land area (ALAND_SQMI) from the 2023 Census Gazetteer. Separates walkable density from acreage exurbs.</span></span></div>
+      <div class="col-num" data-sort="janTempF">Jan °F<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About January temperature">i</button><span class="info-tooltip">Average January temperature, °F — the 1991–2020 January mean from NOAA's U.S. Climate Normals, taken from the weather station nearest the place's center. Station-based: most accurate where a station is close, and elevation differences between a place and its station can shift the value by a few degrees.</span></span></div>
+      <div class="col-num" data-sort="julTempF">Jul °F<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About July temperature">i</button><span class="info-tooltip">Average July temperature, °F — the 1991–2020 July mean from NOAA's U.S. Climate Normals, taken from the weather station nearest the place's center. Station-based: most accurate where a station is close, and elevation differences between a place and its station can shift the value by a few degrees.</span></span></div>
       <div class="col-num col-pct active" data-sort="pctIndian">%Indian<span class="arrow">↓</span><span class="info"><button class="info-btn" type="button" aria-label="About % Indian">i</button><span class="info-tooltip">Share of residents identifying as Asian Indian alone or in any combination with another race (Census variable B02018_021E). Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num" data-sort="pctAsian">%Asian<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Asian">i</button><span class="info-tooltip">Share of residents identifying as <strong>Asian alone or in any combination</strong> — includes Indian, Chinese, Korean, Vietnamese, Filipino, Japanese, etc. (Census variable B02011_001E). Useful as a broader diaspora signal: Indian-American cultural infrastructure typically co-locates with East-Asian community hubs. Source: U.S. Census ACS 5-year 2023.</span></span></div>
       <div class="col-num" data-sort="pctForeignBorn">%Foreign<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Foreign-born">i</button><span class="info-tooltip">Share of residents born outside the U.S. (Census variables B05012_003E / B05012_001E). Indicates overall immigrant share independent of any one origin. Source: U.S. Census ACS 5-year 2023.</span></span></div>
@@ -1517,6 +1519,8 @@
   const placesFilters = {
     pop:            { min: null, max: null },
     popDensity:     { min: null, max: null },
+    janTempF:       { min: null, max: null },
+    julTempF:       { min: null, max: null },
     pctIndian:      { min: null, max: null },
     pctAsian:       { min: null, max: null },
     pctForeignBorn: { min: null, max: null },
@@ -1602,6 +1606,8 @@
   const FILTER_META = {
     pop:            { min: 'Min',        max: 'Max',        fmt: v => v.toLocaleString() },
     popDensity:     { min: 'Min',        max: 'Max',        fmt: v => v.toLocaleString() + '/mi²' },
+    janTempF:       { min: 'Min °F',    max: 'Max °F',     fmt: v => v + '°F' },
+    julTempF:       { min: 'Min °F',    max: 'Max °F',     fmt: v => v + '°F' },
     pctIndian:      { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
     pctAsian:       { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
     pctForeignBorn: { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
@@ -1629,6 +1635,8 @@
   const PRESET_FILTER_LABEL = {
     pop:            "Population",
     popDensity:     "Density",
+    janTempF:       "January temp",
+    julTempF:       "July temp",
     pctIndian:      "% Indian",
     pctAsian:       "% Asian",
     pctForeignBorn: "% Foreign-born",
@@ -1795,6 +1803,8 @@
     { key: 'state',          label: 'State',      always: false, dW: '90px',                  mW: '100px',                 dMin: 90,  mMin: 100, desc: 'State or DC' },
     { key: 'pop',            label: 'Population', always: false, dW: '88px',                  mW: '72px',                  dMin: 88,  mMin: 72,  desc: 'Total population' },
     { key: 'popDensity',     label: 'Density',    always: false, dW: '88px',                  mW: '74px',                  dMin: 88,  mMin: 74,  defaultHidden: true, desc: 'People per square mile' },
+    { key: 'janTempF',       label: 'Jan °F',     always: false, dW: '74px',                  mW: '60px',                  dMin: 74,  mMin: 60,  defaultHidden: true, desc: 'Avg January temperature (°F)' },
+    { key: 'julTempF',       label: 'Jul °F',     always: false, dW: '74px',                  mW: '60px',                  dMin: 74,  mMin: 60,  defaultHidden: true, desc: 'Avg July temperature (°F)' },
     { key: 'pctIndian',      label: '%Indian',    always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  desc: 'Asian Indian share of residents' },
     { key: 'pctAsian',       label: '%Asian',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  defaultHidden: true, desc: 'Asian share of residents' },
     { key: 'pctForeignBorn', label: '%Foreign',   always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  defaultHidden: true, desc: 'Foreign-born share of residents' },
@@ -1889,6 +1899,8 @@
     state:          (p)    => `<div class="state-col-cell" style="font-size:14px;color:var(--ink-2)">${p.state}</div>`,
     pop:            (p)    => `<div class="num-col pop-col" style="color:var(--ink-2)">${p.population.toLocaleString()}</div>`,
     popDensity:     (p, c) => `<div class="num-col" style="color:var(--ink-2)">${c.densityDisplay}</div>`,
+    janTempF:       (p)    => `<div class="num-col" style="color:var(--ink-2)">${p.janTempF == null ? "—" : p.janTempF + "°"}</div>`,
+    julTempF:       (p)    => `<div class="num-col" style="color:var(--ink-2)">${p.julTempF == null ? "—" : p.julTempF + "°"}</div>`,
     pctIndian:      (p)    => `<div class="num-col">${(p.pctIndian * 100).toFixed(1)}%</div>`,
     pctAsian:       (p, c) => `<div class="num-col" style="color:var(--ink-2)">${c.asianDisplay}</div>`,
     pctForeignBorn: (p, c) => `<div class="num-col" style="color:var(--ink-2)">${c.fbornDisplay}</div>`,
@@ -2114,6 +2126,8 @@
     }
     pushRange("pop", fmtNum, "population");
     pushRange("popDensity", n => `${fmtNum(n)}/mi²`, "density");
+    pushRange("janTempF", n => `${n}°F`, "January temp");
+    pushRange("julTempF", n => `${n}°F`, "July temp");
     pushRange("pctIndian", fmtPctVal, "Indian population");
     pushRange("pctAsian", fmtPctVal, "Asian population");
     pushRange("pctForeignBorn", fmtPctVal, "foreign-born share");
@@ -2214,6 +2228,11 @@
       // Pop density filter (people/mi²); null excluded when any bound set.
       if (f.popDensity.min !== null && (p.popDensity == null || p.popDensity < f.popDensity.min)) return false;
       if (f.popDensity.max !== null && (p.popDensity == null || p.popDensity > f.popDensity.max)) return false;
+      // Climate filters: Jan/Jul mean temp (°F); null excluded when any bound is set.
+      if (f.janTempF.min !== null && (p.janTempF == null || p.janTempF < f.janTempF.min)) return false;
+      if (f.janTempF.max !== null && (p.janTempF == null || p.janTempF > f.janTempF.max)) return false;
+      if (f.julTempF.min !== null && (p.julTempF == null || p.julTempF < f.julTempF.min)) return false;
+      if (f.julTempF.max !== null && (p.julTempF == null || p.julTempF > f.julTempF.max)) return false;
       const pct = p.pctIndian * 100;
       if (f.pctIndian.min !== null && pct < f.pctIndian.min) return false;
       if (f.pctIndian.max !== null && pct > f.pctIndian.max) return false;
@@ -2273,7 +2292,7 @@
 
     const anyFilter = searchTokens.length > 0 || Object.values(f).some(r => r.min !== null || r.max !== null);
 
-    const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", popDensity: "popDensity", pctIndian: "pctIndian", pctAsian: "pctAsian", pctForeignBorn: "pctForeignBorn", medianAge: "medianAge", demMargin: "demMargin", hhi: "medianHHI", asianMedianHHI: "asianMedianHHI", pctBach: "pctBach", pct200k: "pct200k", pctHomeowner: "pctHomeowner", homeValue: "medianHomeValue", death: "deathTax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
+    const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", popDensity: "popDensity", janTempF: "janTempF", julTempF: "julTempF", pctIndian: "pctIndian", pctAsian: "pctAsian", pctForeignBorn: "pctForeignBorn", medianAge: "medianAge", demMargin: "demMargin", hhi: "medianHHI", asianMedianHHI: "asianMedianHHI", pctBach: "pctBach", pct200k: "pct200k", pctHomeowner: "pctHomeowner", homeValue: "medianHomeValue", death: "deathTax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
     const pk = placeKey[placesSortBy];
     if (placesSortBy === "name" || placesSortBy === "state" || placesSortBy === "metro") {
       placeRows.sort((a, b) => (a[pk] || "~").localeCompare(b[pk] || "~") || a.name.localeCompare(b.name));
