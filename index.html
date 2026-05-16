@@ -1827,8 +1827,27 @@
   const TOGGLEABLE_COLS = COL_DEFS.filter(c => !c.always).map(c => c.key);
   const DEFAULT_HIDDEN_COLS = COL_DEFS.filter(c => c.defaultHidden).map(c => c.key);
   const placesVisibleCols = new Set(COL_DEFS.map(c => c.key));
-  // Default-hidden columns are removed at init; URL state may re-add them.
+  // Default-hidden columns are removed at init; URL/localStorage state may re-add them.
   for (const k of DEFAULT_HIDDEN_COLS) placesVisibleCols.delete(k);
+
+  // Column visibility persists to localStorage so a fresh tab (no ?hc= in the URL)
+  // restores the last selection. Stored value mirrors the `hc` param format: a
+  // sorted, comma-joined list of hidden toggleable column keys ("" = all visible).
+  const COLS_STORAGE_KEY = "wsim:hiddenCols";
+  function persistColumns() {
+    const hidden = TOGGLEABLE_COLS.filter(k => !placesVisibleCols.has(k)).slice().sort().join(",");
+    try { localStorage.setItem(COLS_STORAGE_KEY, hidden); } catch { /* private mode, etc. */ }
+  }
+  // Apply a hidden-columns spec (comma-joined keys, possibly "") to placesVisibleCols.
+  function applyHiddenSpec(spec) {
+    for (const k of TOGGLEABLE_COLS) placesVisibleCols.add(k);
+    if (spec !== "") {
+      const validKeys = new Set(TOGGLEABLE_COLS);
+      for (const key of spec.split(",")) {
+        if (validKeys.has(key)) placesVisibleCols.delete(key);
+      }
+    }
+  }
 
   // Maps a COL_DEFS key to its header div (so we can hide/show the column header).
   // We rely on DOM order matching COL_DEFS order.
@@ -1947,6 +1966,7 @@
         const key = cb.dataset.colCheckbox;
         if (cb.checked) placesVisibleCols.add(key);
         else placesVisibleCols.delete(key);
+        persistColumns();
         applyColumnLayout();
         refreshColumnsChrome();
         render();
@@ -1968,6 +1988,7 @@
   elColumnsToggle.addEventListener("click", () => elColumnsPopover.hidden ? openColumns() : closeColumns());
   elColumnsReset.addEventListener("click", () => {
     for (const k of TOGGLEABLE_COLS) placesVisibleCols.add(k);
+    persistColumns();
     applyColumnLayout();
     refreshColumnsChrome();
     render();
@@ -2500,21 +2521,23 @@
       }
     }
     // Chip popover input values are synced by refreshChipsChrome() during render().
-    // hc=… present (even empty) means "URL specifies visibility, override the
-    // built-in default-hidden set". hc absent means "use the default".
-    const hc = sp.get("hc");
-    if (hc !== null) {
-      for (const k of TOGGLEABLE_COLS) placesVisibleCols.add(k);
-      if (hc !== "") {
-        const validKeys = new Set(TOGGLEABLE_COLS);
-        for (const key of hc.split(",")) {
-          if (validKeys.has(key)) placesVisibleCols.delete(key);
-        }
-      }
+    // Column visibility is hydrated separately by hydrateColumns().
+  }
+
+  // Restore column visibility. Precedence: URL hc=… (present, even empty) wins, so
+  // shared/bookmarked links are honored; otherwise the localStorage preference;
+  // otherwise the COL_DEFS default-hidden set. Runs regardless of other URL params.
+  function hydrateColumns() {
+    const sp = new URLSearchParams(window.location.search);
+    let spec = sp.get("hc");
+    if (spec === null) {
+      try { spec = localStorage.getItem(COLS_STORAGE_KEY); } catch { spec = null; }
     }
+    if (spec !== null) applyHiddenSpec(spec);
   }
 
   hydrateFromURL();
+  hydrateColumns();
   buildColFiltersRow();
   applyColumnLayout();
   render();
