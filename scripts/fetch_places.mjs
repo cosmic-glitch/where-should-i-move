@@ -23,7 +23,7 @@
 // Census API is unkeyed (rate-limited at 500 requests/day per IP). We make 51+ calls.
 
 // Load Census API key from .env (simple parser — no dotenv dep) or env var.
-import { readFileSync, writeFileSync, mkdtempSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -314,114 +314,116 @@ async function loadLandArea() {
 }
 
 // ── Climate ────────────────────────────────────────────────────────────────
-// Per-place climate from the Open-Meteo Historical Weather API (free, no key):
-//   janTempF / julTempF = avg daily mean temp in Jan / Jul over 2015-2024 (°F)
-//   sunnyDays           = days/yr where sunshine >= 70% of daylight, 2015-2024
-// Sampled at the place's Gazetteer interior point. Results are cached to a
-// gitignored JSON file keyed by rounded lat/lon, so a re-run resumes.
-const CLIMATE_START = "2015-01-01";
-const CLIMATE_END   = "2024-12-31";
-const CLIMATE_YEARS = 10;
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Per-place January and July mean temperature (°F) from NOAA's 1991-2020 U.S.
+// Climate Normals (monthly product). Two bulk files are downloaded once: a
+// station inventory (lat/lon) and a temperature archive. Each place is matched
+// to its nearest normals station by great-circle distance. No API key, no
+// rate limits.
+const NOAA_INVENTORY_URL =
+  "https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/doc/inventory_30yr.txt";
+const NOAA_TEMP_ARCHIVE_URL =
+  "https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/archive/" +
+  "us-climate-normals_1991-2020_v1.0.1_monthly_temperature_by-variable_c20230403.tar.gz";
 
-// Aggregate one location's daily series into the three fields.
-function aggregateClimate(daily) {
-  if (!daily || !Array.isArray(daily.time)) {
-    return { janTempF: null, julTempF: null, sunnyDays: null };
+// Parse inventory_30yr.txt → Map<stationId, {lat, lon}>. Each line is
+// whitespace-delimited: ID, latitude, longitude, elevation, state, name…
+function parseStationInventory(text) {
+  const map = new Map();
+  for (const line of text.split(/\r?\n/)) {
+    const f = line.trim().split(/\s+/);
+    if (f.length < 3) continue;
+    const id = f[0];
+    const lat = parseFloat(f[1]);
+    const lon = parseFloat(f[2]);
+    if (id && Number.isFinite(lat) && Number.isFinite(lon)) map.set(id, { lat, lon });
   }
-  const { time, temperature_2m_mean: temp, sunshine_duration: sun, daylight_duration: day } = daily;
-  let janSum = 0, janN = 0, julSum = 0, julN = 0, sunnyCount = 0;
-  for (let i = 0; i < time.length; i++) {
-    const month = time[i].slice(5, 7); // "YYYY-MM-DD"
-    const t = temp ? temp[i] : null;
-    if (month === "01" && Number.isFinite(t)) { janSum += t; janN++; }
-    if (month === "07" && Number.isFinite(t)) { julSum += t; julN++; }
-    const s = sun ? sun[i] : null, d = day ? day[i] : null;
-    if (Number.isFinite(s) && Number.isFinite(d) && d > 0 && s / d >= 0.70) sunnyCount++;
-  }
-  return {
-    janTempF: janN ? Math.round(janSum / janN) : null,
-    julTempF: julN ? Math.round(julSum / julN) : null,
-    sunnyDays: time.length ? Math.round(sunnyCount / CLIMATE_YEARS) : null,
-  };
+  return map;
 }
 
-// Fetch one batch of places (each with _lat/_lon). Returns an array aligned
-// with `batch`. Retries on HTTP 429 / 5xx with linear backoff.
-async function fetchClimateBatch(batch, attempt = 1) {
-  const lats = batch.map(p => p._lat).join(",");
-  const lons = batch.map(p => p._lon).join(",");
-  const url = "https://archive-api.open-meteo.com/v1/archive"
-    + `?latitude=${lats}&longitude=${lons}`
-    + `&start_date=${CLIMATE_START}&end_date=${CLIMATE_END}`
-    + "&daily=temperature_2m_mean,sunshine_duration,daylight_duration"
-    + "&temperature_unit=fahrenheit&timezone=auto";
-  const res = await fetch(url);
-  if ((res.status === 429 || res.status >= 500) && attempt <= 5) {
-    const wait = 3000 * attempt;
-    console.error(`  Open-Meteo ${res.status}; retry ${attempt}/5 in ${wait}ms`);
-    await sleep(wait);
-    return fetchClimateBatch(batch, attempt + 1);
+// Parse mly-normal-allall.csv → Map<stationId, {jan, jul}> in °F. One row per
+// station per month; columns are looked up by header name; rows whose
+// measurement flag is "M" (missing) are skipped.
+function parseMonthlyTavg(csv) {
+  const lines = csv.split(/\r?\n/);
+  const header = lines[0].split(",").map(s => s.replace(/^"|"$/g, "").trim());
+  const idIdx    = header.indexOf("STATION");
+  const monthIdx = header.indexOf("month");
+  const tavgIdx  = header.indexOf("MLY-TAVG-NORMAL");
+  const flagIdx  = header.indexOf("meas_flag_MLY-TAVG-NORMAL");
+  if (idIdx < 0 || monthIdx < 0 || tavgIdx < 0 || flagIdx < 0) {
+    throw new Error(`NOAA normals: missing expected columns (header was ${header.join("|")})`);
   }
-  if (!res.ok) throw new Error(`Open-Meteo ${res.status} ${res.statusText}`);
-  const json = await res.json();
-  // Open-Meteo returns a bare object for a 1-location request, an array otherwise.
-  return Array.isArray(json) ? json : [json];
+  const map = new Map();
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i]) continue;
+    const p = lines[i].split(",").map(s => s.replace(/^"|"$/g, "").trim());
+    if (p.length <= flagIdx) continue;
+    const month = p[monthIdx];
+    if (month !== "01" && month !== "07") continue;
+    if (p[flagIdx] === "M") continue;
+    const tavg = parseFloat(p[tavgIdx]);
+    if (!Number.isFinite(tavg)) continue;
+    let rec = map.get(p[idIdx]);
+    if (!rec) { rec = { jan: null, jul: null }; map.set(p[idIdx], rec); }
+    if (month === "01") rec.jan = tavg; else rec.jul = tavg;
+  }
+  return map;
 }
 
-// Fill janTempF/julTempF/sunnyDays on every place. Mutates `places` in place.
+// Great-circle distance in km.
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371, rad = d => d * Math.PI / 180;
+  const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Set janTempF/julTempF on every place from its nearest NOAA normals station.
+// Mutates `places`.
 async function loadClimate(places) {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const cachePath = resolve(here, ".climate-cache.json");
-  let cache = {};
-  if (existsSync(cachePath)) {
-    try { cache = JSON.parse(readFileSync(cachePath, "utf8")); }
-    catch { cache = {}; }
-  }
-  const keyOf = p => `${p._lat.toFixed(4)},${p._lon.toFixed(4)}`;
+  // Station coordinates.
+  const invRes = await fetch(NOAA_INVENTORY_URL);
+  if (!invRes.ok) throw new Error(`NOAA inventory: ${invRes.status} ${invRes.statusText}`);
+  const inventory = parseStationInventory(await invRes.text());
+  console.error(`Loaded NOAA station inventory: ${inventory.size} stations`);
 
-  const todo = [];
+  // Temperature archive → extract mly-normal-allall.csv.
+  const arcRes = await fetch(NOAA_TEMP_ARCHIVE_URL);
+  if (!arcRes.ok) throw new Error(`NOAA temperature archive: ${arcRes.status} ${arcRes.statusText}`);
+  const dir = mkdtempSync(join(tmpdir(), "noaa-"));
+  const tarPath = join(dir, "temp.tar.gz");
+  writeFileSync(tarPath, Buffer.from(await arcRes.arrayBuffer()));
+  execSync(`tar -xzf "${tarPath}" -C "${dir}"`, { maxBuffer: 256 * 1024 * 1024 });
+  const found = execSync(`find "${dir}" -name "mly-normal-allall.csv"`).toString().trim();
+  if (!found) throw new Error("NOAA temperature archive: mly-normal-allall.csv not found");
+  const tavgByStation = parseMonthlyTavg(readFileSync(found.split("\n")[0], "utf8"));
+
+  // Stations with both coordinates and a Jan+Jul normal.
+  const stations = [];
+  for (const [id, t] of tavgByStation) {
+    const loc = inventory.get(id);
+    if (loc && t.jan !== null && t.jul !== null) {
+      stations.push({ lat: loc.lat, lon: loc.lon, jan: t.jan, jul: t.jul });
+    }
+  }
+  console.error(`NOAA climate stations with Jan+Jul TAVG: ${stations.length}`);
+  if (stations.length === 0) throw new Error("NOAA climate: no usable stations");
+
+  // Nearest-station match for each place.
+  let matched = 0;
   for (const p of places) {
-    if (p._lat == null || p._lon == null) {
-      p.janTempF = p.julTempF = p.sunnyDays = null;
-      continue;
+    if (p._lat == null || p._lon == null) { p.janTempF = null; p.julTempF = null; continue; }
+    let best = null, bestD = Infinity;
+    for (const s of stations) {
+      const d = haversineKm(p._lat, p._lon, s.lat, s.lon);
+      if (d < bestD) { bestD = d; best = s; }
     }
-    const cached = cache[keyOf(p)];
-    if (cached) {
-      p.janTempF = cached.janTempF;
-      p.julTempF = cached.julTempF;
-      p.sunnyDays = cached.sunnyDays;
-    } else {
-      todo.push(p);
-    }
+    p.janTempF = Math.round(best.jan);
+    p.julTempF = Math.round(best.jul);
+    matched++;
   }
-  console.error(`Climate: ${places.length - todo.length} cached, ${todo.length} to fetch from Open-Meteo`);
-
-  const BATCH = 50;
-  for (let i = 0; i < todo.length; i += BATCH) {
-    const batch = todo.slice(i, i + BATCH);
-    try {
-      const results = await fetchClimateBatch(batch);
-      batch.forEach((p, j) => {
-        const agg = aggregateClimate(results[j] && results[j].daily);
-        p.janTempF = agg.janTempF;
-        p.julTempF = agg.julTempF;
-        p.sunnyDays = agg.sunnyDays;
-        // Don't cache an all-null aggregate (e.g. a short/partial API response):
-        // leaving it uncached lets a later run retry the place.
-        if (agg.janTempF !== null || agg.julTempF !== null || agg.sunnyDays !== null) {
-          cache[keyOf(p)] = agg;
-        }
-      });
-    } catch (e) {
-      console.error(`  climate batch ${i}-${i + batch.length} failed: ${e.message}`);
-      batch.forEach(p => { p.janTempF = p.julTempF = p.sunnyDays = null; });
-    }
-    writeFileSync(cachePath, JSON.stringify(cache));
-    console.error(`  climate: ${Math.min(i + BATCH, todo.length)}/${todo.length}`);
-    await sleep(1200); // polite throttle for the free Open-Meteo tier
-  }
-  console.error("Climate: done.");
+  console.error(`Climate: matched ${matched}/${places.length} places to a NOAA station.`);
 }
 
 // For county subdivisions, county/region comes from inside the NAME field:
@@ -639,9 +641,8 @@ async function main() {
     `//   asianMedianHHI  = B19013D_001E   (Asian-alone householder; suppressed for small N → null)`,
     `//   popDensity      = population / ALAND_SQMI  (people/mi²; ALAND_SQMI from 2023 Census Gazetteer)`,
     `//   demMargin       = 2024 county presidential margin (Harris − Trump, pct points; MIT/MEDSL)`,
-    `//   janTempF        = avg daily mean temp, January 2015–2024 (°F; Open-Meteo, ERA5-based)`,
-    `//   julTempF        = avg daily mean temp, July 2015–2024 (°F; Open-Meteo, ERA5-based)`,
-    `//   sunnyDays       = days/yr with sunshine ≥ 70% of daylight, 2015–2024 (Open-Meteo, ERA5-based)`,
+    `//   janTempF        = January mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
+    `//   julTempF        = July mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
     `// Includes Census Places + county subdivisions (townships/towns) for the 12 strong-MCD states.`,
     `// Population floor ${POP_FLOOR.toLocaleString("en-US")}; no demographic filter (users filter in-UI).`,
     `// Loaded by index.html via <script src="data/places.js"></script>; declares global PLACES.`,
@@ -651,7 +652,7 @@ async function main() {
   const num = v => (v === null || v === undefined ? "null" : v);
   for (const p of filtered) {
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)}, sunnyDays: ${num(p.sunnyDays)} },`);
+    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
   }
   lines.push(`];`, ``);
   writeFileSync(outPath, lines.join("\n"));
