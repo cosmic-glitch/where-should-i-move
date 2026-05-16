@@ -23,7 +23,7 @@
 // Census API is unkeyed (rate-limited at 500 requests/day per IP). We make 51+ calls.
 
 // Load Census API key from .env (simple parser — no dotenv dep) or env var.
-import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -311,6 +311,113 @@ async function loadLandArea() {
   }
   LAND_AREA = map;
   console.error(`Loaded land-area gazetteer: ${map.size} geographies`);
+}
+
+// ── Climate ────────────────────────────────────────────────────────────────
+// Per-place climate from the Open-Meteo Historical Weather API (free, no key):
+//   janTempF / julTempF = avg daily mean temp in Jan / Jul over 2015-2024 (°F)
+//   sunnyDays           = days/yr where sunshine >= 70% of daylight, 2015-2024
+// Sampled at the place's Gazetteer interior point. Results are cached to a
+// gitignored JSON file keyed by rounded lat/lon, so a re-run resumes.
+const CLIMATE_START = "2015-01-01";
+const CLIMATE_END   = "2024-12-31";
+const CLIMATE_YEARS = 10;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Aggregate one location's daily series into the three fields.
+function aggregateClimate(daily) {
+  if (!daily || !Array.isArray(daily.time)) {
+    return { janTempF: null, julTempF: null, sunnyDays: null };
+  }
+  const { time, temperature_2m_mean: temp, sunshine_duration: sun, daylight_duration: day } = daily;
+  let janSum = 0, janN = 0, julSum = 0, julN = 0, sunnyCount = 0;
+  for (let i = 0; i < time.length; i++) {
+    const month = time[i].slice(5, 7); // "YYYY-MM-DD"
+    const t = temp ? temp[i] : null;
+    if (month === "01" && Number.isFinite(t)) { janSum += t; janN++; }
+    if (month === "07" && Number.isFinite(t)) { julSum += t; julN++; }
+    const s = sun ? sun[i] : null, d = day ? day[i] : null;
+    if (Number.isFinite(s) && Number.isFinite(d) && d > 0 && s / d >= 0.70) sunnyCount++;
+  }
+  return {
+    janTempF: janN ? Math.round(janSum / janN) : null,
+    julTempF: julN ? Math.round(julSum / julN) : null,
+    sunnyDays: time.length ? Math.round(sunnyCount / CLIMATE_YEARS) : null,
+  };
+}
+
+// Fetch one batch of places (each with _lat/_lon). Returns an array aligned
+// with `batch`. Retries on HTTP 429 / 5xx with linear backoff.
+async function fetchClimateBatch(batch, attempt = 1) {
+  const lats = batch.map(p => p._lat).join(",");
+  const lons = batch.map(p => p._lon).join(",");
+  const url = "https://archive-api.open-meteo.com/v1/archive"
+    + `?latitude=${lats}&longitude=${lons}`
+    + `&start_date=${CLIMATE_START}&end_date=${CLIMATE_END}`
+    + "&daily=temperature_2m_mean,sunshine_duration,daylight_duration"
+    + "&temperature_unit=fahrenheit&timezone=auto";
+  const res = await fetch(url);
+  if ((res.status === 429 || res.status >= 500) && attempt <= 5) {
+    const wait = 3000 * attempt;
+    console.error(`  Open-Meteo ${res.status}; retry ${attempt}/5 in ${wait}ms`);
+    await sleep(wait);
+    return fetchClimateBatch(batch, attempt + 1);
+  }
+  if (!res.ok) throw new Error(`Open-Meteo ${res.status} ${res.statusText}`);
+  const json = await res.json();
+  // Open-Meteo returns a bare object for a 1-location request, an array otherwise.
+  return Array.isArray(json) ? json : [json];
+}
+
+// Fill janTempF/julTempF/sunnyDays on every place. Mutates `places` in place.
+async function loadClimate(places) {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const cachePath = resolve(here, ".climate-cache.json");
+  let cache = {};
+  if (existsSync(cachePath)) {
+    try { cache = JSON.parse(readFileSync(cachePath, "utf8")); }
+    catch { cache = {}; }
+  }
+  const keyOf = p => `${p._lat.toFixed(4)},${p._lon.toFixed(4)}`;
+
+  const todo = [];
+  for (const p of places) {
+    if (p._lat == null || p._lon == null) {
+      p.janTempF = p.julTempF = p.sunnyDays = null;
+      continue;
+    }
+    const cached = cache[keyOf(p)];
+    if (cached) {
+      p.janTempF = cached.janTempF;
+      p.julTempF = cached.julTempF;
+      p.sunnyDays = cached.sunnyDays;
+    } else {
+      todo.push(p);
+    }
+  }
+  console.error(`Climate: ${places.length - todo.length} cached, ${todo.length} to fetch from Open-Meteo`);
+
+  const BATCH = 50;
+  for (let i = 0; i < todo.length; i += BATCH) {
+    const batch = todo.slice(i, i + BATCH);
+    try {
+      const results = await fetchClimateBatch(batch);
+      batch.forEach((p, j) => {
+        const agg = aggregateClimate(results[j] && results[j].daily);
+        p.janTempF = agg.janTempF;
+        p.julTempF = agg.julTempF;
+        p.sunnyDays = agg.sunnyDays;
+        cache[keyOf(p)] = agg;
+      });
+    } catch (e) {
+      console.error(`  climate batch ${i}-${i + batch.length} failed: ${e.message}`);
+      batch.forEach(p => { p.janTempF = p.julTempF = p.sunnyDays = null; });
+    }
+    writeFileSync(cachePath, JSON.stringify(cache));
+    console.error(`  climate: ${Math.min(i + BATCH, todo.length)}/${todo.length}`);
+    await sleep(1200); // polite throttle for the free Open-Meteo tier
+  }
+  console.error("Climate: done.");
 }
 
 // For county subdivisions, county/region comes from inside the NAME field:
