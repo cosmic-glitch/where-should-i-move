@@ -1520,6 +1520,9 @@
   const placesFilters = {
     pop:            { min: null, max: null },
     popDensity:     { min: null, max: null },
+    janTempF:       { min: null, max: null },
+    julTempF:       { min: null, max: null },
+    sunnyDays:      { min: null, max: null },
     pctIndian:      { min: null, max: null },
     pctAsian:       { min: null, max: null },
     pctForeignBorn: { min: null, max: null },
@@ -1605,6 +1608,9 @@
   const FILTER_META = {
     pop:            { min: 'Min',        max: 'Max',        fmt: v => v.toLocaleString() },
     popDensity:     { min: 'Min',        max: 'Max',        fmt: v => v.toLocaleString() + '/mi²' },
+    janTempF:       { min: 'Min °F',    max: 'Max °F',     fmt: v => v + '°F' },
+    julTempF:       { min: 'Min °F',    max: 'Max °F',     fmt: v => v + '°F' },
+    sunnyDays:      { min: 'Min',       max: 'Max',        fmt: v => v.toLocaleString() + ' days' },
     pctIndian:      { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
     pctAsian:       { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
     pctForeignBorn: { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
@@ -1632,6 +1638,9 @@
   const PRESET_FILTER_LABEL = {
     pop:            "Population",
     popDensity:     "Density",
+    janTempF:       "January temp",
+    julTempF:       "July temp",
+    sunnyDays:      "Sunny days",
     pctIndian:      "% Indian",
     pctAsian:       "% Asian",
     pctForeignBorn: "% Foreign-born",
@@ -2123,6 +2132,9 @@
     }
     pushRange("pop", fmtNum, "population");
     pushRange("popDensity", n => `${fmtNum(n)}/mi²`, "density");
+    pushRange("janTempF", n => `${n}°F`, "January temp");
+    pushRange("julTempF", n => `${n}°F`, "July temp");
+    pushRange("sunnyDays", n => `${fmtNum(n)} sunny days`, "sunny days");
     pushRange("pctIndian", fmtPctVal, "Indian population");
     pushRange("pctAsian", fmtPctVal, "Asian population");
     pushRange("pctForeignBorn", fmtPctVal, "foreign-born share");
@@ -2223,6 +2235,13 @@
       // Pop density filter (people/mi²); null excluded when any bound set.
       if (f.popDensity.min !== null && (p.popDensity == null || p.popDensity < f.popDensity.min)) return false;
       if (f.popDensity.max !== null && (p.popDensity == null || p.popDensity > f.popDensity.max)) return false;
+      // Climate filters: Jan/Jul mean temp (°F) and sunny days/yr; null excluded when any bound is set.
+      if (f.janTempF.min !== null && (p.janTempF == null || p.janTempF < f.janTempF.min)) return false;
+      if (f.janTempF.max !== null && (p.janTempF == null || p.janTempF > f.janTempF.max)) return false;
+      if (f.julTempF.min !== null && (p.julTempF == null || p.julTempF < f.julTempF.min)) return false;
+      if (f.julTempF.max !== null && (p.julTempF == null || p.julTempF > f.julTempF.max)) return false;
+      if (f.sunnyDays.min !== null && (p.sunnyDays == null || p.sunnyDays < f.sunnyDays.min)) return false;
+      if (f.sunnyDays.max !== null && (p.sunnyDays == null || p.sunnyDays > f.sunnyDays.max)) return false;
       const pct = p.pctIndian * 100;
       if (f.pctIndian.min !== null && pct < f.pctIndian.min) return false;
       if (f.pctIndian.max !== null && pct > f.pctIndian.max) return false;
