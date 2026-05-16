@@ -210,6 +210,7 @@
   }
   .col-headers .col-num { text-align: right; }
   .col-headers [data-sort] {
+    position: relative;
     cursor: pointer;
     user-select: none;
     transition: color 0.12s;
@@ -229,36 +230,7 @@
   }
   .col-headers [data-sort].active .arrow { opacity: 1; }
 
-  /* Info button + tooltip */
-  .col-headers .info {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-  }
-  .col-headers .info-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 13px;
-    height: 13px;
-    padding: 0;
-    margin: 0;
-    border: 1px solid var(--ink-4);
-    border-radius: 50%;
-    background: transparent;
-    color: var(--ink-4);
-    font: italic 700 9px/1 Georgia, 'Times New Roman', serif;
-    cursor: help;
-    text-transform: none;
-    letter-spacing: 0;
-    transition: color 0.12s, border-color 0.12s, background 0.12s;
-  }
-  .col-headers .info-btn:hover,
-  .col-headers .info.is-open .info-btn {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
+  /* Column-header tooltip — shown on hover of the header itself */
   .col-headers .info-tooltip {
     position: absolute;
     top: calc(100% + 8px);
@@ -283,13 +255,11 @@
     transition: opacity 0.14s, transform 0.14s, visibility 0s linear 0.14s;
     pointer-events: none;
   }
-  .col-headers .info:hover .info-tooltip,
-  .col-headers .info.is-open .info-tooltip {
+  .col-headers [data-sort]:hover .info-tooltip {
     visibility: visible;
     opacity: 1;
     transform: translateY(0);
     transition: opacity 0.14s, transform 0.14s;
-    pointer-events: auto;
   }
   .col-headers .info-tooltip strong { color: var(--ink); font-weight: 600; }
   /* Left-anchored tooltip for non-numeric (left-aligned) columns */
@@ -813,9 +783,6 @@
       pointer-events: none;
       background: linear-gradient(to right, transparent, var(--surface));
     }
-
-    /* Bigger tap target on column-header info buttons. */
-    .col-headers .info-btn { width: 18px; height: 18px; font-size: 11px; }
   }
 
   /* Disclaimer */
@@ -904,32 +871,32 @@
   <div class="table-shell places">
     <div class="table-scroll">
     <div class="col-headers" id="places-headers">
-      <div data-sort="name">Place<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Place">i</button><span class="info-tooltip">U.S. cities, towns, and unincorporated communities with population ≥ 5,000. Source: U.S. Census ACS 5-year 2023. Townships and towns are included for the 12 strong-MCD states (CT, ME, MA, MI, MN, NH, NJ, NY, PA, RI, VT, WI).</span></span></div>
-      <div class="col-metro" data-sort="metro">Metro<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Metro">i</button><span class="info-tooltip">The Core-Based Statistical Area (CBSA) this place sits in, where one exists. A small number of places in less-populous CBSAs are shown without a metro.</span></span></div>
-      <div class="col-state-col" data-sort="state">State<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About State">i</button><span class="info-tooltip">U.S. state or the District of Columbia. All tax rates and rules on this row are set by this state's law.</span></span></div>
-      <div class="col-num col-pop" data-sort="pop">Population<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Population">i</button><span class="info-tooltip">Total population. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="popDensity">Density<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Density">i</button><span class="info-tooltip">Population per square mile of land area (people/mi²). Population from Census ACS 5-year 2023; land area (ALAND_SQMI) from the 2023 Census Gazetteer. Separates walkable density from acreage exurbs.</span></span></div>
-      <div class="col-num" data-sort="janTempF">Jan °F<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About January temperature">i</button><span class="info-tooltip">Average January temperature, °F — the 1991–2020 January mean from NOAA's U.S. Climate Normals, taken from the weather station nearest the place's center. Station-based: most accurate where a station is close, and elevation differences between a place and its station can shift the value by a few degrees.</span></span></div>
-      <div class="col-num" data-sort="julTempF">Jul °F<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About July temperature">i</button><span class="info-tooltip">Average July temperature, °F — the 1991–2020 July mean from NOAA's U.S. Climate Normals, taken from the weather station nearest the place's center. Station-based: most accurate where a station is close, and elevation differences between a place and its station can shift the value by a few degrees.</span></span></div>
-      <div class="col-num col-pct active" data-sort="pctIndian">%Indian<span class="arrow">↓</span><span class="info"><button class="info-btn" type="button" aria-label="About % Indian">i</button><span class="info-tooltip">Share of residents identifying as Asian Indian alone or in any combination with another race (Census variable B02018_021E). Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="pctAsian">%Asian<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Asian">i</button><span class="info-tooltip">Share of residents identifying as <strong>Asian alone or in any combination</strong> — includes Indian, Chinese, Korean, Vietnamese, Filipino, Japanese, etc. (Census variable B02011_001E). Useful as a broader diaspora signal: Indian-American cultural infrastructure typically co-locates with East-Asian community hubs. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="pctForeignBorn">%Foreign<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Foreign-born">i</button><span class="info-tooltip">Share of residents born outside the U.S. (Census variables B05012_003E / B05012_001E). Indicates overall immigrant share independent of any one origin. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="pctHispanic">%Hispanic<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Hispanic">i</button><span class="info-tooltip">Share of residents who are Hispanic or Latino, of any race (Census variables B03002_012E / B03002_001E). Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="pctBlack">%Black<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Black">i</button><span class="info-tooltip">Share of residents who are Black or African American alone and not Hispanic or Latino (Census variables B03002_004E / B03002_001E). Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="pctWhite">%White<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % White">i</button><span class="info-tooltip">Share of residents who are White alone and not Hispanic or Latino (Census variables B03002_003E / B03002_001E). Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="medianAge">Med age<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median age">i</button><span class="info-tooltip">Median age of residents (Census variable B01002_001E). Separates family-suburb places (low-30s) from retirement towns (high-50s+). Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num col-margin" data-sort="demMargin">Red/Blue<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Red/Blue">i</button><span class="info-tooltip">2024 presidential margin in percentage points (Harris − Trump) at the <strong>county</strong> level, applied uniformly to every place in the county. Positive = bluer, negative = redder. Within large counties (e.g., Los Angeles, Cook, Travis, Santa Clara), real political variation is wide — the number is most accurate near the county's population center. Source: MIT Election Lab.</span></span></div>
-      <div class="col-num col-hhi" data-sort="hhi">HHI<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median HHI">i</button><span class="info-tooltip">Median household income. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="asianMedianHHI">Asian HHI<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Asian-household HHI">i</button><span class="info-tooltip">Median household income for households with an <strong>Asian-alone householder</strong> (Census variable B19013D_001E). Distinguishes places where the Asian community itself is affluent (Saratoga, Short Hills) from places with a working-class Asian population. ACS suppresses this estimate when the Asian-household sample is too small, shown as "—". Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num col-bach" data-sort="pctBach">%Bach+<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Bach+">i</button><span class="info-tooltip">Share of adults age 25+ holding a <strong>bachelor's degree or higher</strong> (B.A., M.A., professional, or doctoral). Sum of Census variables B15003_022E through B15003_025E divided by B15003_001E. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num col-200k" data-sort="pct200k">%$200k+<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % $200k+ households">i</button><span class="info-tooltip">Share of households with annual income of <strong>$200,000 or more</strong> — the top bracket of Census table B19001. A density-of-high-earners signal that complements median HHI, which compresses the upper tail. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="pctPoverty">%Poverty<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % in poverty">i</button><span class="info-tooltip">Share of people whose income in the past 12 months was below the federal poverty line (Census variables B17001_002E / B17001_001E). Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num" data-sort="pctHomeowner">%Owner<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About % Owner-occupied">i</button><span class="info-tooltip">Share of occupied housing units that are <strong>owner-occupied</strong> (Census variables B25003_002E / B25003_001E). Owner-heavy places skew toward established family suburbs; renter-heavy places skew toward college towns and young-professional urban cores. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num col-home" data-sort="homeValue">Home<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Median home value">i</button><span class="info-tooltip"><strong>Median value of owner-occupied housing units</strong> (B25077_001E) — a quick proxy for the cost of buying a typical home in the place. Self-reported by owners; reflects the existing housing stock, not current listing prices, so it lags transaction markets. Source: U.S. Census ACS 5-year 2023.</span></span></div>
-      <div class="col-num col-death" data-sort="death">Estate tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Estate tax">i</button><span class="info-tooltip">State tax on the <strong>Estate at death</strong> value, combining true estate taxes (12 states + DC) and inheritance taxes (KY, MD, NE, NJ, PA) into a single column since the dollar impact on heirs is the same regardless of which form the state uses. Assumes the <strong>second death</strong> of a married couple — surviving spouse already gone, so no marital deduction — and that heirs are <strong>lineal descendants</strong> (children/grandchildren), who are Class A in every inheritance-tax state (so KY/MD/NE/NJ resolve to $0; only PA charges children, at 4.5%). State law only; the federal estate tax is <strong>not</strong> included. Reflects 2026 statutes, including Washington's post-July 2026 regime.</span></span></div>
-      <div class="col-num col-income" data-sort="income">Income tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Income tax">i</button><span class="info-tooltip">State income tax on the <strong>Annual income</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. <strong>State-level only</strong> — local income taxes (NYC, Maryland counties, OH/KY/IN municipalities, Yonkers, PA local EIT) are <strong>not</strong> modeled, which understates the true tax for places in those jurisdictions.</span></span></div>
-      <div class="col-num col-capgains" data-sort="capgains">CG tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About CG tax">i</button><span class="info-tooltip">State capital gains tax on the <strong>Annual realized capital gains</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. State law only. Washington's 9.9% rate already includes the SB 6346 millionaires' surcharge effective Jan 2028.</span></span></div>
-      <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Total tax">i</button><span class="info-tooltip">Sum of <strong>Estate tax + Income tax + Cap gains</strong> over your scenario. State law only — see each column's info button for limitations.</span></span></div>
+      <div data-sort="name">Place<span class="arrow"></span><span class="info-tooltip">U.S. cities, towns, and unincorporated communities with population ≥ 5,000. Source: U.S. Census ACS 5-year 2023. Townships and towns are included for the 12 strong-MCD states (CT, ME, MA, MI, MN, NH, NJ, NY, PA, RI, VT, WI).</span></div>
+      <div class="col-metro" data-sort="metro">Metro<span class="arrow"></span><span class="info-tooltip">The Core-Based Statistical Area (CBSA) this place sits in, where one exists. A small number of places in less-populous CBSAs are shown without a metro.</span></div>
+      <div class="col-state-col" data-sort="state">State<span class="arrow"></span><span class="info-tooltip">U.S. state or the District of Columbia. All tax rates and rules on this row are set by this state's law.</span></div>
+      <div class="col-num col-pop" data-sort="pop">Population<span class="arrow"></span><span class="info-tooltip">Total population. Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="popDensity">Density<span class="arrow"></span><span class="info-tooltip">Population per square mile of land area (people/mi²). Population from Census ACS 5-year 2023; land area (ALAND_SQMI) from the 2023 Census Gazetteer. Separates walkable density from acreage exurbs.</span></div>
+      <div class="col-num" data-sort="janTempF">Jan °F<span class="arrow"></span><span class="info-tooltip">Average January temperature, °F — the 1991–2020 January mean from NOAA's U.S. Climate Normals, taken from the weather station nearest the place's center. Station-based: most accurate where a station is close, and elevation differences between a place and its station can shift the value by a few degrees.</span></div>
+      <div class="col-num" data-sort="julTempF">Jul °F<span class="arrow"></span><span class="info-tooltip">Average July temperature, °F — the 1991–2020 July mean from NOAA's U.S. Climate Normals, taken from the weather station nearest the place's center. Station-based: most accurate where a station is close, and elevation differences between a place and its station can shift the value by a few degrees.</span></div>
+      <div class="col-num col-pct active" data-sort="pctIndian">%Indian<span class="arrow">↓</span><span class="info-tooltip">Share of residents identifying as Asian Indian alone or in any combination with another race (Census variable B02018_021E). Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="pctAsian">%Asian<span class="arrow"></span><span class="info-tooltip">Share of residents identifying as <strong>Asian alone or in any combination</strong> — includes Indian, Chinese, Korean, Vietnamese, Filipino, Japanese, etc. (Census variable B02011_001E). Useful as a broader diaspora signal: Indian-American cultural infrastructure typically co-locates with East-Asian community hubs. Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="pctForeignBorn">%Foreign<span class="arrow"></span><span class="info-tooltip">Share of residents born outside the U.S. (Census variables B05012_003E / B05012_001E). Indicates overall immigrant share independent of any one origin. Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="pctHispanic">%Hispanic<span class="arrow"></span><span class="info-tooltip">Share of residents who are Hispanic or Latino, of any race (Census variables B03002_012E / B03002_001E). Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="pctBlack">%Black<span class="arrow"></span><span class="info-tooltip">Share of residents who are Black or African American alone and not Hispanic or Latino (Census variables B03002_004E / B03002_001E). Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="pctWhite">%White<span class="arrow"></span><span class="info-tooltip">Share of residents who are White alone and not Hispanic or Latino (Census variables B03002_003E / B03002_001E). Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="medianAge">Med age<span class="arrow"></span><span class="info-tooltip">Median age of residents (Census variable B01002_001E). Separates family-suburb places (low-30s) from retirement towns (high-50s+). Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num col-margin" data-sort="demMargin">Red/Blue<span class="arrow"></span><span class="info-tooltip">2024 presidential margin in percentage points (Harris − Trump) at the <strong>county</strong> level, applied uniformly to every place in the county. Positive = bluer, negative = redder. Within large counties (e.g., Los Angeles, Cook, Travis, Santa Clara), real political variation is wide — the number is most accurate near the county's population center. Source: MIT Election Lab.</span></div>
+      <div class="col-num col-hhi" data-sort="hhi">HHI<span class="arrow"></span><span class="info-tooltip">Median household income. Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="asianMedianHHI">Asian HHI<span class="arrow"></span><span class="info-tooltip">Median household income for households with an <strong>Asian-alone householder</strong> (Census variable B19013D_001E). Distinguishes places where the Asian community itself is affluent (Saratoga, Short Hills) from places with a working-class Asian population. ACS suppresses this estimate when the Asian-household sample is too small, shown as "—". Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num col-bach" data-sort="pctBach">%Bach+<span class="arrow"></span><span class="info-tooltip">Share of adults age 25+ holding a <strong>bachelor's degree or higher</strong> (B.A., M.A., professional, or doctoral). Sum of Census variables B15003_022E through B15003_025E divided by B15003_001E. Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num col-200k" data-sort="pct200k">%$200k+<span class="arrow"></span><span class="info-tooltip">Share of households with annual income of <strong>$200,000 or more</strong> — the top bracket of Census table B19001. A density-of-high-earners signal that complements median HHI, which compresses the upper tail. Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="pctPoverty">%Poverty<span class="arrow"></span><span class="info-tooltip">Share of people whose income in the past 12 months was below the federal poverty line (Census variables B17001_002E / B17001_001E). Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="pctHomeowner">%Owner<span class="arrow"></span><span class="info-tooltip">Share of occupied housing units that are <strong>owner-occupied</strong> (Census variables B25003_002E / B25003_001E). Owner-heavy places skew toward established family suburbs; renter-heavy places skew toward college towns and young-professional urban cores. Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num col-home" data-sort="homeValue">Home<span class="arrow"></span><span class="info-tooltip"><strong>Median value of owner-occupied housing units</strong> (B25077_001E) — a quick proxy for the cost of buying a typical home in the place. Self-reported by owners; reflects the existing housing stock, not current listing prices, so it lags transaction markets. Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num col-death" data-sort="death">Estate tax<span class="arrow"></span><span class="info-tooltip">State tax on the <strong>Estate at death</strong> value, combining true estate taxes (12 states + DC) and inheritance taxes (KY, MD, NE, NJ, PA) into a single column since the dollar impact on heirs is the same regardless of which form the state uses. Assumes the <strong>second death</strong> of a married couple — surviving spouse already gone, so no marital deduction — and that heirs are <strong>lineal descendants</strong> (children/grandchildren), who are Class A in every inheritance-tax state (so KY/MD/NE/NJ resolve to $0; only PA charges children, at 4.5%). State law only; the federal estate tax is <strong>not</strong> included. Reflects 2026 statutes, including Washington's post-July 2026 regime.</span></div>
+      <div class="col-num col-income" data-sort="income">Income tax<span class="arrow"></span><span class="info-tooltip">State income tax on the <strong>Annual income</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. <strong>State-level only</strong> — local income taxes (NYC, Maryland counties, OH/KY/IN municipalities, Yonkers, PA local EIT) are <strong>not</strong> modeled, which understates the true tax for places in those jurisdictions.</span></div>
+      <div class="col-num col-capgains" data-sort="capgains">CG tax<span class="arrow"></span><span class="info-tooltip">State capital gains tax on the <strong>Annual realized capital gains</strong> you entered, accumulated each year over the <strong>Years at new place</strong> horizon. State law only. Washington's 9.9% rate already includes the SB 6346 millionaires' surcharge effective Jan 2028.</span></div>
+      <div class="col-num col-total" data-sort="total">Total tax<span class="arrow"></span><span class="info-tooltip">Sum of <strong>Estate tax + Income tax + Cap gains</strong> over your scenario. State law only — see each column's tooltip for limitations.</span></div>
     </div>
     <div class="col-filters" id="col-filters-row"></div>
     <ol class="ranking" id="places-ranking"></ol>
@@ -1545,22 +1512,6 @@
       }
       render();
     });
-  });
-
-  // Info-button tooltips: don't trigger sort, and toggle on click for touch devices.
-  elPlacesHeaders.querySelectorAll(".info-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const info = btn.parentElement;
-      const wasOpen = info.classList.contains("is-open");
-      elPlacesHeaders.querySelectorAll(".info.is-open").forEach(i => i.classList.remove("is-open"));
-      if (!wasOpen) info.classList.add("is-open");
-    });
-  });
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest(".info")) {
-      elPlacesHeaders.querySelectorAll(".info.is-open").forEach(i => i.classList.remove("is-open"));
-    }
   });
 
   // Reset all column filters back to their empty state, then re-render.
