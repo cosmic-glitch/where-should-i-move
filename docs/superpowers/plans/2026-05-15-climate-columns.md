@@ -1,25 +1,29 @@
-# Climate Columns Implementation Plan
+# Climate Columns Implementation Plan (revised — NOAA)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add three default-hidden columns to the places table — January mean temperature, July mean temperature, and sunny days per year — sourced from Open-Meteo at dataset-build time.
+**Goal:** Add two default-hidden columns to the places table — January and July mean temperature — sourced from NOAA's 1991–2020 U.S. Climate Normals at dataset-build time.
 
-**Architecture:** The build script (`scripts/fetch_places.mjs`) already downloads the Census Gazetteer for land area; we extend it to also read each place's interior-point lat/lon, then call the Open-Meteo Historical Weather API to compute the three climate fields and bake them into `data/places.js`. The app (`index.html`) wires the three new fields as numeric columns exactly the way the existing `popDensity` column is wired — header cell, `COL_DEFS` entry, cell renderer, sort key, range filter.
+**Architecture:** The build script downloads two NOAA bulk files (a station inventory with lat/lon and a monthly-temperature archive), builds a station list, and matches each place to its nearest station by great-circle distance, baking `janTempF`/`julTempF` into `data/places.js`. The app wires the two fields as numeric columns exactly like the existing `popDensity` column.
 
-**Tech Stack:** Vanilla JS (no build, no deps), Node ESM build script, Open-Meteo Historical Weather API (free, no key), Census Gazetteer.
+**Tech Stack:** Vanilla JS (no build, no deps), Node ESM build script, NOAA NCEI Climate Normals bulk files.
 
 ---
 
+## Revision history
+
+This plan was originally written for a three-column Open-Meteo design (Jan temp, Jul temp, sunny days). Implementation reached the dataset-regeneration step and Open-Meteo's free tier could not handle 8,036 places (sustained HTTP 429s after ~150). The design was revised with the user: **two columns** (Jan/Jul temp), **NOAA Climate Normals** source, **sunny-days dropped**. See `docs/superpowers/specs/2026-05-15-climate-columns-design.md`.
+
+**Already complete and unchanged** (do not redo): `scripts/fetch_places.mjs` already parses each place's interior-point lat/lon from the Census Gazetteer and attaches transient `_lat`/`_lon` fields. The NOAA loader depends on `_lat`/`_lon` — they are already there.
+
+The tasks below (A, B, C) replace the Open-Meteo work with the NOAA approach.
+
 ## Context for the implementer
 
-This repo is a static web app — no build system, no tests, no `package.json`. Two things matter:
-
-1. **Verification is limited by project policy** (`CLAUDE.md`): do NOT start a web server, use a browser, or screenshot. The only sanctioned checks are:
-   - For `index.html`: the JS-parse sanity check (see below).
-   - For `scripts/fetch_places.mjs`: `node --check scripts/fetch_places.mjs`.
-   - Regenerating the dataset is a deliberate, user-initiated step (Task 6).
-
-2. **`data/places.js` is auto-generated** — never hand-edit it. It only changes by running the build script.
+This repo is a static web app — no build system, no tests, no `package.json`. Verification is limited by project policy (`CLAUDE.md`):
+- For `index.html`: the JS-parse sanity check (below).
+- For `scripts/fetch_places.mjs`: `node --check scripts/fetch_places.mjs`.
+- Do NOT start a web server or browser.
 
 **JS-parse sanity check** (run after every `index.html` edit):
 
@@ -29,354 +33,223 @@ node -e "const m = require('fs').readFileSync('index.html','utf8').match(/<scrip
 
 Expected output: `OK`
 
-The three new fields are `janTempF` (integer °F or `null`), `julTempF` (integer °F or `null`), `sunnyDays` (integer days/yr or `null`). `null` means the place had no Gazetteer lat/lon match or the climate fetch failed; it renders as "—".
-
-The data-side tasks (1–3) and the app-side tasks (4–5) are independent — the app renders "—" for every place until the dataset is regenerated in Task 6. Implement in order anyway; the commits stay coherent.
+The two fields are `janTempF` and `julTempF` (integer °F, or `null` when a place has no Gazetteer lat/lon). `null` renders as "—".
 
 ---
 
-## Task 1: Capture lat/lon from the Census Gazetteer
+## Task A: Replace the Open-Meteo climate code with a NOAA normals loader
 
-The Gazetteer parser currently maps each GEOID to a bare `ALAND_SQMI` number. Change it to map to an object `{ sqmi, lat, lon }`, reading the `INTPTLAT` / `INTPTLONG` columns the Gazetteer files already contain, and attach `_lat` / `_lon` to every place object.
-
-**Files:**
-- Modify: `scripts/fetch_places.mjs` — `loadLandArea()` (~lines 276–305) and the place-assembly block (~lines 435–458)
-
-- [ ] **Step 1: Extend the Gazetteer parser to read lat/lon**
-
-In `loadLandArea()`, replace the index lookups, header check, and parse loop. Current code:
-
-```js
-    const geoidIdx = header.indexOf("GEOID");
-    const sqmiIdx = header.indexOf("ALAND_SQMI");
-    if (geoidIdx < 0 || sqmiIdx < 0) {
-      throw new Error(`gazetteer ${url}: missing GEOID or ALAND_SQMI columns (header was ${header.join("|")})`);
-    }
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split("\t");
-      if (parts.length <= sqmiIdx) continue;
-      const geoid = parts[geoidIdx].trim();
-      const sqmi = parseFloat(parts[sqmiIdx]);
-      if (!geoid || !Number.isFinite(sqmi) || sqmi <= 0) continue;
-      map.set(geoid, sqmi);
-    }
-```
-
-Replace with:
-
-```js
-    const geoidIdx = header.indexOf("GEOID");
-    const sqmiIdx  = header.indexOf("ALAND_SQMI");
-    const latIdx   = header.indexOf("INTPTLAT");
-    const lonIdx   = header.indexOf("INTPTLONG");
-    if (geoidIdx < 0 || sqmiIdx < 0 || latIdx < 0 || lonIdx < 0) {
-      throw new Error(`gazetteer ${url}: missing GEOID/ALAND_SQMI/INTPTLAT/INTPTLONG columns (header was ${header.join("|")})`);
-    }
-    const maxIdx = Math.max(geoidIdx, sqmiIdx, latIdx, lonIdx);
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split("\t");
-      if (parts.length <= maxIdx) continue;
-      const geoid = parts[geoidIdx].trim();
-      const sqmi = parseFloat(parts[sqmiIdx]);
-      const lat  = parseFloat(parts[latIdx]);
-      const lon  = parseFloat(parts[lonIdx]);
-      if (!geoid || !Number.isFinite(sqmi) || sqmi <= 0) continue;
-      map.set(geoid, {
-        sqmi,
-        lat: Number.isFinite(lat) ? lat : null,
-        lon: Number.isFinite(lon) ? lon : null,
-      });
-    }
-```
-
-- [ ] **Step 2: Update the popDensity call site and attach lat/lon to the place**
-
-In the place-assembly block, the current density code is:
-
-```js
-    // Population density: people per square mile of land area.
-    const landSqMi = LAND_AREA ? LAND_AREA.get(geoid) : null;
-    const popDensity = landSqMi && landSqMi > 0 ? Math.round(population / landSqMi) : null;
-```
-
-Replace with:
-
-```js
-    // Population density: people per square mile of land area.
-    const gaz = LAND_AREA ? LAND_AREA.get(geoid) : null;
-    const landSqMi = gaz ? gaz.sqmi : null;
-    const popDensity = landSqMi && landSqMi > 0 ? Math.round(population / landSqMi) : null;
-```
-
-Then in the `out.push({ ... })` object immediately below, add two transient fields right after `demMargin: demMarginFor(name, county),` (the underscore prefix marks them internal — they are NOT serialized into `data/places.js`):
-
-```js
-      demMargin: demMarginFor(name, county),
-      _lat: gaz ? gaz.lat : null,
-      _lon: gaz ? gaz.lon : null,
-```
-
-- [ ] **Step 3: Syntax-check**
-
-Run: `node --check scripts/fetch_places.mjs`
-Expected: no output, exit code 0.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add scripts/fetch_places.mjs
-git commit -m "$(cat <<'EOF'
-Capture place interior-point lat/lon from the Census Gazetteer
-
-The Gazetteer rows already carry INTPTLAT/INTPTLONG; parse them
-alongside ALAND_SQMI so each place gets a coordinate for the
-upcoming climate fetch.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-EOF
-)"
-```
-
----
-
-## Task 2: Add the Open-Meteo climate fetch
-
-Add a `loadClimate(places)` function that fills `janTempF` / `julTempF` / `sunnyDays` on every place. It batches places, calls the Open-Meteo Historical Weather API, aggregates 2015–2024 daily reanalysis, and caches results in a gitignored JSON file so a re-run resumes instead of re-fetching.
+`scripts/fetch_places.mjs` currently contains an Open-Meteo climate block (`aggregateClimate`, `fetchClimateBatch`, `loadClimate`, plus `CLIMATE_*` constants and a `sleep` helper). Replace that entire block with a NOAA loader. The new `loadClimate(places)` keeps the same name and signature, so its call site in `main()` (`await loadClimate(all);`) is unchanged.
 
 **Files:**
-- Modify: `scripts/fetch_places.mjs` — the fs import (~line 26); add new code after `loadLandArea()` ends (~line 305)
+- Modify: `scripts/fetch_places.mjs`
+- Modify: `.gitignore`
+- Delete: `scripts/.climate-cache.json` (stale Open-Meteo cache, gitignored)
 
-- [ ] **Step 1: Add `existsSync` to the fs import**
+- [ ] **Step 1: Revert the `existsSync` import**
 
-Current import line:
-
-```js
-import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
-```
-
-Replace with:
+The NOAA loader does not use `existsSync`. Change the fs import line back from:
 
 ```js
 import { readFileSync, writeFileSync, mkdtempSync, existsSync } from "node:fs";
 ```
 
-- [ ] **Step 2: Add the climate-fetch code**
+to:
 
-Insert this block immediately after the closing brace of `loadLandArea()` (after the line `console.error(\`Loaded land-area gazetteer: ${map.size} geographies\`);` and its closing `}`):
+```js
+import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
+```
+
+- [ ] **Step 2: Replace the climate block**
+
+Read `scripts/fetch_places.mjs` and locate the climate block: it starts at the banner comment line `// ── Climate ──────…` and ends at the closing `}` of the `loadClimate` function (the next code after it is the `// For county subdivisions` comment). Delete that entire block — the banner comment, the `CLIMATE_START`/`CLIMATE_END`/`CLIMATE_YEARS` constants, the `sleep` helper, and the three functions `aggregateClimate`, `fetchClimateBatch`, `loadClimate` — and replace it with exactly this:
 
 ```js
 // ── Climate ────────────────────────────────────────────────────────────────
-// Per-place climate from the Open-Meteo Historical Weather API (free, no key):
-//   janTempF / julTempF = avg daily mean temp in Jan / Jul over 2015-2024 (°F)
-//   sunnyDays           = days/yr where sunshine >= 70% of daylight, 2015-2024
-// Sampled at the place's Gazetteer interior point. Results are cached to a
-// gitignored JSON file keyed by rounded lat/lon, so a re-run resumes.
-const CLIMATE_START = "2015-01-01";
-const CLIMATE_END   = "2024-12-31";
-const CLIMATE_YEARS = 10;
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Per-place January and July mean temperature (°F) from NOAA's 1991-2020 U.S.
+// Climate Normals (monthly product). Two bulk files are downloaded once: a
+// station inventory (lat/lon) and a temperature archive. Each place is matched
+// to its nearest normals station by great-circle distance. No API key, no
+// rate limits.
+const NOAA_INVENTORY_URL =
+  "https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/doc/inventory_30yr.txt";
+const NOAA_TEMP_ARCHIVE_URL =
+  "https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/archive/" +
+  "us-climate-normals_1991-2020_v1.0.1_monthly_temperature_by-variable_c20230403.tar.gz";
 
-// Aggregate one location's daily series into the three fields.
-function aggregateClimate(daily) {
-  if (!daily || !Array.isArray(daily.time)) {
-    return { janTempF: null, julTempF: null, sunnyDays: null };
+// Parse inventory_30yr.txt → Map<stationId, {lat, lon}>. Each line is
+// whitespace-delimited: ID, latitude, longitude, elevation, state, name…
+function parseStationInventory(text) {
+  const map = new Map();
+  for (const line of text.split(/\r?\n/)) {
+    const f = line.trim().split(/\s+/);
+    if (f.length < 3) continue;
+    const id = f[0];
+    const lat = parseFloat(f[1]);
+    const lon = parseFloat(f[2]);
+    if (id && Number.isFinite(lat) && Number.isFinite(lon)) map.set(id, { lat, lon });
   }
-  const { time, temperature_2m_mean: temp, sunshine_duration: sun, daylight_duration: day } = daily;
-  let janSum = 0, janN = 0, julSum = 0, julN = 0, sunnyCount = 0;
-  for (let i = 0; i < time.length; i++) {
-    const month = time[i].slice(5, 7); // "YYYY-MM-DD"
-    const t = temp ? temp[i] : null;
-    if (month === "01" && Number.isFinite(t)) { janSum += t; janN++; }
-    if (month === "07" && Number.isFinite(t)) { julSum += t; julN++; }
-    const s = sun ? sun[i] : null, d = day ? day[i] : null;
-    if (Number.isFinite(s) && Number.isFinite(d) && d > 0 && s / d >= 0.70) sunnyCount++;
-  }
-  return {
-    janTempF: janN ? Math.round(janSum / janN) : null,
-    julTempF: julN ? Math.round(julSum / julN) : null,
-    sunnyDays: time.length ? Math.round(sunnyCount / CLIMATE_YEARS) : null,
-  };
+  return map;
 }
 
-// Fetch one batch of places (each with _lat/_lon). Returns an array aligned
-// with `batch`. Retries on HTTP 429 / 5xx with linear backoff.
-async function fetchClimateBatch(batch, attempt = 1) {
-  const lats = batch.map(p => p._lat).join(",");
-  const lons = batch.map(p => p._lon).join(",");
-  const url = "https://archive-api.open-meteo.com/v1/archive"
-    + `?latitude=${lats}&longitude=${lons}`
-    + `&start_date=${CLIMATE_START}&end_date=${CLIMATE_END}`
-    + "&daily=temperature_2m_mean,sunshine_duration,daylight_duration"
-    + "&temperature_unit=fahrenheit&timezone=auto";
-  const res = await fetch(url);
-  if ((res.status === 429 || res.status >= 500) && attempt <= 5) {
-    const wait = 3000 * attempt;
-    console.error(`  Open-Meteo ${res.status}; retry ${attempt}/5 in ${wait}ms`);
-    await sleep(wait);
-    return fetchClimateBatch(batch, attempt + 1);
+// Parse mly-normal-allall.csv → Map<stationId, {jan, jul}> in °F. One row per
+// station per month; columns are looked up by header name; rows whose
+// measurement flag is "M" (missing) are skipped.
+function parseMonthlyTavg(csv) {
+  const lines = csv.split(/\r?\n/);
+  const header = lines[0].split(",").map(s => s.replace(/^"|"$/g, "").trim());
+  const idIdx    = header.indexOf("STATION");
+  const monthIdx = header.indexOf("month");
+  const tavgIdx  = header.indexOf("MLY-TAVG-NORMAL");
+  const flagIdx  = header.indexOf("meas_flag_MLY-TAVG-NORMAL");
+  if (idIdx < 0 || monthIdx < 0 || tavgIdx < 0 || flagIdx < 0) {
+    throw new Error(`NOAA normals: missing expected columns (header was ${header.join("|")})`);
   }
-  if (!res.ok) throw new Error(`Open-Meteo ${res.status} ${res.statusText}`);
-  const json = await res.json();
-  // Open-Meteo returns a bare object for a 1-location request, an array otherwise.
-  return Array.isArray(json) ? json : [json];
+  const map = new Map();
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i]) continue;
+    const p = lines[i].split(",").map(s => s.replace(/^"|"$/g, "").trim());
+    if (p.length <= flagIdx) continue;
+    const month = p[monthIdx];
+    if (month !== "01" && month !== "07") continue;
+    if (p[flagIdx] === "M") continue;
+    const tavg = parseFloat(p[tavgIdx]);
+    if (!Number.isFinite(tavg)) continue;
+    let rec = map.get(p[idIdx]);
+    if (!rec) { rec = { jan: null, jul: null }; map.set(p[idIdx], rec); }
+    if (month === "01") rec.jan = tavg; else rec.jul = tavg;
+  }
+  return map;
 }
 
-// Fill janTempF/julTempF/sunnyDays on every place. Mutates `places` in place.
+// Great-circle distance in km.
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371, rad = d => d * Math.PI / 180;
+  const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Set janTempF/julTempF on every place from its nearest NOAA normals station.
+// Mutates `places`.
 async function loadClimate(places) {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const cachePath = resolve(here, ".climate-cache.json");
-  let cache = {};
-  if (existsSync(cachePath)) {
-    try { cache = JSON.parse(readFileSync(cachePath, "utf8")); }
-    catch { cache = {}; }
-  }
-  const keyOf = p => `${p._lat.toFixed(4)},${p._lon.toFixed(4)}`;
+  // Station coordinates.
+  const invRes = await fetch(NOAA_INVENTORY_URL);
+  if (!invRes.ok) throw new Error(`NOAA inventory: ${invRes.status} ${invRes.statusText}`);
+  const inventory = parseStationInventory(await invRes.text());
+  console.error(`Loaded NOAA station inventory: ${inventory.size} stations`);
 
-  const todo = [];
+  // Temperature archive → extract mly-normal-allall.csv.
+  const arcRes = await fetch(NOAA_TEMP_ARCHIVE_URL);
+  if (!arcRes.ok) throw new Error(`NOAA temperature archive: ${arcRes.status} ${arcRes.statusText}`);
+  const dir = mkdtempSync(join(tmpdir(), "noaa-"));
+  const tarPath = join(dir, "temp.tar.gz");
+  writeFileSync(tarPath, Buffer.from(await arcRes.arrayBuffer()));
+  execSync(`tar -xzf "${tarPath}" -C "${dir}"`, { maxBuffer: 256 * 1024 * 1024 });
+  const found = execSync(`find "${dir}" -name "mly-normal-allall.csv"`).toString().trim();
+  if (!found) throw new Error("NOAA temperature archive: mly-normal-allall.csv not found");
+  const tavgByStation = parseMonthlyTavg(readFileSync(found.split("\n")[0], "utf8"));
+
+  // Stations with both coordinates and a Jan+Jul normal.
+  const stations = [];
+  for (const [id, t] of tavgByStation) {
+    const loc = inventory.get(id);
+    if (loc && t.jan !== null && t.jul !== null) {
+      stations.push({ lat: loc.lat, lon: loc.lon, jan: t.jan, jul: t.jul });
+    }
+  }
+  console.error(`NOAA climate stations with Jan+Jul TAVG: ${stations.length}`);
+  if (stations.length === 0) throw new Error("NOAA climate: no usable stations");
+
+  // Nearest-station match for each place.
+  let matched = 0;
   for (const p of places) {
-    if (p._lat == null || p._lon == null) {
-      p.janTempF = p.julTempF = p.sunnyDays = null;
-      continue;
+    if (p._lat == null || p._lon == null) { p.janTempF = null; p.julTempF = null; continue; }
+    let best = null, bestD = Infinity;
+    for (const s of stations) {
+      const d = haversineKm(p._lat, p._lon, s.lat, s.lon);
+      if (d < bestD) { bestD = d; best = s; }
     }
-    const cached = cache[keyOf(p)];
-    if (cached) {
-      p.janTempF = cached.janTempF;
-      p.julTempF = cached.julTempF;
-      p.sunnyDays = cached.sunnyDays;
-    } else {
-      todo.push(p);
-    }
+    p.janTempF = Math.round(best.jan);
+    p.julTempF = Math.round(best.jul);
+    matched++;
   }
-  console.error(`Climate: ${places.length - todo.length} cached, ${todo.length} to fetch from Open-Meteo`);
-
-  const BATCH = 50;
-  for (let i = 0; i < todo.length; i += BATCH) {
-    const batch = todo.slice(i, i + BATCH);
-    try {
-      const results = await fetchClimateBatch(batch);
-      batch.forEach((p, j) => {
-        const agg = aggregateClimate(results[j] && results[j].daily);
-        p.janTempF = agg.janTempF;
-        p.julTempF = agg.julTempF;
-        p.sunnyDays = agg.sunnyDays;
-        cache[keyOf(p)] = agg;
-      });
-    } catch (e) {
-      console.error(`  climate batch ${i}-${i + batch.length} failed: ${e.message}`);
-      batch.forEach(p => { p.janTempF = p.julTempF = p.sunnyDays = null; });
-    }
-    writeFileSync(cachePath, JSON.stringify(cache));
-    console.error(`  climate: ${Math.min(i + BATCH, todo.length)}/${todo.length}`);
-    await sleep(1200); // polite throttle for the free Open-Meteo tier
-  }
-  console.error("Climate: done.");
+  console.error(`Climate: matched ${matched}/${places.length} places to a NOAA station.`);
 }
 ```
 
-- [ ] **Step 3: Syntax-check**
+- [ ] **Step 3: Update the row serialization (drop `sunnyDays`)**
 
-Run: `node --check scripts/fetch_places.mjs`
-Expected: no output, exit code 0.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add scripts/fetch_places.mjs
-git commit -m "$(cat <<'EOF'
-Add Open-Meteo climate fetch to the build script
-
-loadClimate() fills janTempF/julTempF/sunnyDays per place from the
-Open-Meteo Historical Weather API, batched and throttled, with a
-gitignored resumable cache. Not yet wired into main().
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-EOF
-)"
-```
-
----
-
-## Task 3: Wire the climate fetch into the build and emit the new fields
-
-Call `loadClimate()` from `main()`, serialize the three fields into `data/places.js`, document them in the generated header comment, and gitignore the cache file.
-
-**Files:**
-- Modify: `scripts/fetch_places.mjs` — `main()` (~lines 479–531)
-- Modify: `.gitignore`
-
-- [ ] **Step 1: Call `loadClimate()` in `main()`**
-
-In `main()`, find the loop that builds `all` and the `all.sort(...)` line that follows it:
-
-```js
-  all.sort((a, b) => b.pctIndian - a.pctIndian);
-  console.error(`Total places fetched: ${all.length}`);
-```
-
-Insert the `loadClimate` call so it runs before the sort:
-
-```js
-  console.error(`Total places fetched: ${all.length}`);
-  await loadClimate(all);
-  all.sort((a, b) => b.pctIndian - a.pctIndian);
-```
-
-(Note: the `console.error(\`Total places fetched...\`)` line moves above the sort — it does not depend on sort order.)
-
-- [ ] **Step 2: Document the new fields in the generated header comment**
-
-In the `lines` array, find the `demMargin` comment line:
-
-```js
-    `//   demMargin       = 2024 county presidential margin (Harris − Trump, pct points; MIT/MEDSL)`,
-```
-
-Add three lines immediately after it:
-
-```js
-    `//   demMargin       = 2024 county presidential margin (Harris − Trump, pct points; MIT/MEDSL)`,
-    `//   janTempF        = avg daily mean temp, January 2015–2024 (°F; Open-Meteo, ERA5-based)`,
-    `//   julTempF        = avg daily mean temp, July 2015–2024 (°F; Open-Meteo, ERA5-based)`,
-    `//   sunnyDays       = days/yr with sunshine ≥ 70% of daylight, 2015–2024 (Open-Meteo, ERA5-based)`,
-```
-
-- [ ] **Step 3: Serialize the three fields into each row**
-
-Find the `lines.push(...)` call that serializes one place (the long template literal ending in `demMargin: ${num(p.demMargin)} },`). Change the trailing segment from:
-
-```js
-demMargin: ${num(p.demMargin)} },`);
-```
-
-to:
+Find the `lines.push(...)` call that serializes one place. Its template literal currently ends with:
 
 ```js
 demMargin: ${num(p.demMargin)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)}, sunnyDays: ${num(p.sunnyDays)} },`);
 ```
 
-- [ ] **Step 4: Gitignore the climate cache**
+Change it to (remove the `sunnyDays` field):
 
-Add a line to `.gitignore`:
+```js
+demMargin: ${num(p.demMargin)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
+```
+
+- [ ] **Step 4: Update the generated header comment**
+
+In the `lines` array, the header comment currently has three climate lines (referencing Open-Meteo / ERA5 / sunnyDays). Replace those three lines:
+
+```js
+    `//   janTempF        = avg daily mean temp, January 2015–2024 (°F; Open-Meteo, ERA5-based)`,
+    `//   julTempF        = avg daily mean temp, July 2015–2024 (°F; Open-Meteo, ERA5-based)`,
+    `//   sunnyDays       = days/yr with sunshine ≥ 70% of daylight, 2015–2024 (Open-Meteo, ERA5-based)`,
+```
+
+with two lines:
+
+```js
+    `//   janTempF        = January mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
+    `//   julTempF        = July mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
+```
+
+- [ ] **Step 5: Remove the climate cache from `.gitignore`**
+
+Delete this line from `.gitignore`:
 
 ```
 scripts/.climate-cache.json
 ```
 
-- [ ] **Step 5: Syntax-check**
+- [ ] **Step 6: Delete the stale Open-Meteo cache file**
+
+Run: `rm -f scripts/.climate-cache.json`
+(It is gitignored, so it was never committed — this just removes it from the worktree.)
+
+- [ ] **Step 7: Verify the archive contents, then syntax-check**
+
+First confirm the NOAA archive really contains `mly-normal-allall.csv` (one harmless ~28 MB download):
+
+```bash
+cd /tmp && curl -sL "https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/archive/us-climate-normals_1991-2020_v1.0.1_monthly_temperature_by-variable_c20230403.tar.gz" -o noaa-temp.tar.gz && tar -tzf noaa-temp.tar.gz | grep -i "mly-normal-allall.csv" ; echo "exit: $?"
+```
+
+Expected: the command prints a path ending in `mly-normal-allall.csv`. If it prints nothing, STOP and report — the archive layout differs from the plan's assumption and the loader needs adjusting before proceeding.
+
+Then syntax-check the script:
 
 Run: `node --check scripts/fetch_places.mjs`
 Expected: no output, exit code 0.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add scripts/fetch_places.mjs .gitignore
 git commit -m "$(cat <<'EOF'
-Wire climate fetch into the build and emit climate fields
+Replace Open-Meteo climate fetch with NOAA Climate Normals
 
-main() now calls loadClimate(); janTempF/julTempF/sunnyDays are
-serialized into data/places.js and documented in its header. The
-resumable cache file is gitignored.
+Open-Meteo's free tier could not handle 8,036 places. loadClimate()
+now downloads NOAA's 1991-2020 monthly temperature normals (station
+inventory + temperature archive, no API key, no rate limits) and
+matches each place to its nearest station for Jan/Jul mean temp.
+The sunny-days field and the resumable cache are removed.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -385,125 +258,82 @@ EOF
 
 ---
 
-## Task 4: Add the three climate columns to the table (display + sort)
+## Task B: Drop the sunny-days column and update the temperature tooltips
 
-Wire the columns into `index.html` so they appear in the column picker, render their values, and sort. Filtering is Task 5.
+`index.html` currently has three climate columns wired (`janTempF`, `julTempF`, `sunnyDays`). Remove all `sunnyDays` wiring and update the two temperature tooltips to cite NOAA instead of Open-Meteo.
 
 **Files:**
-- Modify: `index.html` — header markup (~line 927), `COL_DEFS` (~line 1797), `CELL_RENDERERS` (~line 1891), `placeKey` (~line 2276)
+- Modify: `index.html`
 
-- [ ] **Step 1: Add the three header cells**
+- [ ] **Step 1: Replace the two temperature header cells**
 
-Find the Density header `<div>` (it contains `data-sort="popDensity"`, ends with `Separates walkable density from acreage exurbs.</span></span></div>`). Insert these three lines immediately after it (order must match `COL_DEFS`):
+Find the `janTempF` header `<div>` (contains `data-sort="janTempF"`) and replace the whole line with:
 
 ```html
-      <div class="col-num" data-sort="janTempF">Jan °F<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About January temperature">i</button><span class="info-tooltip">Average daily mean temperature in January, °F. Computed from daily 2015–2024 reanalysis (Open-Meteo, ERA5-based). Sampled at the place's interior point on a ~9–11 km grid — represents the place's center, not neighborhood micro-climates.</span></span></div>
-      <div class="col-num" data-sort="julTempF">Jul °F<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About July temperature">i</button><span class="info-tooltip">Average daily mean temperature in July, °F. Computed from daily 2015–2024 reanalysis (Open-Meteo, ERA5-based). Sampled at the place's interior point on a ~9–11 km grid — represents the place's center, not neighborhood micro-climates.</span></span></div>
+      <div class="col-num" data-sort="janTempF">Jan °F<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About January temperature">i</button><span class="info-tooltip">Average January temperature, °F — the 1991–2020 January mean from NOAA's U.S. Climate Normals, taken from the weather station nearest the place's center. Station-based: most accurate where a station is close, and elevation differences between a place and its station can shift the value by a few degrees.</span></span></div>
+```
+
+Find the `julTempF` header `<div>` (contains `data-sort="julTempF"`) and replace the whole line with:
+
+```html
+      <div class="col-num" data-sort="julTempF">Jul °F<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About July temperature">i</button><span class="info-tooltip">Average July temperature, °F — the 1991–2020 July mean from NOAA's U.S. Climate Normals, taken from the weather station nearest the place's center. Station-based: most accurate where a station is close, and elevation differences between a place and its station can shift the value by a few degrees.</span></span></div>
+```
+
+- [ ] **Step 2: Delete the `sunnyDays` header cell**
+
+Delete this entire line (the `sunnyDays` header `<div>`, which follows the `julTempF` one):
+
+```html
       <div class="col-num" data-sort="sunnyDays">Sun days<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About sunny days">i</button><span class="info-tooltip">Sunny days per year — days when sunshine duration is at least 70% of available daylight, averaged over 2015–2024 (Open-Meteo, ERA5-based). Sampled at the place's interior point on a ~9–11 km grid.</span></span></div>
 ```
 
-- [ ] **Step 2: Add the three `COL_DEFS` entries**
+- [ ] **Step 3: Delete the `sunnyDays` `COL_DEFS` entry**
 
-In the `COL_DEFS` array, find the `popDensity` entry (the line with `key: 'popDensity'`). Insert these three lines immediately after it:
+Delete this line from the `COL_DEFS` array:
 
 ```js
-    { key: 'janTempF',       label: 'Jan °F',     always: false, dW: '74px',                  mW: '60px',                  dMin: 74,  mMin: 60,  defaultHidden: true, desc: 'Avg January temperature (°F)' },
-    { key: 'julTempF',       label: 'Jul °F',     always: false, dW: '74px',                  mW: '60px',                  dMin: 74,  mMin: 60,  defaultHidden: true, desc: 'Avg July temperature (°F)' },
     { key: 'sunnyDays',      label: 'Sun days',   always: false, dW: '80px',                  mW: '66px',                  dMin: 80,  mMin: 66,  defaultHidden: true, desc: 'Sunny days per year' },
 ```
 
-- [ ] **Step 3: Add the three cell renderers**
+- [ ] **Step 4: Delete the `sunnyDays` cell renderer**
 
-In the `CELL_RENDERERS` object, find the `popDensity:` renderer line. Insert these three lines immediately after it:
+Delete this line from the `CELL_RENDERERS` object:
 
 ```js
-    janTempF:       (p)    => `<div class="num-col" style="color:var(--ink-2)">${p.janTempF == null ? "—" : p.janTempF + "°"}</div>`,
-    julTempF:       (p)    => `<div class="num-col" style="color:var(--ink-2)">${p.julTempF == null ? "—" : p.julTempF + "°"}</div>`,
     sunnyDays:      (p)    => `<div class="num-col" style="color:var(--ink-2)">${p.sunnyDays == null ? "—" : p.sunnyDays.toLocaleString()}</div>`,
 ```
 
-- [ ] **Step 4: Add the three sort keys to `placeKey`**
+- [ ] **Step 5: Remove `sunnyDays` from `placeKey`**
 
-Find the `placeKey` object literal (the single long line beginning `const placeKey = {`). It maps sort keys to place-object field names. Add three entries — insert `janTempF: "janTempF", julTempF: "julTempF", sunnyDays: "sunnyDays",` right after `popDensity: "popDensity",`:
+In the single-line `const placeKey = { ... }` object literal, remove the ` sunnyDays: "sunnyDays",` entry. It currently reads `... janTempF: "janTempF", julTempF: "julTempF", sunnyDays: "sunnyDays", pctIndian: ...` — change that span to `... janTempF: "janTempF", julTempF: "julTempF", pctIndian: ...`.
 
-```js
-    const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", popDensity: "popDensity", janTempF: "janTempF", julTempF: "julTempF", sunnyDays: "sunnyDays", pctIndian: "pctIndian", pctAsian: "pctAsian", pctForeignBorn: "pctForeignBorn", medianAge: "medianAge", demMargin: "demMargin", hhi: "medianHHI", asianMedianHHI: "asianMedianHHI", pctBach: "pctBach", pct200k: "pct200k", pctHomeowner: "pctHomeowner", homeValue: "medianHomeValue", death: "deathTax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
-```
+- [ ] **Step 6: Delete the `sunnyDays` `placesFilters` slot**
 
-- [ ] **Step 5: JS-parse sanity check**
-
-Run:
-
-```bash
-node -e "const m = require('fs').readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/g); new Function(m[m.length-1].replace(/^<script>|<\/script>$/g, '')); console.log('OK')"
-```
-
-Expected: `OK`
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add index.html
-git commit -m "$(cat <<'EOF'
-Add Jan temp / Jul temp / sunny-days columns to the places table
-
-Three default-hidden numeric columns, wired like Density: header
-cell, COL_DEFS entry, cell renderer, and sort key. Filtering is
-added next.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-EOF
-)"
-```
-
----
-
-## Task 5: Add range filters for the three climate columns
-
-Wire the per-column min/max range filter for each climate column — `placesFilters` state, `FILTER_META` chip config, `PRESET_FILTER_LABEL`, the filter predicate in `render()`, and the `describeFilters()` summary text.
-
-**Files:**
-- Modify: `index.html` — `placesFilters` (~line 1519), `FILTER_META` (~line 1604), `PRESET_FILTER_LABEL` (~line 1631), filter predicate in `render()` (~line 2216), `describeFilters()` (~line 2116)
-
-- [ ] **Step 1: Add three `placesFilters` slots**
-
-In the `placesFilters` object, find the `popDensity:` line. Insert immediately after it:
+Delete this line from the `placesFilters` object:
 
 ```js
-    janTempF:       { min: null, max: null },
-    julTempF:       { min: null, max: null },
     sunnyDays:      { min: null, max: null },
 ```
 
-- [ ] **Step 2: Add three `FILTER_META` entries**
+- [ ] **Step 7: Delete the `sunnyDays` `FILTER_META` entry**
 
-In the `FILTER_META` object, find the `popDensity:` line. Insert immediately after it:
+Delete this line from the `FILTER_META` object:
 
 ```js
-    janTempF:       { min: 'Min °F',    max: 'Max °F',     fmt: v => v + '°F' },
-    julTempF:       { min: 'Min °F',    max: 'Max °F',     fmt: v => v + '°F' },
     sunnyDays:      { min: 'Min',       max: 'Max',        fmt: v => v.toLocaleString() + ' days' },
 ```
 
-- [ ] **Step 3: Add three `PRESET_FILTER_LABEL` entries**
+- [ ] **Step 8: Delete the `sunnyDays` `PRESET_FILTER_LABEL` entry**
 
-In the `PRESET_FILTER_LABEL` object, find the `popDensity:` line. Insert immediately after it:
+Delete this line from the `PRESET_FILTER_LABEL` object:
 
 ```js
-    janTempF:       "January temp",
-    julTempF:       "July temp",
     sunnyDays:      "Sunny days",
 ```
 
-- [ ] **Step 4: Add the filter predicate in `render()`**
+- [ ] **Step 9: Remove the `sunnyDays` filter predicate and fix the comment**
 
-In the `placeRows` filter callback, find the `popDensity` filter block — it ends with the line:
-
-```js
-      if (f.popDensity.max !== null && (p.popDensity == null || p.popDensity > f.popDensity.max)) return false;
-```
-
-Insert immediately after it:
+In the `render()` filter callback, the climate filter block currently reads:
 
 ```js
       // Climate filters: Jan/Jul mean temp (°F) and sunny days/yr; null excluded when any bound is set.
@@ -515,25 +345,30 @@ Insert immediately after it:
       if (f.sunnyDays.max !== null && (p.sunnyDays == null || p.sunnyDays > f.sunnyDays.max)) return false;
 ```
 
-- [ ] **Step 5: Add `describeFilters()` summary entries**
-
-In `describeFilters()`, find the line:
+Replace that whole block with (drop the two `sunnyDays` lines, fix the comment):
 
 ```js
-    pushRange("popDensity", n => `${fmtNum(n)}/mi²`, "density");
+      // Climate filters: Jan/Jul mean temp (°F); null excluded when any bound is set.
+      if (f.janTempF.min !== null && (p.janTempF == null || p.janTempF < f.janTempF.min)) return false;
+      if (f.janTempF.max !== null && (p.janTempF == null || p.janTempF > f.janTempF.max)) return false;
+      if (f.julTempF.min !== null && (p.julTempF == null || p.julTempF < f.julTempF.min)) return false;
+      if (f.julTempF.max !== null && (p.julTempF == null || p.julTempF > f.julTempF.max)) return false;
 ```
 
-Insert immediately after it:
+- [ ] **Step 10: Delete the `sunnyDays` `describeFilters()` entry**
+
+Delete this line from `describeFilters()`:
 
 ```js
-    pushRange("janTempF", n => `${n}°F`, "January temp");
-    pushRange("julTempF", n => `${n}°F`, "July temp");
-    pushRange("sunnyDays", n => `${fmtNum(n)} sunny days`, "sunny days");
+    pushRange("sunnyDays", fmtNum, "sunny days");
 ```
 
-- [ ] **Step 6: JS-parse sanity check**
+- [ ] **Step 11: Confirm no `sunnyDays` references remain**
 
-Run:
+Run: `grep -n sunnyDays index.html`
+Expected: no output (every reference removed).
+
+- [ ] **Step 12: JS-parse sanity check**
 
 ```bash
 node -e "const m = require('fs').readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/g); new Function(m[m.length-1].replace(/^<script>|<\/script>$/g, '')); console.log('OK')"
@@ -541,16 +376,18 @@ node -e "const m = require('fs').readFileSync('index.html','utf8').match(/<scrip
 
 Expected: `OK`
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 13: Commit**
 
 ```bash
 git add index.html
 git commit -m "$(cat <<'EOF'
-Add range filters for the climate columns
+Drop sunny-days column; cite NOAA in temperature tooltips
 
-placesFilters slots, FILTER_META chip config, preset labels, the
-render() filter predicate, and describeFilters() summary text for
-janTempF / julTempF / sunnyDays.
+The climate feature ships two columns (Jan/Jul mean temp), not
+three — sunshine had no viable free national data source. Removes
+all sunnyDays wiring and updates the temperature header tooltips
+to cite NOAA's 1991-2020 Climate Normals and the nearest-station
+and elevation caveats.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -559,66 +396,35 @@ EOF
 
 ---
 
-## Task 6: Regenerate the dataset and verify
+## Task C: Regenerate the dataset and verify
 
-The app code is complete but every place still shows "—" until `data/places.js` is regenerated. Regeneration hits the Census API and ~160 Open-Meteo batches; it takes several minutes and is a deliberate, user-initiated step.
+The app code is complete but every place shows "—" until `data/places.js` is regenerated. Regeneration hits the Census API plus two NOAA downloads; it takes a few minutes.
 
 **Files:**
 - Regenerate: `data/places.js` (via the build script — never hand-edit)
 
-- [ ] **Step 1: Smoke-test the Open-Meteo contract (one network call)**
+- [ ] **Step 1: Regenerate the dataset**
 
-Before the full run, confirm the API request shape and aggregation logic against two known-contrast cities — Phoenix AZ (hot, sunny) and Seattle WA (mild winter, cloudy). Run:
-
-```bash
-node -e '
-const url = "https://archive-api.open-meteo.com/v1/archive?latitude=33.45,47.62&longitude=-112.07,-122.35&start_date=2015-01-01&end_date=2024-12-31&daily=temperature_2m_mean,sunshine_duration,daylight_duration&temperature_unit=fahrenheit&timezone=auto";
-fetch(url).then(r => r.json()).then(arr => {
-  for (const [i, name] of [[0,"Phoenix"],[1,"Seattle"]]) {
-    const d = arr[i].daily;
-    let jS=0,jN=0,lS=0,lN=0,sun=0;
-    for (let k=0;k<d.time.length;k++){
-      const m=d.time[k].slice(5,7), t=d.temperature_2m_mean[k];
-      if(m==="01"&&Number.isFinite(t)){jS+=t;jN++;}
-      if(m==="07"&&Number.isFinite(t)){lS+=t;lN++;}
-      const s=d.sunshine_duration[k],dl=d.daylight_duration[k];
-      if(Number.isFinite(s)&&Number.isFinite(dl)&&dl>0&&s/dl>=0.7)sun++;
-    }
-    console.log(name, "janF="+Math.round(jS/jN), "julF="+Math.round(lS/lN), "sunnyDays="+Math.round(sun/10));
-  }
-});
-'
-```
-
-Expected: two lines printed. Sanity: for each city `janF < julF`; `sunnyDays` is in roughly 0–365; Phoenix is markedly warmer and sunnier than Seattle (e.g. Phoenix julF in the 90s and sunnyDays well above Seattle's). If the response is not an array or `.daily` is missing, stop and re-check `fetchClimateBatch` before the full run.
-
-- [ ] **Step 2: Regenerate the dataset**
-
-> **User-initiated.** Confirm with the user before running — this makes thousands of API calls and overwrites `data/places.js`. Requires `CENSUS_API_KEY` in `.env`.
+Requires `CENSUS_API_KEY` in `.env`.
 
 Run: `node scripts/fetch_places.mjs`
-Expected: console progress for states, the Gazetteer, and `Climate: … to fetch`/`climate: N/N` lines, ending with `Wrote …/data/places.js (… places).` If Open-Meteo rate-limits mid-run, re-running resumes from `scripts/.climate-cache.json`.
+Expected: console progress for states and the Gazetteer, then `Loaded NOAA station inventory: …`, `NOAA climate stations with Jan+Jul TAVG: …`, and `Climate: matched N/N places to a NOAA station.`, ending with `Wrote …/data/places.js (… places).`
 
-- [ ] **Step 3: Verify the regenerated dataset**
-
-Run:
+- [ ] **Step 2: Verify the regenerated dataset**
 
 ```bash
 node -e 'global.PLACES=[];const c=require("fs").readFileSync("data/places.js","utf8");eval(c.replace("const PLACES","PLACES"));
 const w=PLACES.filter(p=>p.janTempF!=null);
 console.log("places:",PLACES.length,"with climate:",w.length);
-const s=PLACES.find(p=>p.name==="Seattle"),ph=PLACES.find(p=>p.name==="Phoenix");
-console.log("Seattle:",s&&[s.janTempF,s.julTempF,s.sunnyDays]);
-console.log("Phoenix:",ph&&[ph.janTempF,ph.julTempF,ph.sunnyDays]);
 const bad=w.filter(p=>p.janTempF>p.julTempF);
-console.log("places where janTempF>julTempF (expect ~0, only odd microclimates):",bad.length);'
+console.log("places where janTempF>julTempF (expect ~0):",bad.length);
+console.log("has sunnyDays field (expect false):", "sunnyDays" in PLACES[0]);
+for(const n of ["Phoenix","Seattle","Minneapolis","Miami"]){const p=PLACES.find(x=>x.name===n);console.log(n+":",p&&[p.janTempF,p.julTempF]);}'
 ```
 
-Expected: nearly all places have climate; `janTempF < julTempF` for essentially all; Seattle and Phoenix values look plausible and Phoenix is hotter/sunnier.
+Expected: nearly all places have climate; `janTempF < julTempF` for essentially all; `sunnyDays` field absent; the four cities look plausible (e.g. Minneapolis cold January, Miami warm January, Phoenix hot July).
 
-- [ ] **Step 4: Final JS-parse sanity check**
-
-Run:
+- [ ] **Step 3: Final JS-parse sanity check**
 
 ```bash
 node -e "const m = require('fs').readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/g); new Function(m[m.length-1].replace(/^<script>|<\/script>$/g, '')); console.log('OK')"
@@ -626,28 +432,28 @@ node -e "const m = require('fs').readFileSync('index.html','utf8').match(/<scrip
 
 Expected: `OK`
 
-- [ ] **Step 5: Hand off to the user for manual browser testing**
-
-Per `CLAUDE.md`, the user does manual browser testing. Tell the user the feature is ready: open `index.html`, open the column picker, enable **Jan °F / Jul °F / Sun days**, and check sorting and the per-column range filters.
-
-- [ ] **Step 6: Commit the regenerated dataset**
+- [ ] **Step 4: Commit the regenerated dataset**
 
 ```bash
 git add data/places.js
 git commit -m "$(cat <<'EOF'
-Regenerate places dataset with climate fields
+Regenerate places dataset with NOAA temperature fields
 
-janTempF / julTempF / sunnyDays now populated from Open-Meteo.
+janTempF / julTempF now populated from NOAA 1991-2020 normals.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
 
+- [ ] **Step 5: Hand off for manual browser testing**
+
+Tell the user the feature is ready: open `index.html`, open the column picker, enable **Jan °F / Jul °F**, and check sorting and the per-column range filters.
+
 ---
 
 ## Notes
 
-- **URL state needs no changes.** `encodeStateToURL()` / `hydrateFromURL()` iterate `placesFilters` keys and `TOGGLEABLE_COLS` generically, so the new filters and columns get URL persistence automatically once Tasks 4–5 land.
-- **`CLAUDE.md` should be updated** to mention the three new fields and the Open-Meteo source in the `PLACES` shape description and the fetch-script description — but only after the user confirms the feature works. Not a task here; flag it to the user at the end.
-- **`min-width` figures in `applyColumnLayout()`** are computed from `COL_DEFS` `dMin`/`mMin` sums, so adding columns adjusts the layout automatically — no manual width edits needed.
+- **URL state needs no changes.** `encodeStateToURL()` / `hydrateFromURL()` iterate filter and column keys generically.
+- **`CLAUDE.md` should be updated** to mention the two new fields and the NOAA source — flag to the user at the end; not a task here.
+- **Performance:** the nearest-station match is brute-force (~8k places × ~7k stations). This is a few seconds in a one-off offline script — acceptable; no spatial index needed.
