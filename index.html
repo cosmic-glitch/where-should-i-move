@@ -163,13 +163,6 @@
     color: var(--ink-3);
     font-size: 14px;
   }
-  ol.ranking li.row .rank-num {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--ink-4);
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
   ol.ranking li.row .state {
     font-size: 15px;
     font-weight: 500;
@@ -795,25 +788,17 @@
     .table-shell.places .col-headers { padding-left: 12px; padding-right: 12px; }
     .table-shell.places ol.ranking li.row { padding-left: 12px; padding-right: 12px; }
 
-    /* Sticky rank + place-name: pin to the left edge of horizontal scroll.
-       The cells need explicit backgrounds (matching each row band) so they
-       paint over the scrolling content behind them. */
+    /* Sticky place-name: pin it to the left edge of horizontal scroll. The
+       cell needs an explicit background (matching each row band) so it paints
+       over the scrolling content behind it. */
     .table-shell.places .col-headers > div:nth-child(1),
-    .table-shell.places ol.ranking li.row > .rank-num {
+    .table-shell.places ol.ranking li.row > .state {
       position: sticky;
       left: 12px;
       z-index: 3;
-    }
-    .table-shell.places .col-headers > div:nth-child(2),
-    .table-shell.places ol.ranking li.row > .state {
-      position: sticky;
-      left: 46px;
-      z-index: 3;
       box-shadow: 6px 0 6px -4px rgba(0,0,0,0.10);
     }
-    .table-shell.places .col-headers > div:nth-child(1),
-    .table-shell.places .col-headers > div:nth-child(2) { background: var(--surface-alt); }
-    .table-shell.places ol.ranking li.row > .rank-num,
+    .table-shell.places .col-headers > div:nth-child(1) { background: var(--surface-alt); }
     .table-shell.places ol.ranking li.row > .state { background: var(--surface); }
 
     /* Right-edge fade hint signaling more columns are scrollable. The pseudo
@@ -919,7 +904,6 @@
   <div class="table-shell places">
     <div class="table-scroll">
     <div class="col-headers" id="places-headers">
-      <div></div>
       <div data-sort="name">Place<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Place">i</button><span class="info-tooltip">U.S. cities, towns, and unincorporated communities with population ≥ 5,000. Source: U.S. Census ACS 5-year 2023. Townships and towns are included for the 12 strong-MCD states (CT, ME, MA, MI, MN, NH, NJ, NY, PA, RI, VT, WI).</span></span></div>
       <div class="col-metro" data-sort="metro">Metro<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About Metro">i</button><span class="info-tooltip">The Core-Based Statistical Area (CBSA) this place sits in, where one exists. A small number of places in less-populous CBSAs are shown without a metro.</span></span></div>
       <div class="col-state-col" data-sort="state">State<span class="arrow"></span><span class="info"><button class="info-btn" type="button" aria-label="About State">i</button><span class="info-tooltip">U.S. state or the District of Columbia. All tax rates and rules on this row are set by this state's law.</span></span></div>
@@ -1638,7 +1622,7 @@
     total:          { min: 'Min $M',     max: 'Max $M',     fmt: v => '$' + v + 'M' },
   };
   // Columns that aren't numeric (alignment hint for the chip cells).
-  const TEXT_COL_KEYS = new Set(['__rank', 'name', 'metro', 'state']);
+  const TEXT_COL_KEYS = new Set(['name', 'metro', 'state']);
 
   // Long-form labels for preset-list chips. The column-header chips use
   // compact tokens ("%Bach+", "Med HHI"); presets get the room for full
@@ -1813,7 +1797,6 @@
   //  which would leave a gap in the grid).
   //  ────────────────────────────────────────────────────────────────────────
   const COL_DEFS = [
-    { key: '__rank',         label: '#',          always: true,  dW: '32px',                  mW: '26px',                  dMin: 32,  mMin: 26 },
     { key: 'name',           label: 'Place',      always: true,  dW: 'minmax(130px, 1.2fr)',  mW: 'minmax(110px, 1.1fr)',  dMin: 130, mMin: 110 },
     { key: 'metro',          label: 'Metro',      always: false, dW: 'minmax(140px, 1.1fr)',  mW: 'minmax(100px, 1fr)',    dMin: 140, mMin: 100, desc: 'Metro area (CBSA)' },
     { key: 'state',          label: 'State',      always: false, dW: '90px',                  mW: '100px',                 dMin: 90,  mMin: 100, desc: 'State or DC' },
@@ -1848,8 +1831,7 @@
   for (const k of DEFAULT_HIDDEN_COLS) placesVisibleCols.delete(k);
 
   // Maps a COL_DEFS key to its header div (so we can hide/show the column header).
-  // We rely on DOM order matching COL_DEFS order; the rank cell is the unmarked
-  // first <div> in #places-headers.
+  // We rely on DOM order matching COL_DEFS order.
   const headerByKey = {};
   Array.from(elPlacesHeaders.children).forEach((div, i) => {
     const def = COL_DEFS[i];
@@ -1913,7 +1895,6 @@
   //  columns and concatenates these into each row.
   //  ────────────────────────────────────────────────────────────────────────
   const CELL_RENDERERS = {
-    __rank:         (p, c) => `<div class="rank-num">${c.idx + 1}</div>`,
     name:           (p)    => `<div class="state">${p.name}</div>`,
     metro:          (p)    => `<div class="metro-col" style="font-size:13px;color:var(--ink-3)">${p.metro || "—"}</div>`,
     state:          (p)    => `<div class="state-col-cell" style="font-size:14px;color:var(--ink-2)">${p.state}</div>`,
@@ -2389,8 +2370,7 @@
   }
 
   // Build one row's <li>. `i` is the global index in the filtered list, so the
-  // rank cell (CELL_RENDERERS.__rank uses ctx.idx) and the absolute `top`
-  // offset are both globally correct regardless of which window is painted.
+  // absolute `top` offset is correct regardless of which window is painted.
   function renderRowHTML(p, i) {
     const isFree = p.total === 0;
     const hhiDisplay = p.medianHHI === null ? "—" : "$" + Math.round(p.medianHHI / 1000) + "k";
@@ -2409,7 +2389,7 @@
       : asianHhi >= 1_000_000 ? "$" + (asianHhi / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
       : "$" + Math.round(asianHhi / 1000) + "k";
     const densityDisplay = p.popDensity == null ? "—" : p.popDensity.toLocaleString();
-    const ctx = { idx: i, isFree, hhiDisplay, homeDisplay, bachDisplay, twohkDisplay,
+    const ctx = { isFree, hhiDisplay, homeDisplay, bachDisplay, twohkDisplay,
                   asianDisplay, fbornDisplay, ageDisplay, ownerDisplay, asianHhiDisplay, densityDisplay };
     const cells = COL_DEFS
       .filter(c => placesVisibleCols.has(c.key))
