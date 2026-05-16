@@ -346,7 +346,7 @@ function parseStationInventory(text) {
 function parseMonthlyTavg(csv) {
   const lines = csv.split(/\r?\n/);
   const header = lines[0].split(",").map(s => s.replace(/^"|"$/g, "").trim());
-  const idIdx    = header.indexOf("STATION");
+  const idIdx    = header.indexOf("GHCN_ID");
   const monthIdx = header.indexOf("month");
   const tavgIdx  = header.indexOf("MLY-TAVG-NORMAL");
   const flagIdx  = header.indexOf("meas_flag_MLY-TAVG-NORMAL");
