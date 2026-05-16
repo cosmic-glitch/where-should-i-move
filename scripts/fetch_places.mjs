@@ -287,17 +287,26 @@ async function loadLandArea() {
     const lines = text.split(/\r?\n/);
     const header = lines[0].split("\t").map(s => s.trim());
     const geoidIdx = header.indexOf("GEOID");
-    const sqmiIdx = header.indexOf("ALAND_SQMI");
-    if (geoidIdx < 0 || sqmiIdx < 0) {
-      throw new Error(`gazetteer ${url}: missing GEOID or ALAND_SQMI columns (header was ${header.join("|")})`);
+    const sqmiIdx  = header.indexOf("ALAND_SQMI");
+    const latIdx   = header.indexOf("INTPTLAT");
+    const lonIdx   = header.indexOf("INTPTLONG");
+    if (geoidIdx < 0 || sqmiIdx < 0 || latIdx < 0 || lonIdx < 0) {
+      throw new Error(`gazetteer ${url}: missing GEOID/ALAND_SQMI/INTPTLAT/INTPTLONG columns (header was ${header.join("|")})`);
     }
+    const maxIdx = Math.max(geoidIdx, sqmiIdx, latIdx, lonIdx);
     for (let i = 1; i < lines.length; i++) {
       const parts = lines[i].split("\t");
-      if (parts.length <= sqmiIdx) continue;
+      if (parts.length <= maxIdx) continue;
       const geoid = parts[geoidIdx].trim();
       const sqmi = parseFloat(parts[sqmiIdx]);
+      const lat  = parseFloat(parts[latIdx]);
+      const lon  = parseFloat(parts[lonIdx]);
       if (!geoid || !Number.isFinite(sqmi) || sqmi <= 0) continue;
-      map.set(geoid, sqmi);
+      map.set(geoid, {
+        sqmi,
+        lat: Number.isFinite(lat) ? lat : null,
+        lon: Number.isFinite(lon) ? lon : null,
+      });
     }
   }
   LAND_AREA = map;
@@ -433,7 +442,8 @@ async function fetchGeography(fips, name, geoQuery) {
     // Asian-alone-householder median HHI (suppressed for small N).
     const asianMedianHHI = Number.isFinite(asianHhi) && asianHhi > 0 ? asianHhi : null;
     // Population density: people per square mile of land area.
-    const landSqMi = LAND_AREA ? LAND_AREA.get(geoid) : null;
+    const gaz = LAND_AREA ? LAND_AREA.get(geoid) : null;
+    const landSqMi = gaz ? gaz.sqmi : null;
     const popDensity = landSqMi && landSqMi > 0 ? Math.round(population / landSqMi) : null;
     out.push({
       name: cleanName(rawName),
@@ -455,6 +465,8 @@ async function fetchGeography(fips, name, geoQuery) {
       popDensity,
       metro: metroFor(fips, county),
       demMargin: demMarginFor(name, county),
+      _lat: gaz ? gaz.lat : null,
+      _lon: gaz ? gaz.lon : null,
     });
   }
   return out;
