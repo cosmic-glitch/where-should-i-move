@@ -356,6 +356,8 @@ function parseMonthlyTavg(csv) {
   const map = new Map();
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i]) continue;
+    // Naive comma-split is safe: this NOAA by-variable file has only station
+    // IDs, numbers, dates, and single-char flags — no quoted free-text fields.
     const p = lines[i].split(",").map(s => s.replace(/^"|"$/g, "").trim());
     if (p.length <= flagIdx) continue;
     const month = p[monthIdx];
