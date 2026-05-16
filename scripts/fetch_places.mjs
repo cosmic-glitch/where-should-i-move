@@ -613,8 +613,9 @@ async function main() {
       console.error(`  ${s[1].padEnd(22)} → ERROR: ${e.message}`);
     }
   }
-  all.sort((a, b) => b.pctIndian - a.pctIndian);
   console.error(`Total places fetched: ${all.length}`);
+  await loadClimate(all);
+  all.sort((a, b) => b.pctIndian - a.pctIndian);
   console.error(`Top 5 by % Asian Indian:`);
   all.slice(0, 5).forEach((p, i) => console.error(`  ${i + 1}. ${p.name}, ${p.state} — ${(p.pctIndian * 100).toFixed(1)}% Indian (pop ${p.population.toLocaleString()})`));
   const filtered = all;
@@ -638,6 +639,9 @@ async function main() {
     `//   asianMedianHHI  = B19013D_001E   (Asian-alone householder; suppressed for small N → null)`,
     `//   popDensity      = population / ALAND_SQMI  (people/mi²; ALAND_SQMI from 2023 Census Gazetteer)`,
     `//   demMargin       = 2024 county presidential margin (Harris − Trump, pct points; MIT/MEDSL)`,
+    `//   janTempF        = avg daily mean temp, January 2015–2024 (°F; Open-Meteo, ERA5-based)`,
+    `//   julTempF        = avg daily mean temp, July 2015–2024 (°F; Open-Meteo, ERA5-based)`,
+    `//   sunnyDays       = days/yr with sunshine ≥ 70% of daylight, 2015–2024 (Open-Meteo, ERA5-based)`,
     `// Includes Census Places + county subdivisions (townships/towns) for the 12 strong-MCD states.`,
     `// Population floor ${POP_FLOOR.toLocaleString("en-US")}; no demographic filter (users filter in-UI).`,
     `// Loaded by index.html via <script src="data/places.js"></script>; declares global PLACES.`,
@@ -647,7 +651,7 @@ async function main() {
   const num = v => (v === null || v === undefined ? "null" : v);
   for (const p of filtered) {
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)} },`);
+    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)}, sunnyDays: ${num(p.sunnyDays)} },`);
   }
   lines.push(`];`, ``);
   writeFileSync(outPath, lines.join("\n"));
