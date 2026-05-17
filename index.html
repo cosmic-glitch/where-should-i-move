@@ -368,6 +368,9 @@
     opacity: 0.7;
   }
   .filters-btn[aria-expanded="true"] .filters-caret { transform: rotate(180deg); }
+  /* `display: inline-flex` above beats the UA `[hidden] { display: none }`,
+     so honor `hidden` explicitly — the Clear filters pill relies on it. */
+  .filters-btn[hidden] { display: none; }
   /* "Clear filters" — a destructive reset, tinted red so it stands out among
      the neutral Preset filters / Columns pills. Shown only when filters are active. */
   .filters-btn-clear { color: var(--bad); border-color: var(--bad); }
