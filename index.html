@@ -311,26 +311,6 @@
   .places-summary .count { color: var(--ink); font-weight: 600; }
   .places-summary .crit  { color: var(--ink-2); }
   .places-summary .sep   { color: var(--ink-4); margin: 0 6px; }
-  .places-summary .clear-filters {
-    font-family: inherit;
-    font-size: inherit;
-    font-weight: 600;
-    color: var(--ink-3);
-    background: transparent;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    text-decoration: underline;
-    text-decoration-color: var(--border);
-    text-underline-offset: 3px;
-    letter-spacing: inherit;
-    line-height: inherit;
-    transition: color 0.12s, text-decoration-color 0.12s;
-  }
-  .places-summary .clear-filters:hover {
-    color: var(--bad);
-    text-decoration-color: currentColor;
-  }
 
   /* Places table — different column layout */
   .table-shell.places .col-headers,
@@ -388,6 +368,14 @@
     opacity: 0.7;
   }
   .filters-btn[aria-expanded="true"] .filters-caret { transform: rotate(180deg); }
+  /* "Clear filters" — a destructive reset, tinted red so it stands out among
+     the neutral Preset filters / Columns pills. Shown only when filters are active. */
+  .filters-btn-clear { color: var(--bad); border-color: var(--bad); }
+  .filters-btn-clear:hover {
+    color: var(--bad);
+    border-color: var(--bad);
+    background: var(--bad-soft);
+  }
   .filters-badge {
     display: inline-flex;
     align-items: center;
@@ -867,6 +855,10 @@
         </div>
       </div>
     </div>
+    <button id="clear-filters-btn" class="filters-btn filters-btn-clear" type="button" hidden>
+      <svg class="filters-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      <span>Clear filters</span>
+    </button>
   </div>
   <div class="table-shell places">
     <div class="table-scroll">
@@ -1524,12 +1516,10 @@
     render();
   }
 
-  // "Clear filters" link inside the places summary — appears only when any
-  // filter is active. Delegated so the listener survives subtitle re-renders.
-  document.getElementById("places-subtitle").addEventListener("click", e => {
-    if (!e.target.classList.contains("clear-filters")) return;
-    clearAllFilters();
-  });
+  // "Clear filters" pill in the section-title row, beside Preset filters and
+  // Columns. render() toggles its `hidden` state with the active-filter set.
+  const elClearFiltersBtn = document.getElementById("clear-filters-btn");
+  elClearFiltersBtn.addEventListener("click", clearAllFilters);
 
   // Clicking the page title acts as a "home" reset — clears all filters.
   document.querySelector("header.masthead h1").addEventListener("click", clearAllFilters);
@@ -2315,13 +2305,12 @@
       elSub.innerHTML =
         `Showing <span class="count">${totalRows.toLocaleString()} of ${PLACES.length.toLocaleString()} places</span>` +
         `<span class="sep">·</span>` +
-        `<span class="crit">${filterDesc}</span>` +
-        `<span class="sep">·</span>` +
-        `<button type="button" class="clear-filters">Clear filters</button>`;
+        `<span class="crit">${filterDesc}</span>`;
     } else {
       elSub.innerHTML =
         `Showing all <span class="count">${PLACES.length.toLocaleString()} places</span>`;
     }
+    elClearFiltersBtn.hidden = !anyFilter;
 
     // Virtual scrolling: store the full result set, size the <ul> to it, and
     // paint only the rows near the viewport.
