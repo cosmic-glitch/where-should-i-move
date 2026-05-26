@@ -269,18 +269,22 @@ function demMarginFor(stateName, county) {
 }
 
 // FEMA National Risk Index — natural-hazard risk at the county level, keyed by
-// `${stateName}|${cleanCounty}` → { ratePct, topHazards } to reuse the same
-// county-name join as demMargin (no FIPS plumbing needed). `ratePct` is the national
-// percentile of the composite Expected Annual Loss *rate* — expected hazard loss per
-// dollar of exposed property, so unlike the composite Risk Index it is independent of
-// county size (a small wildfire county can outrank a big metro). `topHazards` lists
-// the 3 hazards contributing the most expected-annual-loss dollars, the figures FEMA
-// sums into the composite. Counties with no rate (insufficient data) drop to null.
+// `${stateName}|${cleanCounty}` to reuse the demMargin county-name join. FEMA's
+// expected-annual-loss is split into its two size-independent *rate* components:
+//   healthRate = population-loss rate → modeled fatalities + injuries (an injury ≈ 1/10
+//                of a fatality), per 100k residents/yr. A relative health-risk index,
+//                NOT an observed death rate — it annualizes rare catastrophic events.
+//   propRate   = building-loss rate → expected annual building loss per $100k of value.
+// Both are rates (size-independent: a small high-hazard county outranks a big metro),
+// and we keep the raw magnitude rather than only a percentile (which compresses the
+// heavy right tail). For color we also store each rate's national percentile
+// (healthPct/propPct). healthHazards/propHazards list the 3 hazards driving the most
+// loss for that stream ("Name (Rating)"). Counties with no data drop to null.
 // Source: FEMA NRI, via the climate.gov ArcGIS Hub county CSV.
 let COUNTY_NRI = null;
 async function loadCountyNRI() {
   const url = "https://resilience.climate.gov/datasets/FEMA::national-risk-index-counties.csv";
-  const EXPECTED_COL = "Expected Annual Loss Rate - National Percentile - Composite";
+  const EXPECTED_COL = "Expected Annual Loss Rate - Population - Composite";
   const text = await fetchWithRetry(url, {
     label: "FEMA NRI",
     // The on-demand CSV sometimes returns a bad body with 200; require the header.
@@ -290,23 +294,36 @@ async function loadCountyNRI() {
   const header = lines[0].replace(/^﻿/, "").split(",");
   const iState = header.indexOf("State Name");
   const iCounty = header.indexOf("County Name");
-  const iRatePct = header.indexOf("Expected Annual Loss Rate - National Percentile - Composite");
-  if (iState < 0 || iCounty < 0 || iRatePct < 0) {
+  const iHealth = header.indexOf("Expected Annual Loss Rate - Population - Composite");
+  const iProp = header.indexOf("Expected Annual Loss Rate - Building - Composite");
+  if (iState < 0 || iCounty < 0 || iHealth < 0 || iProp < 0) {
     throw new Error("FEMA NRI: expected columns not found (schema changed?)");
   }
-  // Per-hazard columns: each of the ~17 hazards has a "<Hazard> - Hazard Type Risk
-  // Index Rating" (for the display label) and an "<Hazard> - Expected Annual Loss -
-  // Total" (the dollar figure that drives the composite — used to rank the top 3).
-  // Discover them by name so it survives schema/order changes.
+  // Per-hazard columns: the rating (display label) plus the per-stream expected-annual-
+  // loss used to rank that stream's top drivers — population loss for health, building
+  // loss for property. Discover by name so it survives schema/order changes.
   const hazardCols = [];
   for (let c = 0; c < header.length; c++) {
     const m = header[c].match(/^(.*) - Hazard Type Risk Index Rating$/);
     if (!m) continue;
-    const ealIdx = header.indexOf(`${m[1]} - Expected Annual Loss - Total`);
-    if (ealIdx >= 0) hazardCols.push({ name: m[1], iRate: c, iEal: ealIdx });
+    const iPop = header.indexOf(`${m[1]} - Expected Annual Loss - Population`);
+    const iBld = header.indexOf(`${m[1]} - Expected Annual Loss - Building Value`);
+    if (iPop >= 0 && iBld >= 0) hazardCols.push({ name: m[1], iRate: c, iPop, iBld });
   }
   const SKIP_RATING = new Set(["", "Not Applicable", "Insufficient Data", "No Rating"]);
-  const map = new Map();
+  const top3 = (parts, lossKey) => {
+    const d = [];
+    for (const hz of hazardCols) {
+      const rt = parts[hz.iRate].trim();
+      const v = parseFloat(parts[hz[lossKey]]);
+      if (SKIP_RATING.has(rt) || !Number.isFinite(v) || v <= 0) continue;
+      d.push({ name: hz.name, rating: rt, v });
+    }
+    d.sort((a, b) => b.v - a.v);
+    return d.slice(0, 3).map(x => `${x.name} (${x.rating})`).join(", ") || null;
+  };
+  // Pass 1: collect each county's raw rates + per-stream hazard drivers.
+  const entries = [];
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i]) continue;
     const parts = lines[i].split(",");
@@ -314,25 +331,38 @@ async function loadCountyNRI() {
     const stateName = parts[iState].trim();
     // County Name is already suffix-free ("Autauga"); strip defensively anyway.
     const county = parts[iCounty].replace(/ (County|Parish|Borough|Census Area|Municipality|city)$/i, "").trim();
-    const ratePct = parseFloat(parts[iRatePct]);
-    if (!stateName || !county || !Number.isFinite(ratePct)) continue;
-    // Top 3 contributing hazards by expected-annual-loss dollars, "Name (Rating)".
-    const drivers = [];
-    for (const hz of hazardCols) {
-      const rt = parts[hz.iRate].trim();
-      const eal = parseFloat(parts[hz.iEal]);
-      if (SKIP_RATING.has(rt) || !Number.isFinite(eal)) continue;
-      drivers.push({ name: hz.name, rating: rt, eal });
-    }
-    drivers.sort((a, b) => b.eal - a.eal);
-    const topHazards = drivers.slice(0, 3).map(d => `${d.name} (${d.rating})`).join(", ") || null;
-    map.set(`${stateName}|${county}`, { ratePct: +ratePct.toFixed(1), topHazards });
+    const health = parseFloat(parts[iHealth]); // per capita
+    const prop = parseFloat(parts[iProp]);     // per $
+    if (!stateName || !county || !Number.isFinite(health) || !Number.isFinite(prop)) continue;
+    entries.push({
+      key: `${stateName}|${county}`,
+      healthRate: +(health * 100000).toFixed(1), // → per 100k residents/yr
+      propRate: Math.round(prop * 100000),        // → $/yr per $100k of value
+      healthHazards: top3(parts, "iPop"),
+      propHazards: top3(parts, "iBld"),
+    });
+  }
+  // Pass 2: national percentile of each rate (used only for color banding; rank-based,
+  // so robust to the heavy right-skew that would break a min-max/linear color scale).
+  const pctile = (sorted, v) => {
+    let lo = 0, hi = sorted.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] <= v) lo = m + 1; else hi = m; }
+    return sorted.length > 1 ? Math.round(100 * (lo - 1) / (sorted.length - 1)) : 0;
+  };
+  const hSorted = entries.map(e => e.healthRate).sort((a, b) => a - b);
+  const pSorted = entries.map(e => e.propRate).sort((a, b) => a - b);
+  const map = new Map();
+  for (const e of entries) {
+    map.set(e.key, {
+      healthRate: e.healthRate, healthPct: pctile(hSorted, e.healthRate), healthHazards: e.healthHazards,
+      propRate: e.propRate, propPct: pctile(pSorted, e.propRate), propHazards: e.propHazards,
+    });
   }
   COUNTY_NRI = map;
   console.error(`Loaded FEMA National Risk Index: ${map.size} counties`);
 }
 function nriFor(stateName, county) {
-  const empty = { ratePct: null, topHazards: null };
+  const empty = { healthRate: null, healthPct: null, healthHazards: null, propRate: null, propPct: null, propHazards: null };
   if (!county || !COUNTY_NRI) return empty;
   return COUNTY_NRI.get(`${stateName}|${county}`) || empty;
 }
@@ -710,8 +740,12 @@ async function fetchGeography(fips, name, geoQuery) {
       popDensity,
       metro: metroFor(fips, county),
       demMargin: demMarginFor(name, county),
-      femaEalRatePct: nri.ratePct,
-      femaTopHazards: nri.topHazards,
+      femaHealthRate: nri.healthRate,
+      femaHealthPct: nri.healthPct,
+      femaHealthHazards: nri.healthHazards,
+      femaPropRate: nri.propRate,
+      femaPropPct: nri.propPct,
+      femaPropHazards: nri.propHazards,
       _lat: gaz ? gaz.lat : null,
       _lon: gaz ? gaz.lon : null,
     });
@@ -787,8 +821,12 @@ async function main() {
     `//   asianMedianHHI  = B19013D_001E   (Asian-alone householder; suppressed for small N → null)`,
     `//   popDensity      = population / ALAND_SQMI  (people/mi²; ALAND_SQMI from 2023 Census Gazetteer)`,
     `//   demMargin       = 2024 county presidential margin (Harris − Trump, pct points; MIT/MEDSL)`,
-    `//   femaEalRatePct  = FEMA NRI expected-annual-loss RATE, national percentile 0–100 (loss per $ of exposed property; size-independent; county level; null if insufficient data)`,
-    `//   femaTopHazards  = top 3 hazards by expected-annual-loss $, "Name (Rating)", comma-joined (county level)`,
+    `//   femaHealthRate  = FEMA NRI population-loss rate: modeled fatalities+injuries per 100k residents/yr (size-independent; county level; null if insufficient data)`,
+    `//   femaHealthPct   = national percentile (0–100) of femaHealthRate (for color banding)`,
+    `//   femaHealthHazards = top 3 hazards by population (health) loss, "Name (Rating)", comma-joined`,
+    `//   femaPropRate    = FEMA NRI building-loss rate: expected annual building loss per $100k of value (size-independent; county level)`,
+    `//   femaPropPct     = national percentile (0–100) of femaPropRate (for color banding)`,
+    `//   femaPropHazards = top 3 hazards by building (property) loss, "Name (Rating)", comma-joined`,
     `//   janTempF        = January mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
     `//   julTempF        = July mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
     `// Includes Census Places + county subdivisions (townships/towns) for the 12 strong-MCD states.`,
@@ -800,7 +838,7 @@ async function main() {
   const num = v => (v === null || v === undefined ? "null" : v);
   for (const p of filtered) {
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, femaEalRatePct: ${num(p.femaEalRatePct)}, femaTopHazards: ${p.femaTopHazards ? JSON.stringify(p.femaTopHazards) : "null"}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
+    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, femaHealthRate: ${num(p.femaHealthRate)}, femaHealthPct: ${num(p.femaHealthPct)}, femaHealthHazards: ${p.femaHealthHazards ? JSON.stringify(p.femaHealthHazards) : "null"}, femaPropRate: ${num(p.femaPropRate)}, femaPropPct: ${num(p.femaPropPct)}, femaPropHazards: ${p.femaPropHazards ? JSON.stringify(p.femaPropHazards) : "null"}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
   }
   lines.push(`];`, ``);
   writeFileSync(outPath, lines.join("\n"));
