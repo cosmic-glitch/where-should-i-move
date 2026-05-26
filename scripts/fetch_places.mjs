@@ -240,6 +240,49 @@ function demMarginFor(stateName, county) {
   return v === undefined ? null : v;
 }
 
+// FEMA National Risk Index — composite natural-hazard risk at the county level,
+// keyed by `${stateName}|${cleanCounty}` → { score, rating } to reuse the same
+// county-name join as demMargin (no FIPS plumbing needed). `score` is the national
+// composite (0–100; a value-at-risk × hazard measure, so it scales partly with a
+// county's population and building stock). `rating` is the national category
+// ("Very Low" … "Very High"); "Insufficient Data" counties are dropped to null.
+// Source: FEMA NRI, via the climate.gov ArcGIS Hub county CSV.
+let COUNTY_NRI = null;
+async function loadCountyNRI() {
+  const url = "https://resilience.climate.gov/datasets/FEMA::national-risk-index-counties.csv";
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`FEMA NRI: ${res.status} ${res.statusText}`);
+  const text = await res.text();
+  const lines = text.replace(/\r/g, "").split("\n");
+  const header = lines[0].replace(/^﻿/, "").split(",");
+  const iState = header.indexOf("State Name");
+  const iCounty = header.indexOf("County Name");
+  const iScore = header.indexOf("National Risk Index - Score - Composite");
+  const iRating = header.indexOf("National Risk Index - Rating - Composite");
+  if (iState < 0 || iCounty < 0 || iScore < 0 || iRating < 0) {
+    throw new Error("FEMA NRI: expected columns not found (schema changed?)");
+  }
+  const map = new Map();
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i]) continue;
+    const parts = lines[i].split(",");
+    if (parts.length <= iRating) continue;
+    const stateName = parts[iState].trim();
+    // County Name is already suffix-free ("Autauga"); strip defensively anyway.
+    const county = parts[iCounty].replace(/ (County|Parish|Borough|Census Area|Municipality|city)$/i, "").trim();
+    const rating = parts[iRating].trim();
+    const score = parseFloat(parts[iScore]);
+    if (!stateName || !county || rating === "Insufficient Data" || !Number.isFinite(score)) continue;
+    map.set(`${stateName}|${county}`, { score: +score.toFixed(1), rating });
+  }
+  COUNTY_NRI = map;
+  console.error(`Loaded FEMA National Risk Index: ${map.size} counties`);
+}
+function nriFor(stateName, county) {
+  if (!county || !COUNTY_NRI) return { score: null, rating: null };
+  return COUNTY_NRI.get(`${stateName}|${county}`) || { score: null, rating: null };
+}
+
 async function loadPlaceToCounty() {
   const url = "https://www2.census.gov/geo/docs/reference/codes2020/national_place2020.txt";
   const res = await fetch(url);
@@ -586,6 +629,8 @@ async function fetchGeography(fips, name, geoQuery) {
     const gaz = LAND_AREA ? LAND_AREA.get(geoid) : null;
     const landSqMi = gaz ? gaz.sqmi : null;
     const popDensity = landSqMi && landSqMi > 0 ? Math.round(population / landSqMi) : null;
+    // FEMA National Risk Index (county level), joined by county name like demMargin.
+    const nri = nriFor(name, county);
     out.push({
       name: cleanName(rawName),
       state: name,
@@ -610,6 +655,8 @@ async function fetchGeography(fips, name, geoQuery) {
       popDensity,
       metro: metroFor(fips, county),
       demMargin: demMarginFor(name, county),
+      femaRiskScore: nri.score,
+      femaRiskRating: nri.rating,
       _lat: gaz ? gaz.lat : null,
       _lon: gaz ? gaz.lon : null,
     });
@@ -636,6 +683,7 @@ async function fetchState([fips, name]) {
 async function main() {
   await loadPlaceToCounty();
   await loadCountyElection();
+  await loadCountyNRI();
   await loadLandArea();
   console.error(`Fetching ${STATES.length} states (population floor ${POP_FLOOR}, no demographic filter)...`);
   const all = [];
@@ -677,6 +725,8 @@ async function main() {
     `//   asianMedianHHI  = B19013D_001E   (Asian-alone householder; suppressed for small N → null)`,
     `//   popDensity      = population / ALAND_SQMI  (people/mi²; ALAND_SQMI from 2023 Census Gazetteer)`,
     `//   demMargin       = 2024 county presidential margin (Harris − Trump, pct points; MIT/MEDSL)`,
+    `//   femaRiskScore   = FEMA National Risk Index composite score (0–100, national; county level)`,
+    `//   femaRiskRating  = FEMA NRI composite rating ("Very Low"…"Very High"; county level; null if insufficient data)`,
     `//   janTempF        = January mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
     `//   julTempF        = July mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
     `// Includes Census Places + county subdivisions (townships/towns) for the 12 strong-MCD states.`,
@@ -688,7 +738,7 @@ async function main() {
   const num = v => (v === null || v === undefined ? "null" : v);
   for (const p of filtered) {
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
+    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, femaRiskScore: ${num(p.femaRiskScore)}, femaRiskRating: ${p.femaRiskRating ? JSON.stringify(p.femaRiskRating) : "null"}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
   }
   lines.push(`];`, ``);
   writeFileSync(outPath, lines.join("\n"));
