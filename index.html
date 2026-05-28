@@ -232,13 +232,20 @@
   .col-headers [data-sort].active .arrow { opacity: 1; }
 
   /* Column-header tooltip — shown on hover of the header itself */
-  .col-headers .info-tooltip {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: -6px;
-    z-index: 50;
+  /* The inline .info-tooltip span is the *content source* only — its visible
+     rendering is delegated to a portal element appended to <body> (see the
+     .info-tooltip-portal rules below and the JS at the bottom of this file).
+     Why: the table is wrapped in .table-shell { overflow: hidden } and
+     .table-scroll { overflow-x: auto } (which silently demotes overflow-y to
+     auto too), so an absolutely-positioned tooltip inside .col-headers gets
+     clipped at the shell's edges for long descriptions or when the filtered
+     <ul> is short. A fixed-position portal at the <body> level escapes both. */
+  .col-headers .info-tooltip { display: none; }
+  .info-tooltip-portal {
+    position: fixed;
+    z-index: 1000;
     width: 280px;
-    max-width: 90vw;
+    max-width: calc(100vw - 24px);
     padding: 10px 12px;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -250,21 +257,20 @@
     letter-spacing: 0;
     text-align: left;
     white-space: normal;
-    visibility: hidden;
     opacity: 0;
     transform: translateY(-4px);
-    transition: opacity 0.14s, transform 0.14s, visibility 0s linear 0.14s;
+    /* pointer-events:none keeps the portal from intercepting mouseenter on the
+       header *behind* it while invisible; flipped to auto in .visible so the
+       cursor can land on it (read long text) and select text for copy/paste. */
     pointer-events: none;
-  }
-  .col-headers [data-sort]:hover .info-tooltip {
-    visibility: visible;
-    opacity: 1;
-    transform: translateY(0);
     transition: opacity 0.14s, transform 0.14s;
   }
-  .col-headers .info-tooltip strong { color: var(--ink); font-weight: 600; }
-  /* Left-anchored tooltip for non-numeric (left-aligned) columns */
-  .col-headers > div:not(.col-num) .info-tooltip { right: auto; left: -6px; }
+  .info-tooltip-portal.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  .info-tooltip-portal strong { color: var(--ink); font-weight: 600; }
   ol.ranking li.row .num-col {
     font-size: 14px;
     color: var(--ink);
@@ -1507,6 +1513,68 @@
       render();
     });
   });
+
+  // ── Column-header info tooltip (portal) ───────────────────────────────────
+  // The tooltip box is rendered into <body> as a single shared element with
+  // position:fixed, so it can't be clipped by .table-shell's overflow:hidden
+  // or by the .table-scroll wrapper. A short hide-timer bridges the gap
+  // between header and tooltip so the cursor can land on the tooltip itself
+  // (needed to read long descriptions and to select text for copy-paste).
+  const ttPortal = document.createElement("div");
+  ttPortal.className = "info-tooltip-portal";
+  ttPortal.setAttribute("role", "tooltip");
+  document.body.appendChild(ttPortal);
+  let ttCurrentHeader = null;
+  let ttHideTimer = 0;
+  function ttPosition() {
+    if (!ttCurrentHeader) return;
+    const r = ttCurrentHeader.getBoundingClientRect();
+    const w = ttPortal.offsetWidth;
+    const ht = ttPortal.offsetHeight;
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    // Numeric headers are right-aligned; non-numeric are left-aligned. Anchor
+    // the tooltip on the matching side so it visually points at the header.
+    const isLeftAligned = !ttCurrentHeader.classList.contains("col-num");
+    let left = isLeftAligned ? r.left - 6 : r.right - w + 6;
+    left = Math.max(8, Math.min(left, vw - w - 8));
+    let top = r.bottom + 8;
+    // Flip above when there isn't room below.
+    if (top + ht > vh - 8 && r.top - 8 - ht > 8) top = r.top - 8 - ht;
+    ttPortal.style.left = left + "px";
+    ttPortal.style.top = top + "px";
+  }
+  function ttShow(h) {
+    const src = h.querySelector(".info-tooltip");
+    if (!src) return;
+    clearTimeout(ttHideTimer);
+    ttPortal.innerHTML = src.innerHTML;
+    ttCurrentHeader = h;
+    ttPortal.classList.add("visible");
+    // Position now (with whatever offsetHeight we have) and once more next
+    // frame after the new content has laid out, so flip-above is accurate.
+    ttPosition();
+    requestAnimationFrame(ttPosition);
+  }
+  function ttHide() {
+    ttPortal.classList.remove("visible");
+    ttCurrentHeader = null;
+  }
+  function ttHideSoon() {
+    clearTimeout(ttHideTimer);
+    ttHideTimer = setTimeout(ttHide, 120);
+  }
+  elPlacesHeaders.querySelectorAll("[data-sort]").forEach(h => {
+    h.addEventListener("mouseenter", () => ttShow(h));
+    h.addEventListener("mouseleave", ttHideSoon);
+  });
+  ttPortal.addEventListener("mouseenter", () => clearTimeout(ttHideTimer));
+  ttPortal.addEventListener("mouseleave", ttHideSoon);
+  // The portal is position:fixed — it doesn't track the header on scroll or
+  // resize, so just dismiss in those cases (user can re-hover).
+  document.addEventListener("keydown", e => { if (e.key === "Escape") ttHide(); });
+  window.addEventListener("scroll", ttHide, { passive: true, capture: true });
+  window.addEventListener("resize", ttHide);
 
   // Reset all column filters back to their empty state, then re-render.
   function clearAllFilters() {
