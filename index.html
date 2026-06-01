@@ -340,6 +340,52 @@
     overflow-y: visible;
   }
 
+  /* Granularity segmented control — Places vs States, sits left of the filter
+     buttons in the .section-title row. Swaps the table's primary key. */
+  .granularity-toggle {
+    display: inline-flex;
+    background: var(--surface-alt);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .gran-btn {
+    font: 500 13px 'Inter', -apple-system, system-ui, sans-serif;
+    padding: 5px 15px;
+    border: none;
+    background: transparent;
+    color: var(--ink-3);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.12s, background 0.12s, box-shadow 0.12s;
+  }
+  .gran-btn:hover { color: var(--ink); }
+  .gran-btn.is-active {
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Clickable rows in States view (drill into that state's places). */
+  ol.ranking.drillable li.row { cursor: pointer; }
+  ol.ranking.drillable li.row:hover { background: var(--surface-alt); }
+
+  /* Drill breadcrumb clear button, shown in the subtitle when drilled into a state. */
+  .drill-clear {
+    font: 600 11px 'Inter', -apple-system, system-ui, sans-serif;
+    margin-left: 7px;
+    padding: 1px 6px 2px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink-3);
+    cursor: pointer;
+    line-height: 1;
+    vertical-align: middle;
+  }
+  .drill-clear:hover { color: var(--bad); border-color: var(--bad); }
+
   /* Filters bar — pill button + popover, sits in the .section-title row above the table */
   .filters-bar {
     position: relative;
@@ -833,6 +879,10 @@
 
   <p class="places-summary" id="places-subtitle"></p>
   <div class="section-title">
+    <div class="granularity-toggle" role="group" aria-label="Granularity">
+      <button type="button" class="gran-btn is-active" data-gran="places">Places</button>
+      <button type="button" class="gran-btn" data-gran="states">States</button>
+    </div>
     <div class="filters-bar">
       <button id="presets-toggle" class="filters-btn" type="button"
               aria-haspopup="dialog" aria-expanded="false" aria-controls="presets-popover">
@@ -1467,6 +1517,28 @@
   let searchTimer = null;
   let placesSortBy = "pctIndian"; // 'name' | 'state' | 'metro' | 'pop' | 'pctIndian' | 'demMargin' | 'femaHealth' | 'femaProp' | 'homicide' | 'hhi' | 'pctBach' | 'pct200k' | 'homeValue' | 'death' | 'income' | 'capgains' | 'total'
   let placesSortDir = "desc";
+
+  // ── Granularity: which set of rows the table renders ──────────────────────
+  // 'places' = the ~8,036 places (default); 'states' = one row per state/DC.
+  // Both arrays share the identical field schema, so the entire render/sort/
+  // filter pipeline below is reused — only the source array changes. STATE_ROWS
+  // is declared in data/places.js; guard so a stale data file can't crash init.
+  let granularity = "places";
+  let drillState = null;          // in 'places' view, restrict to this one state
+  const STATE_ROWS_DATA = (typeof STATE_ROWS !== "undefined" && Array.isArray(STATE_ROWS)) ? STATE_ROWS : [];
+  // Columns that carry no meaning at a coarser level are force-hidden there,
+  // independent of the user's column toggles (which still apply in Places view).
+  const LEVEL_HIDDEN = { states: new Set(["metro", "state", "janTempF", "julTempF"]) };
+  // Effective visible columns for the current granularity. Recomputed in
+  // render()/applyColumnLayout(); paintWindow reuses the cached set on scroll.
+  function computeVisibleCols() {
+    const hide = LEVEL_HIDDEN[granularity];
+    if (!hide) return placesVisibleCols;
+    const s = new Set();
+    for (const k of placesVisibleCols) if (!hide.has(k)) s.add(k);
+    return s;
+  }
+  let renderVisibleCols = placesVisibleCols;
   // Per-column numeric range filters for the places table.
   // Units: pop = raw count; pct* = percentage points (5 = 5%);
   // hhi/homeValue = thousands of dollars; tax columns = millions of dollars.
@@ -1514,6 +1586,52 @@
       }
       render();
     });
+  });
+
+  // ── Granularity switch (Places ⇄ States) + click-to-drill ─────────────────
+  // Update the chrome that depends on granularity: the identity column header
+  // label, the search placeholder, and the rows' clickable affordance.
+  function syncGranularityChrome() {
+    const isStates = granularity === "states";
+    const nameHeader = elPlacesHeaders.querySelector('[data-sort="name"]');
+    if (nameHeader && nameHeader.firstChild && nameHeader.firstChild.nodeType === 3) {
+      nameHeader.firstChild.textContent = isStates ? "State" : "Place";
+    }
+    if (elPlacesSearch) elPlacesSearch.placeholder = isStates ? "Search states…" : "Search place, state, or metro…";
+    elPlacesRanking.classList.toggle("drillable", isStates);
+    document.querySelectorAll(".gran-btn").forEach(b => b.classList.toggle("is-active", b.dataset.gran === granularity));
+  }
+  function setGranularity(g) {
+    if (g === granularity || (g !== "places" && g !== "states")) return;
+    granularity = g;
+    if (g === "states") drillState = null;  // leaving Places clears any drill
+    syncGranularityChrome();
+    window.scrollTo(0, 0);
+    applyColumnLayout();
+    render();
+  }
+  document.querySelectorAll(".gran-btn").forEach(b =>
+    b.addEventListener("click", () => setGranularity(b.dataset.gran)));
+  // Click a state row → drill into that state's places.
+  elPlacesRanking.addEventListener("click", e => {
+    if (granularity !== "states") return;
+    const li = e.target.closest("li.row");
+    if (!li || li.dataset.i === undefined) return;
+    const row = placeRowsFull[parseInt(li.dataset.i, 10)];
+    if (!row) return;
+    drillState = row.state;        // a state row's `state` field is its own name
+    granularity = "places";
+    syncGranularityChrome();
+    window.scrollTo(0, 0);
+    applyColumnLayout();
+    render();
+  });
+  // Clear the drill breadcrumb (✕ in the subtitle) → back to all places.
+  document.getElementById("places-subtitle").addEventListener("click", e => {
+    if (!e.target.closest(".drill-clear")) return;
+    drillState = null;
+    window.scrollTo(0, 0);
+    render();
   });
 
   // ── Column-header info tooltip (portal) ───────────────────────────────────
@@ -1585,6 +1703,7 @@
     }
     placesSearch = "";
     if (elPlacesSearch) elPlacesSearch.value = "";
+    drillState = null;  // drill is a filter-like restriction; clear it too
     render();
   }
 
@@ -1889,7 +2008,9 @@
   document.head.appendChild(dynColStyle);
 
   function applyColumnLayout() {
-    const visible = COL_DEFS.filter(c => placesVisibleCols.has(c.key));
+    renderVisibleCols = computeVisibleCols();
+    const eff = renderVisibleCols;
+    const visible = COL_DEFS.filter(c => eff.has(c.key));
     const dCols = visible.map(c => c.dW).join(' ');
     const mCols = visible.map(c => c.mW).join(' ');
     const dGap = 10, mGap = 8;
@@ -1919,7 +2040,7 @@
     // Hide/show header cells and matching chip cells. Visible cells must be
     // the only ones rendered (display:none on a grid item removes its track).
     for (const def of COL_DEFS) {
-      const visible = placesVisibleCols.has(def.key);
+      const visible = eff.has(def.key);
       const h = headerByKey[def.key];
       if (h) h.style.display = visible ? "" : "none";
       const chipCell = document.querySelector(`#col-filters-row .col-filter-cell[data-col="${def.key}"]`);
@@ -1930,7 +2051,7 @@
     const searchCell = elColFiltersRow.querySelector('.col-search-cell');
     if (searchCell) {
       searchCell.style.gridColumn = 'span ' +
-        (1 + (placesVisibleCols.has('metro') ? 1 : 0) + (placesVisibleCols.has('state') ? 1 : 0));
+        (1 + (eff.has('metro') ? 1 : 0) + (eff.has('state') ? 1 : 0));
     }
   }
 
@@ -2271,6 +2392,9 @@
   }
 
   function render() {
+    renderVisibleCols = computeVisibleCols();
+    // Which rows are we ranking — the ~8,036 places, or the 51 state rows?
+    const SRC = granularity === "states" ? STATE_ROWS_DATA : PLACES;
     // All money inputs in millions; years is a count.
     const estate = (parseFloat(elNetWorth.value) || 0) * 1_000_000;
     const annualIncome = (parseFloat(elAnnualIncome.value) || 0) * 1_000_000;
@@ -2299,7 +2423,7 @@
       }
     }
 
-    const allPlaceRows = PLACES.map(p => {
+    const allPlaceRows = SRC.map(p => {
       const s = stateByName[p.state] || { tax: 0, incomeTax: 0, capGainsTax: 0, total: 0, rates: { income: 0, capGains: 0 }, breakdown: "" };
       return {
         ...p,
@@ -2314,6 +2438,8 @@
     // order) in the place's name / state / metro.
     const searchTokens = placesSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const placeRows = allPlaceRows.filter(p => {
+      // Drill: when zoomed from a state into its places, keep only that state.
+      if (drillState && granularity === "places" && p.state !== drillState) return false;
       if (searchTokens.length) {
         const hay = (p.name + " " + p.state + " " + (p.metro || "")).toLowerCase();
         for (const t of searchTokens) if (!hay.includes(t)) return false;
@@ -2324,10 +2450,16 @@
       if (f.popDensity.min !== null && (p.popDensity == null || p.popDensity < f.popDensity.min)) return false;
       if (f.popDensity.max !== null && (p.popDensity == null || p.popDensity > f.popDensity.max)) return false;
       // Climate filters: Jan/Jul mean temp (°F); null excluded when any bound is set.
-      if (f.janTempF.min !== null && (p.janTempF == null || p.janTempF < f.janTempF.min)) return false;
-      if (f.janTempF.max !== null && (p.janTempF == null || p.janTempF > f.janTempF.max)) return false;
-      if (f.julTempF.min !== null && (p.julTempF == null || p.julTempF < f.julTempF.min)) return false;
-      if (f.julTempF.max !== null && (p.julTempF == null || p.julTempF > f.julTempF.max)) return false;
+      // Temp filters are inert at levels where the temp columns are hidden (States),
+      // so a stray filter from Places view can't silently empty the list there.
+      if (renderVisibleCols.has("janTempF")) {
+        if (f.janTempF.min !== null && (p.janTempF == null || p.janTempF < f.janTempF.min)) return false;
+        if (f.janTempF.max !== null && (p.janTempF == null || p.janTempF > f.janTempF.max)) return false;
+      }
+      if (renderVisibleCols.has("julTempF")) {
+        if (f.julTempF.min !== null && (p.julTempF == null || p.julTempF < f.julTempF.min)) return false;
+        if (f.julTempF.max !== null && (p.julTempF == null || p.julTempF > f.julTempF.max)) return false;
+      }
       const pct = p.pctIndian * 100;
       if (f.pctIndian.min !== null && pct < f.pctIndian.min) return false;
       if (f.pctIndian.max !== null && pct > f.pctIndian.max) return false;
@@ -2429,20 +2561,31 @@
     });
 
     const totalRows = placeRows.length;
+    const totalSrc = SRC.length;
+    const noun = granularity === "states" ? "states" : "places";
     const descParts = [];
     if (searchTokens.length) descParts.push(`matching “${esc(placesSearch.trim())}”`);
     const colDesc = describeFilters(f);
     if (colDesc) descParts.push(colDesc);
     const filterDesc = descParts.join(" · ");
+    const critTail = filterDesc ? `<span class="sep">·</span><span class="crit">${filterDesc}</span>` : "";
     const elSub = document.getElementById("places-subtitle");
-    if (anyFilter) {
+    if (granularity === "states") {
+      elSub.innerHTML = anyFilter
+        ? `Showing <span class="count">${totalRows.toLocaleString()} of ${totalSrc.toLocaleString()} states</span>${critTail}`
+        : `Showing all <span class="count">${totalSrc.toLocaleString()} states</span>`;
+    } else if (drillState) {
+      // Drilled into one state — show the breadcrumb with a clear (✕) control.
       elSub.innerHTML =
-        `Showing <span class="count">${totalRows.toLocaleString()} of ${PLACES.length.toLocaleString()} places</span>` +
-        `<span class="sep">·</span>` +
-        `<span class="crit">${filterDesc}</span>`;
+        `Showing <span class="count">${totalRows.toLocaleString()} ${noun}</span> in ` +
+        `<span class="crit">${esc(drillState)}</span>` +
+        `<button type="button" class="drill-clear" aria-label="Clear state filter" title="Clear state filter">✕</button>` +
+        critTail;
+    } else if (anyFilter) {
+      elSub.innerHTML =
+        `Showing <span class="count">${totalRows.toLocaleString()} of ${totalSrc.toLocaleString()} places</span>${critTail}`;
     } else {
-      elSub.innerHTML =
-        `Showing all <span class="count">${PLACES.length.toLocaleString()} places</span>`;
+      elSub.innerHTML = `Showing all <span class="count">${totalSrc.toLocaleString()} places</span>`;
     }
     elClearFiltersBtn.hidden = !anyFilter;
 
@@ -2487,10 +2630,10 @@
     const ctx = { isFree, hhiDisplay, homeDisplay, bachDisplay, twohkDisplay,
                   asianDisplay, fbornDisplay, ageDisplay, ownerDisplay, asianHhiDisplay, densityDisplay };
     const cells = COL_DEFS
-      .filter(c => placesVisibleCols.has(c.key))
+      .filter(c => renderVisibleCols.has(c.key))
       .map(c => CELL_RENDERERS[c.key](p, ctx))
       .join("");
-    return `<li class="row" style="top:${i * ROW_H}px">${cells}</li>`;
+    return `<li class="row" data-i="${i}" style="top:${i * ROW_H}px">${cells}</li>`;
   }
 
   // Render only the rows whose vertical band intersects the viewport (plus an
@@ -2550,6 +2693,8 @@
     setIfNotDefault("e",  elNetWorth.value);
     setIfNotDefault("sb", placesSortBy);
     setIfNotDefault("sd", placesSortDir);
+    if (granularity !== "places") sp.set("g", granularity);
+    if (drillState) sp.set("ds", drillState);
     if (placesSearch.trim()) sp.set("q", placesSearch.trim());
     for (const col of FILTER_COLS) {
       const { min, max } = placesFilters[col];
@@ -2583,6 +2728,10 @@
     if (sb) placesSortBy = sb;
     const sd = sp.get("sd");
     if (sd === "asc" || sd === "desc") placesSortDir = sd;
+    const g = sp.get("g");
+    if (g === "states") granularity = "states";
+    const ds = sp.get("ds");
+    if (ds) drillState = ds;
     const q = sp.get("q");
     if (q) placesSearch = q;
     for (const col of FILTER_COLS) {
@@ -2620,9 +2769,13 @@
   }
 
   hydrateFromURL();
+  // Guard against a stale data file with no state rows (e.g. URL says g=states
+  // but data/places.js predates STATE_ROWS): fall back to Places.
+  if (granularity === "states" && STATE_ROWS_DATA.length === 0) { granularity = "places"; drillState = null; }
   hydrateColumns();
   revealFilteredColumns();
   buildColFiltersRow();
+  syncGranularityChrome();
   applyColumnLayout();
   render();
 </script>

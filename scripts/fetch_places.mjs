@@ -209,6 +209,13 @@ let PLACE_TO_COUNTY = null;
 // 2024 county-level presidential Democratic margin (per_dem - per_gop, ×100), keyed by
 // `${stateName}|${cleanCounty}`. Loaded once from the tonmcg/MEDSL aggregation.
 let COUNTY_DEM_MARGIN = null;
+// State-level aggregates (keyed by full state name), populated alongside the
+// county maps in the same loaders, and consumed by fetchStates() to build the
+// STATE_ROWS macro level. STATE_LAND_AREA is keyed by 2-digit state FIPS.
+let STATE_DEM_MARGIN = null;  // 2024 presidential margin, vote-weighted from counties
+let STATE_NRI = null;          // FEMA health/property, exposure-weighted from counties
+let STATE_HOMICIDE = null;     // NCHS homicide rate, direct from CHR state rows
+let STATE_LAND_AREA = null;    // total ALAND_SQMI summed from the counties gazetteer
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Fetch with retry + linear backoff for flaky external endpoints — the Census API
@@ -244,6 +251,10 @@ async function loadCountyElection() {
   if (!res.ok) throw new Error(`county election: ${res.status} ${res.statusText}`);
   const text = await res.text();
   const map = new Map();
+  // State-level margin is just the vote-weighted aggregate of its counties: sum
+  // every county's raw Dem/GOP votes, then (Dem − GOP)/total. Additive, so this
+  // equals the official statewide result — no separate state source needed.
+  const stateVotes = new Map(); // stateName → { dem, gop, total }
   const lines = text.split("\n");
   // Header: state_name,county_fips,county_name,votes_gop,votes_dem,total_votes,diff,per_gop,per_dem,per_point_diff
   for (let i = 1; i < lines.length; i++) {
@@ -253,18 +264,35 @@ async function loadCountyElection() {
     if (parts.length < 10) continue;
     const stateName = parts[0];
     let countyName = parts[2].replace(/ (County|Parish|Borough|Census Area|Municipality|city)$/i, "").trim();
+    const votesGop = parseFloat(parts[3]);
+    const votesDem = parseFloat(parts[4]);
+    const totalVotes = parseFloat(parts[5]);
     const perGop = parseFloat(parts[7]);
     const perDem = parseFloat(parts[8]);
     if (!Number.isFinite(perGop) || !Number.isFinite(perDem)) continue;
     const margin = +((perDem - perGop) * 100).toFixed(1);
     map.set(`${stateName}|${countyName}`, margin);
+    if (Number.isFinite(votesGop) && Number.isFinite(votesDem) && Number.isFinite(totalVotes)) {
+      const s = stateVotes.get(stateName) || { dem: 0, gop: 0, total: 0 };
+      s.dem += votesDem; s.gop += votesGop; s.total += totalVotes;
+      stateVotes.set(stateName, s);
+    }
   }
   COUNTY_DEM_MARGIN = map;
-  console.error(`Loaded 2024 county election margins: ${map.size} counties`);
+  STATE_DEM_MARGIN = new Map();
+  for (const [stateName, v] of stateVotes) {
+    if (v.total > 0) STATE_DEM_MARGIN.set(stateName, +(((v.dem - v.gop) / v.total) * 100).toFixed(1));
+  }
+  console.error(`Loaded 2024 county election margins: ${map.size} counties, ${STATE_DEM_MARGIN.size} states`);
 }
 function demMarginFor(stateName, county) {
   if (!county || !COUNTY_DEM_MARGIN) return null;
   const v = COUNTY_DEM_MARGIN.get(`${stateName}|${county}`);
+  return v === undefined ? null : v;
+}
+function demMarginForState(stateName) {
+  if (!STATE_DEM_MARGIN) return null;
+  const v = STATE_DEM_MARGIN.get(stateName);
   return v === undefined ? null : v;
 }
 
@@ -299,6 +327,12 @@ async function loadCountyNRI() {
   if (iState < 0 || iCounty < 0 || iHealth < 0 || iProp < 0) {
     throw new Error("FEMA NRI: expected columns not found (schema changed?)");
   }
+  // Exposure columns for the state-level aggregate: a state's rate is the
+  // exposure-weighted mean of its counties — health weighted by population,
+  // property by building value (i.e. Σloss/Σexposure), which is how a true
+  // state EAL rate is defined. Absent → state rates fall back to null.
+  const iPopulation = header.indexOf("Population (2020)");
+  const iBuildVal = header.indexOf("Building Value ($)");
   // Per-hazard columns: the rating (display label) plus the per-stream expected-annual-
   // loss used to rank that stream's top drivers — population loss for health, building
   // loss for property. Discover by name so it survives schema/order changes.
@@ -322,8 +356,10 @@ async function loadCountyNRI() {
     d.sort((a, b) => b.v - a.v);
     return d.slice(0, 3).map(x => `${x.name} (${x.rating})`).join(", ") || null;
   };
-  // Pass 1: collect each county's raw rates + per-stream hazard drivers.
+  // Pass 1: collect each county's raw rates + per-stream hazard drivers, and
+  // accumulate per-state exposure-weighted sums for the state-level aggregate.
   const entries = [];
+  const stateAgg = new Map(); // stateName → { hW, pop, pW, bval, haz: Map<name,{pop,bld}> }
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i]) continue;
     const parts = lines[i].split(",");
@@ -334,13 +370,28 @@ async function loadCountyNRI() {
     const health = parseFloat(parts[iHealth]); // per capita
     const prop = parseFloat(parts[iProp]);     // per $
     if (!stateName || !county || !Number.isFinite(health) || !Number.isFinite(prop)) continue;
+    const healthRate = +(health * 100000).toFixed(1); // → per 100k residents/yr
+    const propRate = Math.round(prop * 100000);        // → $/yr per $100k of value
     entries.push({
       key: `${stateName}|${county}`,
-      healthRate: +(health * 100000).toFixed(1), // → per 100k residents/yr
-      propRate: Math.round(prop * 100000),        // → $/yr per $100k of value
+      healthRate, propRate,
       healthHazards: top3(parts, "iPop"),
       propHazards: top3(parts, "iBld"),
     });
+    // State aggregate: weight each county rate by its exposure.
+    const pop = iPopulation >= 0 ? parseFloat(parts[iPopulation]) : NaN;
+    const bval = iBuildVal >= 0 ? parseFloat(parts[iBuildVal]) : NaN;
+    let agg = stateAgg.get(stateName);
+    if (!agg) { agg = { hW: 0, pop: 0, pW: 0, bval: 0, haz: new Map() }; stateAgg.set(stateName, agg); }
+    if (Number.isFinite(pop) && pop > 0) { agg.hW += healthRate * pop; agg.pop += pop; }
+    if (Number.isFinite(bval) && bval > 0) { agg.pW += propRate * bval; agg.bval += bval; }
+    for (const hz of hazardCols) {
+      const pv = parseFloat(parts[hz.iPop]), bv = parseFloat(parts[hz.iBld]);
+      let h = agg.haz.get(hz.name);
+      if (!h) { h = { pop: 0, bld: 0 }; agg.haz.set(hz.name, h); }
+      if (Number.isFinite(pv) && pv > 0) h.pop += pv;
+      if (Number.isFinite(bv) && bv > 0) h.bld += bv;
+    }
   }
   // Pass 2: national percentile of each rate (used only for color banding; rank-based,
   // so robust to the heavy right-skew that would break a min-max/linear color scale).
@@ -359,12 +410,32 @@ async function loadCountyNRI() {
     });
   }
   COUNTY_NRI = map;
-  console.error(`Loaded FEMA National Risk Index: ${map.size} counties`);
+  // State-level rates: exposure-weighted mean of counties, percentile ranked
+  // within the same county distribution (so colors stay comparable). Top hazards
+  // are the 3 names driving the most summed loss statewide (no per-state rating).
+  const topStateHaz = (hazMap, key) => [...hazMap.entries()]
+    .filter(([, v]) => v[key] > 0).sort((a, b) => b[1][key] - a[1][key])
+    .slice(0, 3).map(([name]) => name).join(", ") || null;
+  STATE_NRI = new Map();
+  for (const [stateName, agg] of stateAgg) {
+    const healthRate = agg.pop > 0 ? +(agg.hW / agg.pop).toFixed(1) : null;
+    const propRate = agg.bval > 0 ? Math.round(agg.pW / agg.bval) : null;
+    STATE_NRI.set(stateName, {
+      healthRate, healthPct: healthRate == null ? null : pctile(hSorted, healthRate), healthHazards: topStateHaz(agg.haz, "pop"),
+      propRate, propPct: propRate == null ? null : pctile(pSorted, propRate), propHazards: topStateHaz(agg.haz, "bld"),
+    });
+  }
+  console.error(`Loaded FEMA National Risk Index: ${map.size} counties, ${STATE_NRI.size} states`);
 }
 function nriFor(stateName, county) {
   const empty = { healthRate: null, healthPct: null, healthHazards: null, propRate: null, propPct: null, propHazards: null };
   if (!county || !COUNTY_NRI) return empty;
   return COUNTY_NRI.get(`${stateName}|${county}`) || empty;
+}
+function nriForState(stateName) {
+  const empty = { healthRate: null, healthPct: null, healthHazards: null, propRate: null, propPct: null, propHazards: null };
+  if (!STATE_NRI) return empty;
+  return STATE_NRI.get(stateName) || empty;
 }
 
 // Homicide death rate at the county level, keyed `${stateName}|${cleanCounty}` to
@@ -397,15 +468,19 @@ async function loadCountyHomicide() {
     throw new Error("CHR homicide: expected columns not found (schema changed?)");
   }
   const map = new Map();
+  STATE_HOMICIDE = new Map();
   for (let i = 2; i < lines.length; i++) {
     if (!lines[i]) continue;
     const parts = lines[i].split(",");
     if (parts.length <= iHom) continue;
-    if (parts[iCounty] === "000") continue;             // skip the US + state-aggregate rows
     const stateName = fipsToState.get(parts[iState]);
-    if (!stateName) continue;                           // territories etc. — no places in our set
+    if (!stateName) continue;                           // US row (00) + territories — not in our set
     const raw = parseFloat(parts[iHom]);
     if (!Number.isFinite(raw)) continue;                // suppressed (<10 deaths) → absent
+    if (parts[iCounty] === "000") {                     // state-aggregate row = direct NCHS state value
+      STATE_HOMICIDE.set(stateName, +raw.toFixed(1));
+      continue;
+    }
     // Clean the county name with the SAME suffix regex as the place→county crosswalk so
     // the keys match. ("Autauga County" → "Autauga"; CT "Capitol Planning Region" stays
     // intact, matching the crosswalk's planning-region names.)
@@ -413,11 +488,16 @@ async function loadCountyHomicide() {
     map.set(`${stateName}|${county}`, +raw.toFixed(1));
   }
   COUNTY_HOMICIDE = map;
-  console.error(`Loaded county homicide rates: ${map.size} counties`);
+  console.error(`Loaded county homicide rates: ${map.size} counties, ${STATE_HOMICIDE.size} states`);
 }
 function homicideFor(stateName, county) {
   if (!county || !COUNTY_HOMICIDE) return null;
   const v = COUNTY_HOMICIDE.get(`${stateName}|${county}`);
+  return v === undefined ? null : v;
+}
+function homicideForState(stateName) {
+  if (!STATE_HOMICIDE) return null;
+  const v = STATE_HOMICIDE.get(stateName);
   return v === undefined ? null : v;
 }
 
@@ -458,6 +538,8 @@ async function loadLandArea() {
   const urls = [
     "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2023_Gazetteer/2023_Gaz_place_national.zip",
     "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2023_Gazetteer/2023_Gaz_cousubs_national.zip",
+    // Counties: only used to sum state land area (the state-density denominator).
+    "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2023_Gazetteer/2023_Gaz_counties_national.zip",
   ];
   const map = new Map();
   for (const url of urls) {
@@ -491,7 +573,16 @@ async function loadLandArea() {
     }
   }
   LAND_AREA = map;
-  console.error(`Loaded land-area gazetteer: ${map.size} geographies`);
+  // State land area = sum of county ALAND (additive, exact), keyed by 2-digit
+  // state FIPS — the denominator for state population density. County GEOIDs are
+  // the only 5-digit keys (places are 7, cousubs 10).
+  STATE_LAND_AREA = new Map();
+  for (const [geoid, v] of map) {
+    if (geoid.length !== 5) continue;
+    const fp = geoid.slice(0, 2);
+    STATE_LAND_AREA.set(fp, (STATE_LAND_AREA.get(fp) || 0) + v.sqmi);
+  }
+  console.error(`Loaded land-area gazetteer: ${map.size} geographies, ${STATE_LAND_AREA.size} states`);
 }
 
 // ── Climate ────────────────────────────────────────────────────────────────
@@ -664,6 +755,85 @@ const ACS_VARS = [
   "B17001_002E", // income in the past 12 months below the poverty level
 ].join(",");
 
+// Compute the demographic fields shared by every ACS geography (place, county
+// subdivision, state) from a raw ACS result row. Column order matches ACS_VARS;
+// row[0] is NAME (read by the caller). Geography-specific fields (county, metro,
+// demMargin, FEMA, homicide, density, coords) are layered on by the caller.
+// Census negative sentinels (e.g. -666666666) for suppressed estimates → null.
+function acsDemographics(row) {
+  const [
+    , // NAME
+    indianStr, asianStr, popStr, hhiStr, homeStr,
+    eduTotalStr, eduBachStr, eduMastStr, eduProfStr, eduDocStr,
+    hhTotalStr, hh200kStr,
+    natTotalStr, natForeignStr,
+    medianAgeStr,
+    tenTotalStr, tenOwnerStr,
+    asianHhiStr,
+    raceTotalStr, whiteStr, blackStr, hispanicStr,
+    povTotalStr, povBelowStr,
+  ] = row;
+  const population = parseInt(popStr, 10);
+  const indian = parseInt(indianStr, 10);
+  const asian = parseInt(asianStr, 10);
+  const medianHHI = parseInt(hhiStr, 10);
+  const medianHomeValue = parseInt(homeStr, 10);
+  const eduTotal = parseInt(eduTotalStr, 10);
+  const eduBachPlus = [eduBachStr, eduMastStr, eduProfStr, eduDocStr]
+    .map(s => parseInt(s, 10))
+    .reduce((a, v) => a + (Number.isFinite(v) && v >= 0 ? v : 0), 0);
+  const hhTotal = parseInt(hhTotalStr, 10);
+  const hh200k = parseInt(hh200kStr, 10);
+  const natTotal = parseInt(natTotalStr, 10);
+  const natForeign = parseInt(natForeignStr, 10);
+  const medianAgeRaw = parseFloat(medianAgeStr);
+  const tenTotal = parseInt(tenTotalStr, 10);
+  const tenOwner = parseInt(tenOwnerStr, 10);
+  const asianHhi = parseInt(asianHhiStr, 10);
+  const raceTotal = parseInt(raceTotalStr, 10);
+  const white = parseInt(whiteStr, 10);
+  const black = parseInt(blackStr, 10);
+  const hispanic = parseInt(hispanicStr, 10);
+  const povTotal = parseInt(povTotalStr, 10);
+  const povBelow = parseInt(povBelowStr, 10);
+  const pop = Number.isFinite(population) && population > 0 ? population : null;
+  const raceShare = n => Number.isFinite(raceTotal) && raceTotal > 0 && Number.isFinite(n) && n >= 0
+    ? +(n / raceTotal).toFixed(4) : null;
+  return {
+    population,
+    // % Asian Indian (alone or in combination) / total population.
+    pctIndian: Number.isFinite(indian) && indian >= 0 && pop
+      ? +(indian / pop).toFixed(4) : 0,
+    // % Asian (alone or in combination) / total population.
+    pctAsian: Number.isFinite(asian) && asian >= 0 && pop
+      ? +(asian / pop).toFixed(4) : null,
+    medianHHI: Number.isFinite(medianHHI) && medianHHI > 0 ? medianHHI : null,
+    medianHomeValue: Number.isFinite(medianHomeValue) && medianHomeValue > 0 ? medianHomeValue : null,
+    // % adults 25+ with a bachelor's degree or higher.
+    pctBach: Number.isFinite(eduTotal) && eduTotal > 0 ? +(eduBachPlus / eduTotal).toFixed(4) : null,
+    // % households earning $200k+ (top bracket of B19001).
+    pct200k: Number.isFinite(hhTotal) && hhTotal > 0 && Number.isFinite(hh200k) && hh200k >= 0
+      ? +(hh200k / hhTotal).toFixed(4) : null,
+    // % foreign-born (B05012_003 / B05012_001).
+    pctForeignBorn: Number.isFinite(natTotal) && natTotal > 0 && Number.isFinite(natForeign) && natForeign >= 0
+      ? +(natForeign / natTotal).toFixed(4) : null,
+    // Race/ethnicity shares from B03002 (mutually exclusive).
+    pctHispanic: raceShare(hispanic),
+    pctWhite: raceShare(white),
+    pctBlack: raceShare(black),
+    // % of people below the poverty line (B17001_002 / B17001_001).
+    pctPoverty: Number.isFinite(povTotal) && povTotal > 0 && Number.isFinite(povBelow) && povBelow >= 0
+      ? +(povBelow / povTotal).toFixed(4) : null,
+    // Median age — Census uses negative sentinels for suppression.
+    medianAge: Number.isFinite(medianAgeRaw) && medianAgeRaw > 0 ? +medianAgeRaw.toFixed(1) : null,
+    // % homeownership (owner-occupied / total occupied).
+    pctHomeowner: Number.isFinite(tenTotal) && tenTotal > 0 && Number.isFinite(tenOwner) && tenOwner >= 0
+      ? +(tenOwner / tenTotal).toFixed(4) : null,
+    // Asian-alone-householder median HHI (suppressed for small N).
+    asianMedianHHI: Number.isFinite(asianHhi) && asianHhi > 0 ? asianHhi : null,
+  };
+}
+
 async function fetchGeography(fips, name, geoQuery) {
   const url = `https://api.census.gov/data/2023/acs/acs5?get=${ACS_VARS}&for=${encodeURIComponent(geoQuery)}&in=state:${fips}&key=${CENSUS_KEY}`;
   // Census 503s intermittently; retry so a transient blip doesn't silently drop a state.
@@ -676,42 +846,9 @@ async function fetchGeography(fips, name, geoQuery) {
   const out = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    const [
-      rawName,
-      indianStr, asianStr, popStr, hhiStr, homeStr,
-      eduTotalStr, eduBachStr, eduMastStr, eduProfStr, eduDocStr,
-      hhTotalStr, hh200kStr,
-      natTotalStr, natForeignStr,
-      medianAgeStr,
-      tenTotalStr, tenOwnerStr,
-      asianHhiStr,
-      raceTotalStr, whiteStr, blackStr, hispanicStr,
-      povTotalStr, povBelowStr,
-    ] = row;
-    const population = parseInt(popStr, 10);
-    const indian = parseInt(indianStr, 10);
-    const asian = parseInt(asianStr, 10);
-    const medianHHI = parseInt(hhiStr, 10);
-    const medianHomeValue = parseInt(homeStr, 10);
-    const eduTotal = parseInt(eduTotalStr, 10);
-    const eduBachPlus = [eduBachStr, eduMastStr, eduProfStr, eduDocStr]
-      .map(s => parseInt(s, 10))
-      .reduce((a, v) => a + (Number.isFinite(v) && v >= 0 ? v : 0), 0);
-    const hhTotal = parseInt(hhTotalStr, 10);
-    const hh200k = parseInt(hh200kStr, 10);
-    const natTotal = parseInt(natTotalStr, 10);
-    const natForeign = parseInt(natForeignStr, 10);
-    const medianAgeRaw = parseFloat(medianAgeStr);
-    const tenTotal = parseInt(tenTotalStr, 10);
-    const tenOwner = parseInt(tenOwnerStr, 10);
-    const asianHhi = parseInt(asianHhiStr, 10);
-    const raceTotal = parseInt(raceTotalStr, 10);
-    const white = parseInt(whiteStr, 10);
-    const black = parseInt(blackStr, 10);
-    const hispanic = parseInt(hispanicStr, 10);
-    const povTotal = parseInt(povTotalStr, 10);
-    const povBelow = parseInt(povBelowStr, 10);
-    if (!Number.isFinite(population) || population < POP_FLOOR) continue;
+    const d = acsDemographics(row);
+    if (!Number.isFinite(d.population) || d.population < POP_FLOOR) continue;
+    const rawName = row[0];
     // County + GEOID: for places, look up via Place-to-County crosswalk;
     // for MCDs, parse county from NAME. GEOID key for the land-area lookup
     // is `${stateFP}${placeFP}` (places, 7 digits) or `${stateFP}${countyFP}${cousubFP}`
@@ -728,46 +865,10 @@ async function fetchGeography(fips, name, geoQuery) {
       const countyFP = row[row.length - 2];
       geoid = `${fips}${countyFP}${cousubFP}`;
     }
-    // % Asian = (Asian alone or in combination) / total population.
-    const pctAsian = Number.isFinite(asian) && asian >= 0
-      ? +(asian / population).toFixed(4)
-      : null;
-    // % adults 25+ with bachelor's degree or higher.
-    const pctBach = Number.isFinite(eduTotal) && eduTotal > 0
-      ? +(eduBachPlus / eduTotal).toFixed(4)
-      : null;
-    // % households earning $200k+ (top bracket of B19001).
-    const pct200k = Number.isFinite(hhTotal) && hhTotal > 0 && Number.isFinite(hh200k) && hh200k >= 0
-      ? +(hh200k / hhTotal).toFixed(4)
-      : null;
-    // % foreign-born (B05012_003 / B05012_001).
-    const pctForeignBorn = Number.isFinite(natTotal) && natTotal > 0 && Number.isFinite(natForeign) && natForeign >= 0
-      ? +(natForeign / natTotal).toFixed(4)
-      : null;
-    // Race/ethnicity shares from B03002 (mutually exclusive): Hispanic of any
-    // race, and non-Hispanic White / Black alone.
-    const raceShare = n => Number.isFinite(raceTotal) && raceTotal > 0 && Number.isFinite(n) && n >= 0
-      ? +(n / raceTotal).toFixed(4)
-      : null;
-    const pctHispanic = raceShare(hispanic);
-    const pctWhite = raceShare(white);
-    const pctBlack = raceShare(black);
-    // % of people below the poverty line (B17001_002 / B17001_001).
-    const pctPoverty = Number.isFinite(povTotal) && povTotal > 0 && Number.isFinite(povBelow) && povBelow >= 0
-      ? +(povBelow / povTotal).toFixed(4)
-      : null;
-    // Median age — Census uses negative sentinels for suppression.
-    const medianAge = Number.isFinite(medianAgeRaw) && medianAgeRaw > 0 ? +medianAgeRaw.toFixed(1) : null;
-    // % homeownership (owner-occupied / total occupied).
-    const pctHomeowner = Number.isFinite(tenTotal) && tenTotal > 0 && Number.isFinite(tenOwner) && tenOwner >= 0
-      ? +(tenOwner / tenTotal).toFixed(4)
-      : null;
-    // Asian-alone-householder median HHI (suppressed for small N).
-    const asianMedianHHI = Number.isFinite(asianHhi) && asianHhi > 0 ? asianHhi : null;
     // Population density: people per square mile of land area.
     const gaz = LAND_AREA ? LAND_AREA.get(geoid) : null;
     const landSqMi = gaz ? gaz.sqmi : null;
-    const popDensity = landSqMi && landSqMi > 0 ? Math.round(population / landSqMi) : null;
+    const popDensity = landSqMi && landSqMi > 0 ? Math.round(d.population / landSqMi) : null;
     // FEMA National Risk Index (county level), joined by county name like demMargin.
     const nri = nriFor(name, county);
     // County homicide rate (NCHS via County Health Rankings), same county-name join.
@@ -775,24 +876,7 @@ async function fetchGeography(fips, name, geoQuery) {
     out.push({
       name: cleanName(rawName),
       state: name,
-      population,
-      pctIndian: Number.isFinite(indian) && indian >= 0
-        ? +(indian / population).toFixed(4)
-        : 0,
-      pctAsian,
-      // Census returns negative sentinel values (e.g. -666666666) when suppressed; coerce to null.
-      medianHHI: Number.isFinite(medianHHI) && medianHHI > 0 ? medianHHI : null,
-      medianHomeValue: Number.isFinite(medianHomeValue) && medianHomeValue > 0 ? medianHomeValue : null,
-      pctBach,
-      pct200k,
-      pctForeignBorn,
-      pctHispanic,
-      pctBlack,
-      pctWhite,
-      pctPoverty,
-      medianAge,
-      pctHomeowner,
-      asianMedianHHI,
+      ...d,
       popDensity,
       metro: metroFor(fips, county),
       demMargin: demMarginFor(name, county),
@@ -826,6 +910,51 @@ async function fetchState([fips, name]) {
   return [...byKey.values()];
 }
 
+// Fetch the macro state level: one ACS call for all states/DC, layered with the
+// state aggregates (vote-weighted margin, exposure-weighted FEMA, direct NCHS
+// homicide, summed land area). Same field schema as a place row, so the front-end
+// renders it through the identical pipeline. Temperatures are null — a statewide
+// average is climatologically meaningless, and is hidden in the UI at this level.
+async function fetchStates() {
+  const url = `https://api.census.gov/data/2023/acs/acs5?get=${ACS_VARS}&for=state:*&key=${CENSUS_KEY}`;
+  const rows = await fetchWithRetry(url, {
+    label: "state ACS",
+    parse: "json",
+    validate: b => Array.isArray(b) ? null : "unexpected (non-array) response",
+  });
+  const nameToFips = new Map(STATES.map(([f, n]) => [n, f]));
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const name = row[0]; // NAME is the bare state name for the state geography
+    if (!nameToFips.has(name)) continue; // skip Puerto Rico etc. (no tax engine / places)
+    const fips = nameToFips.get(name);
+    const d = acsDemographics(row);
+    const landSqMi = STATE_LAND_AREA ? STATE_LAND_AREA.get(fips) : null;
+    const popDensity = landSqMi && landSqMi > 0 ? Math.round(d.population / landSqMi) : null;
+    const nri = nriForState(name);
+    out.push({
+      name,
+      state: name,
+      ...d,
+      popDensity,
+      metro: null,
+      demMargin: demMarginForState(name),
+      femaHealthRate: nri.healthRate,
+      femaHealthPct: nri.healthPct,
+      femaHealthHazards: nri.healthHazards,
+      femaPropRate: nri.propRate,
+      femaPropPct: nri.propPct,
+      femaPropHazards: nri.propHazards,
+      homicideRate: homicideForState(name),
+      janTempF: null,
+      julTempF: null,
+    });
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
 async function main() {
   await loadPlaceToCounty();
   await loadCountyElection();
@@ -851,6 +980,9 @@ async function main() {
   }
   console.error(`Total places fetched: ${all.length}`);
   await loadClimate(all);
+  // Macro level: one row per state/DC, same schema, rendered by the same UI.
+  const stateRows = await fetchStates();
+  console.error(`Fetched ${stateRows.length} state rows (macro level).`);
   all.sort((a, b) => b.pctIndian - a.pctIndian);
   console.error(`Top 5 by % Asian Indian:`);
   all.slice(0, 5).forEach((p, i) => console.error(`  ${i + 1}. ${p.name}, ${p.state} — ${(p.pctIndian * 100).toFixed(1)}% Indian (pop ${p.population.toLocaleString()})`));
@@ -890,18 +1022,29 @@ async function main() {
     `//   julTempF        = July mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
     `// Includes Census Places + county subdivisions (townships/towns) for the 12 strong-MCD states.`,
     `// Population floor ${POP_FLOOR.toLocaleString("en-US")}; no demographic filter (users filter in-UI).`,
-    `// Loaded by index.html via <script src="data/places.js"></script>; declares global PLACES.`,
+    `// Loaded by index.html via <script src="data/places.js"></script>; declares globals`,
+    `// PLACES and STATE_ROWS (macro state level — one row per state/DC, same fields).`,
     `// Re-generate with: node scripts/fetch_places.mjs`,
     `const PLACES = [`,
   ];
   const num = v => (v === null || v === undefined ? "null" : v);
-  for (const p of filtered) {
+  const rowLiteral = p => {
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, femaHealthRate: ${num(p.femaHealthRate)}, femaHealthPct: ${num(p.femaHealthPct)}, femaHealthHazards: ${p.femaHealthHazards ? JSON.stringify(p.femaHealthHazards) : "null"}, femaPropRate: ${num(p.femaPropRate)}, femaPropPct: ${num(p.femaPropPct)}, femaPropHazards: ${p.femaPropHazards ? JSON.stringify(p.femaPropHazards) : "null"}, homicideRate: ${num(p.homicideRate)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
-  }
+    return `  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, femaHealthRate: ${num(p.femaHealthRate)}, femaHealthPct: ${num(p.femaHealthPct)}, femaHealthHazards: ${p.femaHealthHazards ? JSON.stringify(p.femaHealthHazards) : "null"}, femaPropRate: ${num(p.femaPropRate)}, femaPropPct: ${num(p.femaPropPct)}, femaPropHazards: ${p.femaPropHazards ? JSON.stringify(p.femaPropHazards) : "null"}, homicideRate: ${num(p.homicideRate)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`;
+  };
+  for (const p of filtered) lines.push(rowLiteral(p));
+  lines.push(`];`, ``);
+  // Macro level — one row per state/DC, identical fields to PLACES so the UI
+  // renders it through the same pipeline. State-level direct where possible
+  // (all demographics + true medians); demMargin is vote-weighted from counties,
+  // FEMA exposure-weighted from counties, homicide a direct NCHS state value,
+  // density = population / summed county land area. metro and temps are null.
+  lines.push(`// Macro level — one row per state/DC, same fields as PLACES. Loaded as STATE_ROWS.`);
+  lines.push(`const STATE_ROWS = [`);
+  for (const p of stateRows) lines.push(rowLiteral(p));
   lines.push(`];`, ``);
   writeFileSync(outPath, lines.join("\n"));
-  console.error(`Wrote ${outPath} (${filtered.length} places).`);
+  console.error(`Wrote ${outPath} (${filtered.length} places, ${stateRows.length} states).`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
