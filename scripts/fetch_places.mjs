@@ -367,6 +367,60 @@ function nriFor(stateName, county) {
   return COUNTY_NRI.get(`${stateName}|${county}`) || empty;
 }
 
+// Homicide death rate at the county level, keyed `${stateName}|${cleanCounty}` to
+// reuse the demMargin/FEMA county-name join. Source: County Health Rankings' national
+// analytic CSV, which packages NCHS's multiple-cause-of-death mortality files — the same
+// NCHS source CDC WONDER serves. (WONDER's API blocks all sub-national/county grouping
+// for confidentiality, so this CHR bundle is the reproducible path to county homicide
+// data.) Measure v015 = homicides, ICD-10 X85–Y09 (assault), deaths per 100k residents/
+// yr pooled over 2017–2023. Counties with fewer than 10 homicides in the period are
+// suppressed by NCHS → no entry → null. Firearm fatalities (v148) are deliberately not
+// used: ~55–60% are suicides nationally, a self-harm signal rather than a crime/safety one.
+let COUNTY_HOMICIDE = null;
+async function loadCountyHomicide() {
+  const url = "https://www.countyhealthrankings.org/sites/default/files/media/document/analytic_data2025_v3.csv";
+  const text = await fetchWithRetry(url, {
+    label: "County Health Rankings homicide",
+    // The CHR analytic CSV has two header rows: human labels (row 0) then short codes
+    // (row 1). Require the code row to carry the homicide column we key on.
+    validate: b => (b.split("\n", 2)[1] || "").includes("v015_rawvalue") ? null : "response missing v015_rawvalue column",
+  });
+  // CHR identifies geography by state FIPS; map to the full state name our join uses.
+  const fipsToState = new Map(STATES.map(([f, n]) => [f, n]));
+  const lines = text.replace(/\r/g, "").replace(/^﻿/, "").split("\n");
+  const code = lines[1].split(","); // row 1 = machine codes (statecode, countycode, v015_rawvalue…)
+  const iState  = code.indexOf("statecode");
+  const iCounty = code.indexOf("countycode");
+  const iName   = code.indexOf("county");
+  const iHom    = code.indexOf("v015_rawvalue");
+  if (iState < 0 || iCounty < 0 || iName < 0 || iHom < 0) {
+    throw new Error("CHR homicide: expected columns not found (schema changed?)");
+  }
+  const map = new Map();
+  for (let i = 2; i < lines.length; i++) {
+    if (!lines[i]) continue;
+    const parts = lines[i].split(",");
+    if (parts.length <= iHom) continue;
+    if (parts[iCounty] === "000") continue;             // skip the US + state-aggregate rows
+    const stateName = fipsToState.get(parts[iState]);
+    if (!stateName) continue;                           // territories etc. — no places in our set
+    const raw = parseFloat(parts[iHom]);
+    if (!Number.isFinite(raw)) continue;                // suppressed (<10 deaths) → absent
+    // Clean the county name with the SAME suffix regex as the place→county crosswalk so
+    // the keys match. ("Autauga County" → "Autauga"; CT "Capitol Planning Region" stays
+    // intact, matching the crosswalk's planning-region names.)
+    const county = parts[iName].replace(/ (County|Parish|Borough|Census Area|Municipality|city)$/i, "").trim();
+    map.set(`${stateName}|${county}`, +raw.toFixed(1));
+  }
+  COUNTY_HOMICIDE = map;
+  console.error(`Loaded county homicide rates: ${map.size} counties`);
+}
+function homicideFor(stateName, county) {
+  if (!county || !COUNTY_HOMICIDE) return null;
+  const v = COUNTY_HOMICIDE.get(`${stateName}|${county}`);
+  return v === undefined ? null : v;
+}
+
 async function loadPlaceToCounty() {
   const url = "https://www2.census.gov/geo/docs/reference/codes2020/national_place2020.txt";
   const res = await fetch(url);
@@ -716,6 +770,8 @@ async function fetchGeography(fips, name, geoQuery) {
     const popDensity = landSqMi && landSqMi > 0 ? Math.round(population / landSqMi) : null;
     // FEMA National Risk Index (county level), joined by county name like demMargin.
     const nri = nriFor(name, county);
+    // County homicide rate (NCHS via County Health Rankings), same county-name join.
+    const homicideRate = homicideFor(name, county);
     out.push({
       name: cleanName(rawName),
       state: name,
@@ -746,6 +802,7 @@ async function fetchGeography(fips, name, geoQuery) {
       femaPropRate: nri.propRate,
       femaPropPct: nri.propPct,
       femaPropHazards: nri.propHazards,
+      homicideRate,
       _lat: gaz ? gaz.lat : null,
       _lon: gaz ? gaz.lon : null,
     });
@@ -773,6 +830,7 @@ async function main() {
   await loadPlaceToCounty();
   await loadCountyElection();
   await loadCountyNRI();
+  await loadCountyHomicide();
   await loadLandArea();
   console.error(`Fetching ${STATES.length} states (population floor ${POP_FLOOR}, no demographic filter)...`);
   const all = [];
@@ -827,6 +885,7 @@ async function main() {
     `//   femaPropRate    = FEMA NRI building-loss rate: expected annual building loss per $100k of value (size-independent; county level)`,
     `//   femaPropPct     = national percentile (0–100) of femaPropRate (for color banding)`,
     `//   femaPropHazards = top 3 hazards by building (property) loss, "Name (Rating)", comma-joined`,
+    `//   homicideRate    = homicide deaths per 100k residents/yr (county level; NCHS 2017–2023 via County Health Rankings; null if <10 deaths / no join)`,
     `//   janTempF        = January mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
     `//   julTempF        = July mean temp, nearest-station 1991–2020 NOAA Climate Normal (°F)`,
     `// Includes Census Places + county subdivisions (townships/towns) for the 12 strong-MCD states.`,
@@ -838,7 +897,7 @@ async function main() {
   const num = v => (v === null || v === undefined ? "null" : v);
   for (const p of filtered) {
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, femaHealthRate: ${num(p.femaHealthRate)}, femaHealthPct: ${num(p.femaHealthPct)}, femaHealthHazards: ${p.femaHealthHazards ? JSON.stringify(p.femaHealthHazards) : "null"}, femaPropRate: ${num(p.femaPropRate)}, femaPropPct: ${num(p.femaPropPct)}, femaPropHazards: ${p.femaPropHazards ? JSON.stringify(p.femaPropHazards) : "null"}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
+    lines.push(`  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, femaHealthRate: ${num(p.femaHealthRate)}, femaHealthPct: ${num(p.femaHealthPct)}, femaHealthHazards: ${p.femaHealthHazards ? JSON.stringify(p.femaHealthHazards) : "null"}, femaPropRate: ${num(p.femaPropRate)}, femaPropPct: ${num(p.femaPropPct)}, femaPropHazards: ${p.femaPropHazards ? JSON.stringify(p.femaPropHazards) : "null"}, homicideRate: ${num(p.homicideRate)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`);
   }
   lines.push(`];`, ``);
   writeFileSync(outPath, lines.join("\n"));
