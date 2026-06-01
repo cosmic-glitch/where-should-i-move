@@ -1538,7 +1538,10 @@
     for (const k of placesVisibleCols) if (!hide.has(k)) s.add(k);
     return s;
   }
-  let renderVisibleCols = placesVisibleCols;
+  // Initialized empty; recomputed via computeVisibleCols() in render()/
+  // applyColumnLayout() before first use. (Can't reference placesVisibleCols
+  // here — it's declared further down and would be in the temporal dead zone.)
+  let renderVisibleCols = new Set();
   // Per-column numeric range filters for the places table.
   // Units: pop = raw count; pct* = percentage points (5 = 5%);
   // hhi/homeValue = thousands of dollars; tax columns = millions of dollars.
