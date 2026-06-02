@@ -48,6 +48,12 @@
 
   /* Header */
   header.masthead {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    column-gap: 14px;
+    row-gap: 2px;
+    position: relative;        /* anchors the About dropdown panel */
     padding: 22px 0 12px;
   }
   header.masthead h1 {
@@ -59,9 +65,10 @@
     color: var(--ink);
     cursor: pointer;
   }
-  /* The pitch is read once, so it's collapsed behind a small "About" toggle to
-     keep the table high on the page. <details> needs no JS and is accessible. */
-  .about { margin-top: 6px; }
+  /* "About" is an inline toggle beside the title — it costs horizontal space,
+     not a row. Opening it drops a floating panel below the header (absolutely
+     positioned, so it never reflows the inputs or table). <details> = no JS. */
+  .about { position: static; }
   .about > summary {
     display: inline-flex;
     align-items: center;
@@ -84,11 +91,20 @@
   .about[open] > summary::before { transform: rotate(90deg); }
   .about > summary:hover { color: var(--ink); }
   .about .dek {
-    margin: 10px 0 0;
+    position: absolute;
+    left: 0;
+    top: 100%;
+    z-index: 50;
+    margin: 0;
+    width: min(720px, calc(100vw - 32px));
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
     font-size: 14px;
     line-height: 1.55;
     color: var(--ink-2);
-    max-width: 760px;
   }
   /* Layout */
   main { padding: 0 0 80px; }
