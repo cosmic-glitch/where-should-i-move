@@ -48,55 +48,66 @@
 
   /* Header */
   header.masthead {
-    padding: 32px 0 20px;
+    padding: 22px 0 12px;
   }
   header.masthead h1 {
     font-weight: 600;
-    font-size: clamp(28px, 3.4vw, 36px);
+    font-size: clamp(26px, 3vw, 32px);
     line-height: 1.15;
     letter-spacing: -0.025em;
-    margin: 0 0 8px;
+    margin: 0;
     color: var(--ink);
     cursor: pointer;
   }
-  header.masthead .dek {
-    margin: 0;
+  /* The pitch is read once, so it's collapsed behind a small "About" toggle to
+     keep the table high on the page. <details> needs no JS and is accessible. */
+  .about { margin-top: 6px; }
+  .about > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: max-content;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-3);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  .about > summary::-webkit-details-marker { display: none; }
+  .about > summary::before {
+    content: "›";
     font-size: 15px;
-    line-height: 1.5;
+    line-height: 1;
+    transition: transform 0.15s;
+  }
+  .about[open] > summary::before { transform: rotate(90deg); }
+  .about > summary:hover { color: var(--ink); }
+  .about .dek {
+    margin: 10px 0 0;
+    font-size: 14px;
+    line-height: 1.55;
     color: var(--ink-2);
-    max-width: 1100px;
+    max-width: 760px;
   }
   /* Layout */
   main { padding: 0 0 80px; }
   @media (max-width: 960px) {
     .wrap { padding: 0 20px; }
-    header.masthead { padding: 40px 0 24px; }
+    header.masthead { padding: 26px 0 14px; }
   }
 
-  /* Input */
-  /* "Your scenario" — the global financial assumptions. They drive the tax math
-     at every level, so they sit above the level choice, set apart with an
-     eyebrow label as a distinct tier. */
-  .scenario { margin: 4px 0 30px; }
-  .scenario-eyebrow {
-    display: block;
-    margin: 0 0 12px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--ink-4);
-  }
+  /* Input — the global "your scenario" assumptions that drive the tax math. */
   .controls {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 20px;
-    margin-bottom: 0;   /* the .scenario wrapper owns the spacing below now */
+    gap: 8px 18px;
+    margin: 14px 0 16px;
   }
-  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .control-group { display: flex; flex-direction: column; gap: 4px; }
   .controls label {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--ink-3);
     text-transform: uppercase;
@@ -123,7 +134,7 @@
   }
   .controls input[type="number"] {
     width: 70px;
-    padding: 8px 6px;
+    padding: 6px 6px;
     background: transparent;
     border: none;
     font-family: inherit;
@@ -894,13 +905,14 @@
 
 <header class="masthead">
   <h1>Where should we move?</h1>
-  <p class="dek">Where you die matters. A $30M estate left to children in Washington owes $5M in state estate tax — move to one of 34 states and it drops to zero; in 8 of them, state income and capital-gains tax vanish too. The hard part is cutting that bill while landing somewhere you'd actually want to live: how the people there earn, learn, and vote. Compare the whole country on both at once — every state, or every city and town within one.</p>
+  <details class="about">
+    <summary>About this tool</summary>
+    <p class="dek">Where you die matters. A $30M estate left to children in Washington owes $5M in state estate tax — move to one of 34 states and it drops to zero; in 8 of them, state income and capital-gains tax vanish too. The hard part is cutting that bill while landing somewhere you'd actually want to live: how the people there earn, learn, and vote. Compare the whole country on both at once — every state, or every city and town within one.</p>
+  </details>
 </header>
 
 <main>
-  <div class="scenario">
-    <span class="scenario-eyebrow">Your scenario</span>
-    <div class="controls">
+  <div class="controls">
     <div class="control-group">
       <label for="years">Years at new place</label>
       <div class="input-wrap">
@@ -931,7 +943,6 @@
         <input type="number" id="net-worth" value="40" min="0" step="0.1" autocomplete="off"/>
         <span class="suffix">M</span>
       </div>
-    </div>
     </div>
   </div>
 
