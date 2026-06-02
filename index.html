@@ -49,9 +49,9 @@
   /* Header */
   header.masthead {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     flex-wrap: wrap;
-    column-gap: 14px;
+    column-gap: 10px;
     row-gap: 2px;
     position: relative;        /* anchors the About dropdown panel */
     padding: 22px 0 12px;
@@ -65,31 +65,24 @@
     color: var(--ink);
     cursor: pointer;
   }
-  /* "About" is an inline toggle beside the title — it costs horizontal space,
-     not a row. Opening it drops a floating panel below the header (absolutely
-     positioned, so it never reflows the inputs or table). <details> = no JS. */
+  /* "About" is an inline info-icon toggle beside the title — it costs horizontal
+     space, not a row. Opening it drops a floating panel below the header
+     (absolutely positioned, so it never reflows the inputs or table). <details>
+     = no JS, and the icon button stays keyboard-accessible. */
   .about { position: static; }
   .about > summary {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    width: max-content;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--ink-3);
+    color: var(--ink-4);
     cursor: pointer;
     list-style: none;
     user-select: none;
+    transition: color 0.12s;
   }
   .about > summary::-webkit-details-marker { display: none; }
-  .about > summary::before {
-    content: "›";
-    font-size: 15px;
-    line-height: 1;
-    transition: transform 0.15s;
-  }
-  .about[open] > summary::before { transform: rotate(90deg); }
-  .about > summary:hover { color: var(--ink); }
+  .about > summary:hover,
+  .about[open] > summary { color: var(--accent); }
+  .about-icon { display: block; }
   .about .dek {
     position: absolute;
     left: 0;
@@ -922,7 +915,7 @@
 <header class="masthead">
   <h1>Where should we move?</h1>
   <details class="about">
-    <summary>About this tool</summary>
+    <summary aria-label="About this tool" title="About this tool"><svg class="about-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></summary>
     <p class="dek">Where you die matters. A $30M estate left to children in Washington owes $5M in state estate tax — move to one of 34 states and it drops to zero; in 8 of them, state income and capital-gains tax vanish too. The hard part is cutting that bill while landing somewhere you'd actually enjoy living in: its education levels, political slant, affluence, weather, and safety. Compare the whole country on both at once — every state, or every city and town within one.</p>
   </details>
 </header>
