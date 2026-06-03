@@ -334,7 +334,7 @@
   .pill.inheritance { background: #fff7ed; color: var(--warn); }
 
   /* Section heading (between tables) */
-  /* Result summary — lives on the left of the table toolbar. */
+  /* Result summary — follows the controls in the table toolbar. */
   .places-summary {
     margin: 0;
     font-size: 14px;
@@ -382,9 +382,9 @@
     overflow-y: visible;
   }
 
-  /* Table toolbar — the card's top strip: result summary on the left, the
-     within-level controls (presets, columns, clear) pushed to the right. It
-     caps the table card; its top border is overlapped by the active tab. */
+  /* Table toolbar — the card's top strip: the within-level controls (presets,
+     columns, clear) on the left so they stay anchored, result summary after
+     them. It caps the table card; its top border is overlapped by the active tab. */
   .table-toolbar {
     display: flex;
     align-items: center;
@@ -402,8 +402,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: 6px;               /* sit right after the summary, not far right */
-    flex-shrink: 0;
+    flex-shrink: 0;                 /* buttons first, so they stay left-aligned; summary follows */
   }
 
   /* Level tabs — the macro choice you make first. Styled as folder tabs sitting
@@ -963,7 +962,6 @@
       <button type="button" class="gran-btn level-tab" data-gran="states" role="tab" aria-selected="false">States</button>
     </div>
     <div class="table-toolbar">
-      <p class="places-summary" id="places-subtitle"></p>
       <div class="toolbar-actions">
         <div class="filters-bar">
       <button id="presets-toggle" class="filters-btn" type="button"
@@ -996,6 +994,7 @@
           <span>Clear filters</span>
         </button>
       </div>
+      <p class="places-summary" id="places-subtitle"></p>
     </div>
   <div class="table-shell places">
     <div class="table-scroll">
