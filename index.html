@@ -1811,8 +1811,15 @@
   const elClearFiltersBtn = document.getElementById("clear-filters-btn");
   elClearFiltersBtn.addEventListener("click", clearAllFilters);
 
-  // Clicking the page title acts as a "home" reset — clears all filters.
-  document.querySelector("header.masthead h1").addEventListener("click", clearAllFilters);
+  // Clicking the page title acts as a "home" reset — strip every URL parameter
+  // and reload into the all-defaults state (inputs, sort, filters, search,
+  // granularity, drill, and column visibility all encode into the URL, so
+  // navigating to the bare path is the one move that resets all of them).
+  document.querySelector("header.masthead h1").addEventListener("click", () => {
+    if (window.location.search || window.location.hash) {
+      window.location.href = window.location.pathname;
+    }
+  });
 
   // ────────────────────────────────────────────────────────────────────────
   //  Per-column chip filters (Option C).
