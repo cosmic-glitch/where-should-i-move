@@ -2070,17 +2070,9 @@
   const TOGGLEABLE_COLS = COL_DEFS.filter(c => !c.always).map(c => c.key);
   const DEFAULT_HIDDEN_COLS = COL_DEFS.filter(c => c.defaultHidden).map(c => c.key);
   const placesVisibleCols = new Set(COL_DEFS.map(c => c.key));
-  // Default-hidden columns are removed at init; URL/localStorage state may re-add them.
+  // Default-hidden columns are removed at init; URL state may re-add them.
   for (const k of DEFAULT_HIDDEN_COLS) placesVisibleCols.delete(k);
 
-  // Column visibility persists to localStorage so a fresh tab (no ?hc= in the URL)
-  // restores the last selection. Stored value mirrors the `hc` param format: a
-  // sorted, comma-joined list of hidden toggleable column keys ("" = all visible).
-  const COLS_STORAGE_KEY = "wsim:hiddenCols";
-  function persistColumns() {
-    const hidden = TOGGLEABLE_COLS.filter(k => !placesVisibleCols.has(k)).slice().sort().join(",");
-    try { localStorage.setItem(COLS_STORAGE_KEY, hidden); } catch { /* private mode, etc. */ }
-  }
   // Apply a hidden-columns spec (comma-joined keys, possibly "") to placesVisibleCols.
   function applyHiddenSpec(spec) {
     for (const k of TOGGLEABLE_COLS) placesVisibleCols.add(k);
@@ -2248,7 +2240,6 @@
         const key = cb.dataset.colCheckbox;
         if (cb.checked) placesVisibleCols.add(key);
         else placesVisibleCols.delete(key);
-        persistColumns();
         applyColumnLayout();
         refreshColumnsChrome();
         render();
@@ -2270,7 +2261,6 @@
   elColumnsToggle.addEventListener("click", () => elColumnsPopover.hidden ? openColumns() : closeColumns());
   elColumnsReset.addEventListener("click", () => {
     for (const k of TOGGLEABLE_COLS) placesVisibleCols.add(k);
-    persistColumns();
     applyColumnLayout();
     refreshColumnsChrome();
     render();
@@ -2851,19 +2841,16 @@
     // Column visibility is hydrated separately by hydrateColumns().
   }
 
-  // Restore column visibility. Precedence: URL hc=… (present, even empty) wins, so
-  // shared/bookmarked links are honored; otherwise the localStorage preference;
-  // otherwise the COL_DEFS default-hidden set. Runs regardless of other URL params.
+  // Restore column visibility. A URL hc=… (present, even empty) wins so shared/
+  // bookmarked links are honored; otherwise we keep the COL_DEFS default set.
+  // No cross-session persistence — a fresh tab always starts from the defaults.
   function hydrateColumns() {
     const sp = new URLSearchParams(window.location.search);
-    let spec = sp.get("hc");
-    if (spec === null) {
-      try { spec = localStorage.getItem(COLS_STORAGE_KEY); } catch { spec = null; }
-    }
+    const spec = sp.get("hc");
     if (spec !== null) applyHiddenSpec(spec);
   }
 
-  // A shared URL may filter on a column that hc=/localStorage leaves hidden.
+  // A shared URL may filter on a column that hc= leaves hidden.
   // Run after hydrateColumns() so the filter the link encodes is actually shown.
   function revealFilteredColumns() {
     for (const col of FILTER_COLS) {
