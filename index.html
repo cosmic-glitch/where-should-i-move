@@ -679,6 +679,10 @@
 
   /* Presets popover — narrower; vertical list of description rows */
   .presets-popover { width: 480px; padding: 8px; }
+  #presets-list {
+    overflow-y: auto;               /* scroll the list inside the popover's max-height */
+    min-height: 0;                  /* allow the flex child to shrink so it can scroll */
+  }
   .preset-item {
     display: flex;
     align-items: flex-start;
@@ -787,6 +791,8 @@
   .columns-grid {
     display: flex;
     flex-direction: column;
+    overflow-y: auto;               /* scroll the list inside the popover's max-height */
+    min-height: 0;                  /* allow the flex child to shrink so it can scroll */
   }
   .column-item {
     display: grid;
@@ -828,6 +834,7 @@
     margin-top: 6px;
     padding-top: 8px;
     border-top: 1px solid var(--border);
+    flex-shrink: 0;                 /* keep the footer pinned while the grid scrolls */
   }
   .columns-reset {
     padding: 5px 10px;
