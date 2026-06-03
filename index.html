@@ -69,20 +69,24 @@
      space, not a row. Opening it drops a floating panel below the header
      (absolutely positioned, so it never reflows the inputs or table). <details>
      = no JS, and the icon button stays keyboard-accessible. */
-  .about { position: static; }
+  .about { position: static; align-self: center; display: inline-flex; }
   .about > summary {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
     color: var(--ink-4);
     cursor: pointer;
     list-style: none;
     user-select: none;
-    transition: color 0.12s;
+    transition: color 0.12s, background 0.12s;
   }
   .about > summary::-webkit-details-marker { display: none; }
   .about > summary:hover,
-  .about[open] > summary { color: var(--accent); }
-  .about-icon { display: block; }
+  .about[open] > summary { color: var(--accent); background: var(--accent-soft); }
+  .about-icon { display: block; width: 18px; height: 18px; }
   .about .dek {
     position: absolute;
     left: 0;
@@ -1819,6 +1823,16 @@
     if (window.location.search || window.location.hash) {
       window.location.href = window.location.pathname;
     }
+  });
+
+  // The "About" info popover is a native <details>; dismiss it on an outside
+  // click or Escape (clicking the icon again still toggles it natively).
+  const elAbout = document.querySelector("details.about");
+  document.addEventListener("click", e => {
+    if (elAbout.open && !e.target.closest("details.about")) elAbout.open = false;
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && elAbout.open) elAbout.open = false;
   });
 
   // ────────────────────────────────────────────────────────────────────────
