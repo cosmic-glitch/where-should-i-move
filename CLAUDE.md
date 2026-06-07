@@ -16,6 +16,8 @@ The page is **one table with a two-level granularity switch** — a `[ Places | 
 
 Don't test or verify changes proactively. The user does manual testing in their own browser. Do not spin up a local web server, do not use Playwright/MCP browser tools, do not screenshot, and do not exercise filters/sorts/UI flows after editing — even to "sanity-check" the change. Make the edit, optionally run the JS-parse sanity-check below if non-trivial JS changed, and stop. Only run any kind of verification (dev server, browser, end-to-end clicks) when the user explicitly asks.
 
+**Commit and push after any logical change without being asked.** This site is essentially single-user (the user) and deploys to production on push — we test in production. So once a requested change is made, `git add` the relevant files (not stray untracked files like screenshots or `.playwright-mcp/`), commit, and push, all without prompting for permission. The auto-push applies to substantive/logical edits; skip it for throwaway experiments or when the user says otherwise.
+
 ## Commands
 
 - **Run the app**: `open index.html` (no server needed — `<script src="data/places.js">` works under `file://` because the data file is plain JS, not JSON-via-fetch).
