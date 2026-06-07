@@ -1032,6 +1032,7 @@
       <div class="col-num" data-sort="asianMedianHHI">Asian HHI<span class="arrow"></span><span class="info-tooltip">Median household income for households with an <strong>Asian-alone householder</strong> (Census variable B19013D_001E). Distinguishes places where the Asian community itself is affluent (Saratoga, Short Hills) from places with a working-class Asian population. ACS suppresses this estimate when the Asian-household sample is too small, shown as "—". Source: U.S. Census ACS 5-year 2023.</span></div>
       <div class="col-num col-bach" data-sort="pctBach">%Bach+<span class="arrow"></span><span class="info-tooltip">Share of adults age 25+ holding a <strong>bachelor's degree or higher</strong> (B.A., M.A., professional, or doctoral). Sum of Census variables B15003_022E through B15003_025E divided by B15003_001E. Source: U.S. Census ACS 5-year 2023.</span></div>
       <div class="col-num col-200k" data-sort="pct200k">%$200k+<span class="arrow"></span><span class="info-tooltip">Share of households with annual income of <strong>$200,000 or more</strong> — the top bracket of Census table B19001. A density-of-high-earners signal that complements median HHI, which compresses the upper tail. Source: U.S. Census ACS 5-year 2023.</span></div>
+      <div class="col-num" data-sort="top5">Top 5% inc<span class="arrow"></span><span class="info-tooltip"><strong>Average (mean) household income of the top 5% of households</strong> (Census table B19081, variable B19081_006E). The mean income within the richest 5% of local households, so it tracks the very top of the income distribution — well above median HHI, which compresses the upper tail. Frequently exceeds $1M in the wealthiest places. ACS-suppressed for some small places, shown as "—". Source: U.S. Census ACS 5-year 2023.</span></div>
       <div class="col-num" data-sort="pctPoverty">%Poverty<span class="arrow"></span><span class="info-tooltip">Share of people whose income in the past 12 months was below the federal poverty line (Census variables B17001_002E / B17001_001E). Source: U.S. Census ACS 5-year 2023.</span></div>
       <div class="col-num" data-sort="pctHomeowner">%Owner<span class="arrow"></span><span class="info-tooltip">Share of occupied housing units that are <strong>owner-occupied</strong> (Census variables B25003_002E / B25003_001E). Owner-heavy places skew toward established family suburbs; renter-heavy places skew toward college towns and young-professional urban cores. Source: U.S. Census ACS 5-year 2023.</span></div>
       <div class="col-num col-home" data-sort="homeValue">Home<span class="arrow"></span><span class="info-tooltip"><strong>Median value of owner-occupied housing units</strong> (B25077_001E) — a quick proxy for the cost of buying a typical home in the place. Self-reported by owners; reflects the existing housing stock, not current listing prices, so it lags transaction markets. Source: U.S. Census ACS 5-year 2023.</span></div>
@@ -1609,7 +1610,7 @@
   let placesSearch = "";
   let elPlacesSearch = null;
   let searchTimer = null;
-  let placesSortBy = "pctIndian"; // 'name' | 'state' | 'metro' | 'pop' | 'pctIndian' | 'demMargin' | 'femaHealth' | 'femaProp' | 'homicide' | 'hhi' | 'pctBach' | 'pct200k' | 'homeValue' | 'death' | 'income' | 'capgains' | 'total'
+  let placesSortBy = "pctIndian"; // 'name' | 'state' | 'metro' | 'pop' | 'pctIndian' | 'demMargin' | 'femaHealth' | 'femaProp' | 'homicide' | 'hhi' | 'pctBach' | 'pct200k' | 'top5' | 'homeValue' | 'death' | 'income' | 'capgains' | 'total'
   let placesSortDir = "desc";
 
   // ── Granularity: which set of rows the table renders ──────────────────────
@@ -1659,6 +1660,7 @@
     asianMedianHHI: { min: null, max: null },
     pctBach:        { min: null, max: null },
     pct200k:        { min: null, max: null },
+    top5:           { min: null, max: null },
     pctPoverty:     { min: null, max: null },
     pctHomeowner:   { min: null, max: null },
     homeValue:      { min: null, max: null },
@@ -1871,6 +1873,7 @@
     asianMedianHHI: { min: 'Min $k',     max: 'Max $k',     fmt: v => '$' + v + 'k' },
     pctBach:        { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
     pct200k:        { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
+    top5:           { min: 'Min $k',     max: 'Max $k',     fmt: v => '$' + v + 'k' },
     pctPoverty:     { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
     pctHomeowner:   { min: 'Min %',      max: 'Max %',      fmt: v => v + '%' },
     homeValue:      { min: 'Min $k',     max: 'Max $k',     fmt: v => '$' + v + 'k' },
@@ -1906,6 +1909,7 @@
     asianMedianHHI: "Asian household HHI",
     pctBach:        "% Bachelor's Degree",
     pct200k:        "% earning $200k+",
+    top5:           "top-5% avg income",
     pctPoverty:     "% in poverty",
     pctHomeowner:   "% homeownership",
     homeValue:      "Median home value",
@@ -2080,6 +2084,7 @@
     { key: 'asianMedianHHI', label: 'Asian HHI',  always: false, dW: '92px',                  mW: '78px',                  dMin: 92,  mMin: 78,  defaultHidden: true, desc: 'Median HHI, Asian householder' },
     { key: 'pctBach',        label: '%Bach+',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  desc: "Bachelor's degree or higher" },
     { key: 'pct200k',        label: '%$200k+',    always: false, dW: '80px',                  mW: '64px',                  dMin: 80,  mMin: 64,  desc: 'Households earning $200k+' },
+    { key: 'top5',           label: 'Top 5% inc', always: false, dW: '96px',                  mW: '80px',                  dMin: 96,  mMin: 80,  defaultHidden: true, desc: 'Avg income of the top 5% of households' },
     { key: 'pctPoverty',     label: '%Poverty',   always: false, dW: '82px',                  mW: '66px',                  dMin: 82,  mMin: 66,  defaultHidden: true, desc: 'Residents below the poverty line' },
     { key: 'pctHomeowner',   label: '%Owner',     always: false, dW: '78px',                  mW: '64px',                  dMin: 78,  mMin: 64,  defaultHidden: true, desc: 'Owner-occupied homes' },
     { key: 'homeValue',      label: 'Home',       always: false, dW: '92px',                  mW: '76px',                  dMin: 92,  mMin: 76,  desc: 'Median home value' },
@@ -2228,6 +2233,7 @@
     asianMedianHHI: (p, c) => `<div class="num-col" style="color:var(--ink-2)">${c.asianHhiDisplay}</div>`,
     pctBach:        (p, c) => `<div class="num-col bach-col" style="color:var(--ink-2)">${c.bachDisplay}</div>`,
     pct200k:        (p, c) => `<div class="num-col twohk-col" style="color:var(--ink-2)">${c.twohkDisplay}</div>`,
+    top5:           (p, c) => `<div class="num-col" style="color:var(--ink-2)">${c.top5Display}</div>`,
     pctPoverty:     (p)    => `<div class="num-col" style="color:var(--ink-2)">${p.pctPoverty == null ? "—" : Math.round(p.pctPoverty * 100) + "%"}</div>`,
     pctHomeowner:   (p, c) => `<div class="num-col" style="color:var(--ink-2)">${c.ownerDisplay}</div>`,
     homeValue:      (p, c) => `<div class="num-col home-col" style="color:var(--ink-2)">${c.homeDisplay}</div>`,
@@ -2482,6 +2488,7 @@
     pushRange("asianMedianHHI", fmtK, "Asian-household median HHI");
     pushRange("pctBach", fmtPctVal, "bachelor's-degree share");
     pushRange("pct200k", fmtPctVal, "share earning $200k+");
+    pushRange("top5", fmtK, "top-5% income");
     pushRange("pctPoverty", fmtPctVal, "poverty rate");
     pushRange("pctHomeowner", fmtPctVal, "homeownership rate");
     pushRange("homeValue", fmtK, "median home value");
@@ -2622,6 +2629,10 @@
       const twohkPct = p.pct200k == null ? null : p.pct200k * 100;
       if (f.pct200k.min !== null && (twohkPct === null || twohkPct < f.pct200k.min)) return false;
       if (f.pct200k.max !== null && (twohkPct === null || twohkPct > f.pct200k.max)) return false;
+      // Top-5% mean income filter in $k (excludes Census-suppressed entries when bounded).
+      const top5K = p.incomeTop5 == null ? null : p.incomeTop5 / 1000;
+      if (f.top5.min !== null && (top5K === null || top5K < f.top5.min)) return false;
+      if (f.top5.max !== null && (top5K === null || top5K > f.top5.max)) return false;
       const povPct = p.pctPoverty == null ? null : p.pctPoverty * 100;
       if (f.pctPoverty.min !== null && (povPct === null || povPct < f.pctPoverty.min)) return false;
       if (f.pctPoverty.max !== null && (povPct === null || povPct > f.pctPoverty.max)) return false;
@@ -2651,7 +2662,7 @@
 
     const anyFilter = searchTokens.length > 0 || Object.values(f).some(r => r.min !== null || r.max !== null);
 
-    const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", popDensity: "popDensity", janTempF: "janTempF", julTempF: "julTempF", pctIndian: "pctIndian", pctAsian: "pctAsian", pctForeignBorn: "pctForeignBorn", pctHispanic: "pctHispanic", pctBlack: "pctBlack", pctWhite: "pctWhite", medianAge: "medianAge", demMargin: "demMargin", femaHealth: "femaHealthRate", femaProp: "femaPropRate", homicide: "homicideRate", hhi: "medianHHI", asianMedianHHI: "asianMedianHHI", pctBach: "pctBach", pct200k: "pct200k", pctPoverty: "pctPoverty", pctHomeowner: "pctHomeowner", homeValue: "medianHomeValue", death: "deathTax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
+    const placeKey = { name: "name", state: "state", metro: "metro", pop: "population", popDensity: "popDensity", janTempF: "janTempF", julTempF: "julTempF", pctIndian: "pctIndian", pctAsian: "pctAsian", pctForeignBorn: "pctForeignBorn", pctHispanic: "pctHispanic", pctBlack: "pctBlack", pctWhite: "pctWhite", medianAge: "medianAge", demMargin: "demMargin", femaHealth: "femaHealthRate", femaProp: "femaPropRate", homicide: "homicideRate", hhi: "medianHHI", asianMedianHHI: "asianMedianHHI", pctBach: "pctBach", pct200k: "pct200k", top5: "incomeTop5", pctPoverty: "pctPoverty", pctHomeowner: "pctHomeowner", homeValue: "medianHomeValue", death: "deathTax", income: "incomeTax", capgains: "capGainsTax", total: "total" };
     const pk = placeKey[placesSortBy];
     if (placesSortBy === "name" || placesSortBy === "state" || placesSortBy === "metro") {
       placeRows.sort((a, b) => (a[pk] || "~").localeCompare(b[pk] || "~") || a.name.localeCompare(b.name));
@@ -2733,6 +2744,9 @@
       : "$" + Math.round(homeVal / 1000) + "k";
     const bachDisplay = p.pctBach == null ? "—" : Math.round(p.pctBach * 100) + "%";
     const twohkDisplay = p.pct200k == null ? "—" : Math.round(p.pct200k * 100) + "%";
+    const top5Display = p.incomeTop5 == null ? "—"
+      : p.incomeTop5 >= 1_000_000 ? "$" + (p.incomeTop5 / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
+      : "$" + Math.round(p.incomeTop5 / 1000) + "k";
     const asianDisplay = p.pctAsian == null ? "—" : (p.pctAsian * 100).toFixed(1) + "%";
     const fbornDisplay = p.pctForeignBorn == null ? "—" : Math.round(p.pctForeignBorn * 100) + "%";
     const ageDisplay = p.medianAge == null ? "—" : Math.round(p.medianAge);
@@ -2742,7 +2756,7 @@
       : asianHhi >= 1_000_000 ? "$" + (asianHhi / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
       : "$" + Math.round(asianHhi / 1000) + "k";
     const densityDisplay = p.popDensity == null ? "—" : p.popDensity.toLocaleString();
-    const ctx = { isFree, hhiDisplay, homeDisplay, bachDisplay, twohkDisplay,
+    const ctx = { isFree, hhiDisplay, homeDisplay, bachDisplay, twohkDisplay, top5Display,
                   asianDisplay, fbornDisplay, ageDisplay, ownerDisplay, asianHhiDisplay, densityDisplay };
     const cells = COL_DEFS
       .filter(c => renderVisibleCols.has(c.key))

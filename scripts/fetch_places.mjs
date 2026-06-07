@@ -15,6 +15,7 @@
 //   B15003_001E / _022..025E — educational attainment for population 25+: total / bachelor's,
 //                              master's, professional, doctoral. % Bach+ = sum(22..25)/01.
 //   B19001_001E / _017E — household income distribution: total HHs / HHs earning $200k+.
+//   B19081_006E — mean household income of the top 5 percent of households.
 //
 // Run:  node scripts/fetch_places.mjs
 //   Writes the regenerated dataset to ../data/places.js (relative to this script).
@@ -753,6 +754,7 @@ const ACS_VARS = [
   "B03002_012E", // Hispanic or Latino (of any race)
   "B17001_001E", // population for whom poverty status is determined
   "B17001_002E", // income in the past 12 months below the poverty level
+  "B19081_006E", // mean household income of the top 5 percent of households
 ].join(",");
 
 // Compute the demographic fields shared by every ACS geography (place, county
@@ -772,6 +774,7 @@ function acsDemographics(row) {
     asianHhiStr,
     raceTotalStr, whiteStr, blackStr, hispanicStr,
     povTotalStr, povBelowStr,
+    top5Str,
   ] = row;
   const population = parseInt(popStr, 10);
   const indian = parseInt(indianStr, 10);
@@ -796,6 +799,7 @@ function acsDemographics(row) {
   const hispanic = parseInt(hispanicStr, 10);
   const povTotal = parseInt(povTotalStr, 10);
   const povBelow = parseInt(povBelowStr, 10);
+  const incomeTop5 = parseInt(top5Str, 10);
   const pop = Number.isFinite(population) && population > 0 ? population : null;
   const raceShare = n => Number.isFinite(raceTotal) && raceTotal > 0 && Number.isFinite(n) && n >= 0
     ? +(n / raceTotal).toFixed(4) : null;
@@ -831,6 +835,8 @@ function acsDemographics(row) {
       ? +(tenOwner / tenTotal).toFixed(4) : null,
     // Asian-alone-householder median HHI (suppressed for small N).
     asianMedianHHI: Number.isFinite(asianHhi) && asianHhi > 0 ? asianHhi : null,
+    // Mean household income of the top 5% of households (B19081_006E).
+    incomeTop5: Number.isFinite(incomeTop5) && incomeTop5 > 0 ? incomeTop5 : null,
   };
 }
 
@@ -1001,6 +1007,7 @@ async function main() {
     `//   medianHomeValue = B25077_001E`,
     `//   pctBach         = sum(B15003_022..025E) / B15003_001E`,
     `//   pct200k         = B19001_017E / B19001_001E`,
+    `//   incomeTop5      = B19081_006E   (mean household income of the top 5% of households)`,
     `//   pctForeignBorn  = B05012_003E / B05012_001E`,
     `//   pctHispanic     = B03002_012E / B03002_001E   (Hispanic or Latino, any race)`,
     `//   pctBlack        = B03002_004E / B03002_001E   (Black alone, non-Hispanic)`,
@@ -1030,7 +1037,7 @@ async function main() {
   const num = v => (v === null || v === undefined ? "null" : v);
   const rowLiteral = p => {
     const metro = p.metro ? JSON.stringify(p.metro) : "null";
-    return `  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, femaHealthRate: ${num(p.femaHealthRate)}, femaHealthPct: ${num(p.femaHealthPct)}, femaHealthHazards: ${p.femaHealthHazards ? JSON.stringify(p.femaHealthHazards) : "null"}, femaPropRate: ${num(p.femaPropRate)}, femaPropPct: ${num(p.femaPropPct)}, femaPropHazards: ${p.femaPropHazards ? JSON.stringify(p.femaPropHazards) : "null"}, homicideRate: ${num(p.homicideRate)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`;
+    return `  { name: ${JSON.stringify(p.name)}, state: ${JSON.stringify(p.state)}, metro: ${metro}, population: ${p.population}, pctIndian: ${p.pctIndian}, pctAsian: ${num(p.pctAsian)}, medianHHI: ${num(p.medianHHI)}, medianHomeValue: ${num(p.medianHomeValue)}, pctBach: ${num(p.pctBach)}, pct200k: ${num(p.pct200k)}, incomeTop5: ${num(p.incomeTop5)}, pctForeignBorn: ${num(p.pctForeignBorn)}, pctHispanic: ${num(p.pctHispanic)}, pctBlack: ${num(p.pctBlack)}, pctWhite: ${num(p.pctWhite)}, pctPoverty: ${num(p.pctPoverty)}, medianAge: ${num(p.medianAge)}, pctHomeowner: ${num(p.pctHomeowner)}, asianMedianHHI: ${num(p.asianMedianHHI)}, popDensity: ${num(p.popDensity)}, demMargin: ${num(p.demMargin)}, femaHealthRate: ${num(p.femaHealthRate)}, femaHealthPct: ${num(p.femaHealthPct)}, femaHealthHazards: ${p.femaHealthHazards ? JSON.stringify(p.femaHealthHazards) : "null"}, femaPropRate: ${num(p.femaPropRate)}, femaPropPct: ${num(p.femaPropPct)}, femaPropHazards: ${p.femaPropHazards ? JSON.stringify(p.femaPropHazards) : "null"}, homicideRate: ${num(p.homicideRate)}, janTempF: ${num(p.janTempF)}, julTempF: ${num(p.julTempF)} },`;
   };
   for (const p of filtered) lines.push(rowLiteral(p));
   lines.push(`];`, ``);
