@@ -301,15 +301,15 @@
     white-space: normal;
     opacity: 0;
     transform: translateY(-4px);
-    /* pointer-events:none keeps the portal from intercepting mouseenter on the
-       header *behind* it while invisible; flipped to auto in .visible so the
-       cursor can land on it (read long text) and select text for copy/paste. */
+    /* pointer-events stays none even when visible: the tooltip sits directly
+       below the header, on top of that column's filter button, so it must never
+       intercept the cursor or clicks. The cursor passing through it on the way
+       to the filter button neither keeps it alive nor blocks the click. */
     pointer-events: none;
     transition: opacity 0.14s, transform 0.14s;
   }
   .info-tooltip-portal.visible {
     opacity: 1;
-    pointer-events: auto;
     transform: translateY(0);
   }
   .info-tooltip-portal strong { color: var(--ink); font-weight: 600; }
@@ -1742,15 +1742,16 @@
   // ── Column-header info tooltip (portal) ───────────────────────────────────
   // The tooltip box is rendered into <body> as a single shared element with
   // position:fixed, so it can't be clipped by .table-shell's overflow:hidden
-  // or by the .table-scroll wrapper. A short hide-timer bridges the gap
-  // between header and tooltip so the cursor can land on the tooltip itself
-  // (needed to read long descriptions and to select text for copy-paste).
+  // or by the .table-scroll wrapper. It is purely a hover hint: it shows while
+  // the cursor is over the header and hides the instant the cursor leaves it.
+  // The tooltip is non-interactive (pointer-events:none) and is NOT itself
+  // hoverable — it sits over the column's filter button, so keeping it alive
+  // while the cursor crosses it would block reaching that button.
   const ttPortal = document.createElement("div");
   ttPortal.className = "info-tooltip-portal";
   ttPortal.setAttribute("role", "tooltip");
   document.body.appendChild(ttPortal);
   let ttCurrentHeader = null;
-  let ttHideTimer = 0;
   function ttPosition() {
     if (!ttCurrentHeader) return;
     const r = ttCurrentHeader.getBoundingClientRect();
@@ -1772,7 +1773,6 @@
   function ttShow(h) {
     const src = h.querySelector(".info-tooltip");
     if (!src) return;
-    clearTimeout(ttHideTimer);
     ttPortal.innerHTML = src.innerHTML;
     ttCurrentHeader = h;
     ttPortal.classList.add("visible");
@@ -1785,16 +1785,10 @@
     ttPortal.classList.remove("visible");
     ttCurrentHeader = null;
   }
-  function ttHideSoon() {
-    clearTimeout(ttHideTimer);
-    ttHideTimer = setTimeout(ttHide, 120);
-  }
   elPlacesHeaders.querySelectorAll("[data-sort]").forEach(h => {
     h.addEventListener("mouseenter", () => ttShow(h));
-    h.addEventListener("mouseleave", ttHideSoon);
+    h.addEventListener("mouseleave", ttHide);
   });
-  ttPortal.addEventListener("mouseenter", () => clearTimeout(ttHideTimer));
-  ttPortal.addEventListener("mouseleave", ttHideSoon);
   // The portal is position:fixed — it doesn't track the header on scroll or
   // resize, so just dismiss in those cases (user can re-hover).
   document.addEventListener("keydown", e => { if (e.key === "Escape") ttHide(); });
